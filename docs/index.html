@@ -740,7 +740,7 @@ function renderPFUS(main, slot){
     rows.forEach((r,i)=>{ const c=(r.c||'').toUpperCase(); const v=(+r.n||0)*price(r); const role=r.r||auto(c); S[role]+=v; (by[role]=by[role]||[]).push({c,v,px:price(r)}); const x=vcs.find(z=>z[0]===i); if(x) x[1].textContent=v?N(v):'—'; });
     out.textContent='';
     const T=S.ul+S.ub+S.up; const all=T+S.uo;
-    if(!all && !(+cfg.sal>0)){ out.append(el('p',{class:'muted'},L('在左邊輸入持股後，這裡會算出目前比例和燈號出現時要買賣多少。','Enter your holdings on the left to see your current mix and what to trade when a signal fires.'))); return; }
+    if(!all && !(+cfg.sal>0)){ out.append(el('p',{class:'muted'},(slot?L('在下方輸入持股，或在上面填本月可投入金額，這裡會算出要買賣多少。','Enter your holdings below, or this month\'s amount above, to see what to buy or sell.'):L('在左邊輸入持股後，這裡會算出目前比例和燈號出現時要買賣多少。','Enter your holdings on the left to see your current mix and what to trade when a signal fires.')))); return; }
     const US=DATA.us, base=US.base, st=US.state;
     if(all) out.append(el('div',{class:'eyebrow',style:'margin-top:6px'},L(`總市值 ${N(all)} ${CUR}`,`Total ${N(all)} ${CUR}`)));
     if(S.ul+S.ub){ const w_=S.ul/(S.ul+S.ub); const b=el('div',{class:'bar'}); b.append(el('i',{class:'lev',style:`width:${w_*100}%`}), el('i',{class:'bul',style:`width:${(1-w_)*100}%`})); out.append(el('div',{class:'pf-bar'}, el('span',{class:'muted'},`${LEV}／${BUL}`), b, el('span',{class:'num'},`${pct(w_)} / ${pct(1-w_)}`))); }
