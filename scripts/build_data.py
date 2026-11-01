@@ -266,6 +266,29 @@ for tk, nm in PF_TICKERS.items():
     except Exception:
         pass
 prices_doc = {"date": px_date, "p": {k: [v["name"], v["close"]] for k, v in prices.items()}}
+# 朋友版：歐洲上市常見標的（Yahoo Finance），統一換算成歐元
+def yahoo_close(sym):
+    j = json.loads(get(f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=5d&interval=1d", tries=3))
+    r = j["chart"]["result"][0]; cur = r["meta"].get("currency")
+    closes = [c for c in r["indicators"]["quote"][0]["close"] if c]
+    px_ = closes[-1] if closes else r["meta"].get("regularMarketPrice")
+    if cur == "GBp": px_, cur = px_ / 100, "GBP"
+    return float(px_), cur
+eprices = {}
+try:
+    fx = {"EUR": 1.0}
+    fx["USD"] = 1 / yahoo_close("EURUSD=X")[0]
+    fx["GBP"] = 1 / yahoo_close("EURGBP=X")[0]
+    for code, sym in [("LQQ", "LQQ.PA"), ("IB01", "IB01.L"), ("XEON", "XEON.DE"), ("EQQQ", "EQQQ.DE"), ("SXRV", "SXRV.DE"),
+                      ("CNDX", "CNDX.L"), ("CSPX", "CSPX.L"), ("VUAA", "VUAA.DE"), ("ZPR1", "ZPR1.DE"), ("ERNE", "ERNE.L")]:
+        try:
+            v, cur = yahoo_close(sym)
+            if cur in fx: eprices[code] = [code, round(v * fx[cur], 4)]
+        except Exception:
+            pass
+    src_status["Yahoo 歐洲 ETF"] = "ok" if eprices else "失敗: 無資料"
+except Exception as e:
+    src_status["Yahoo 歐洲 ETF"] = f"失敗: {type(e).__name__}"
 # 朋友版：美國上市常見標的的收盤價
 uprices = {}
 for tk in ["QLD", "SGOV", "QQQ", "TQQQ", "VOO", "SPY", "BIL", "SHV", "SCHD", "QQQM"]:
@@ -324,6 +347,7 @@ with open(f"{OUT}/full/data.json", "w") as f:
     json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
 us_only = {k: v for k, v in out.items() if k not in ("tw", "prices")}
 us_only["uprices"] = uprices
+us_only["eprices"] = eprices
 us_only["sources"] = {k: v for k, v in src_status.items() if k not in ("FinMind 加權指數", "證交所收盤價", "櫃買中心收盤價", "FRED BAA 利差")}
 with open(f"{OUT}/friends/data.json", "w") as f:
     json.dump(us_only, f, ensure_ascii=False, separators=(",", ":"))

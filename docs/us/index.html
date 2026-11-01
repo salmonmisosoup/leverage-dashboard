@@ -644,20 +644,20 @@ function renderPFUS(main){
   const L=(zh,en)=>EN?en:zh;
   const LEV=EU?'LQQ':'QLD', BUL=EU?'IB01':'SGOV', CUR=EU?'EUR':'USD';
   const ROL={ul:L('正二','2x'),ub:L('子彈','Reserve'),up:L('待轉換（1 倍）','To convert (1x)'),uo:L('其他','Other')};
-  const AU={QLD:'ul',LQQ:'ul',TQQQ:'ul',SGOV:'ub',IB01:'ub',BIL:'ub',SHV:'ub',XEON:'ub',QQQ:'up',QQQM:'up',VOO:'up',SPY:'up',CSPX:'up',EQQQ:'up',CNDX:'up'};
+  const AU={QLD:'ul',LQQ:'ul',TQQQ:'ul',SGOV:'ub',IB01:'ub',BIL:'ub',SHV:'ub',XEON:'ub',ZPR1:'ub',ERNE:'ub',QQQ:'up',QQQM:'up',VOO:'up',SPY:'up',CSPX:'up',EQQQ:'up',CNDX:'up',SXRV:'up',VUAA:'up'};
   const auto=c=>AU[c]||'uo';
-  const UP=DATA.uprices||{};
+  const UP=(EU?DATA.eprices:DATA.uprices)||{};
   const key='pfus-'+(EU?'eu':'us');
   let rows=[]; try{ rows=JSON.parse(store.get(key)||'null')||[]; }catch(e){} if(!rows.length) rows=[{c:'',n:'',p:'',r:''}];
   let cfg={sal:''}; try{ Object.assign(cfg, JSON.parse(store.get(key+'-cfg')||'{}')); }catch(e){}
   const save=()=>{ store.set(key,JSON.stringify(rows)); store.set(key+'-cfg',JSON.stringify(cfg)); };
-  const autoPx=c=>{ const x=UP[c]; return (!EU&&x)?x[1]:0; };
+  const autoPx=c=>{ const x=UP[c]; return x?x[1]:0; };
   const price=r=>{ const c=(r.c||'').toUpperCase(); return autoPx(c) || (+r.p||0); };
   const N=n=>Math.round(n).toLocaleString('en-US');
   const grid=el('div',{class:'pf-grid'});
   const c1=el('section',{class:'card'});
   c1.append(el('h2',{},L('持股','Holdings')), el('p',{class:'muted',style:'margin:2px 0 10px;font-size:.82rem'},
-    EU? L('輸入代號、股數和價格（歐洲標的沒有自動報價）。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker, shares and price (no automatic quotes for European listings). Saved only in this browser; nobody else can see it.')
+    EU? L('輸入代號和股數，LQQ、IB01、XEON、EQQQ、SXRV、CSPX、VUAA 等常見標的會自動帶入收盤價，並換算成歐元；其他的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares. Common tickers such as LQQ, IB01, XEON, EQQQ, SXRV, CSPX and VUAA get the latest close, converted to EUR; type a price for others. Saved only in this browser; nobody else can see it.')
       : L('輸入代號和股數，QLD、SGOV、QQQ、VOO 等常見標的會自動帶入收盤價，其他的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares. Common tickers such as QLD, SGOV, QQQ and VOO get the latest close automatically; type a price for others. Saved only in this browser; nobody else can see it.')));
   const tb=el('table',{class:'pf-tbl'}); const head=el('tr'); [L('代號','Ticker'),L('股數','Shares'),L('價格','Price'),L('市值','Value'),L('分類','Type'),''].forEach((h,k)=>head.append(el('th',{style:k===4?'text-align:left':''},h))); tb.append(head);
   const body=el('tbody',{}); tb.append(body); const w=el('div',{class:'tbl'}); w.append(tb); c1.append(w);
