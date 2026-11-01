@@ -4,6 +4,7 @@ jobs:
   p:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - shell: bash {0}
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
