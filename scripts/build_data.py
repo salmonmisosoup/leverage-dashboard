@@ -66,6 +66,16 @@ def safe(name, fn):
         src_status[name] = f"失敗: {type(e).__name__}"; return None
 
 vix = vol("VIX", "VIXCLS")
+# 盤中：CBOE 延遲報價（約 15 分鐘），若比歷史資料新就補上今天這一筆
+vix_live = None
+try:
+    q = json.loads(get("https://cdn-api.cboe.com/api/global/delayed_quotes/quotes/_VIX.json", tries=2))["data"]
+    lt = pd.Timestamp(q["last_trade_time"]); px_ = float(q["current_price"])
+    if vix is not None and px_ > 0 and lt.normalize() > vix.index[-1]:
+        vix = pd.concat([vix, pd.Series([px_], index=[lt.normalize()])])
+        vix_live = lt.strftime("%Y-%m-%d %H:%M")
+except Exception:
+    pass
 vxn = vol("VXN", "VXNCLS")
 vix3m = vol("VIX3M", "VXVCLS")
 hy = safe("FRED HY OAS", lambda: fred("BAMLH0A0HYM2", "2020-01-01"))
@@ -204,6 +214,7 @@ if vix is not None:
             last = i
         ep[str(th)] = vix.index[start].strftime("%Y-%m-%d") if start is not None else None
     macro["vix"]["last_ep"] = ep
+    macro["vix"]["live"] = vix_live
 if baa is not None and len(baa) > 64:
     macro["baa"] = {"last": round(float(baa.iloc[-1]), 2), "chg63": round(float(baa.iloc[-1] - baa.iloc[-64]), 2), "asof": baa.index[-1].strftime("%Y-%m-%d")}
 if vxn is not None:
@@ -223,15 +234,38 @@ PF_TICKERS = {"2330": "台積電", "00685L": "群益臺灣加權正2", "00631L":
               "00918": "大華優利高填息30", "00830": "國泰費城半導體", "00670L": "富邦NASDAQ正2", "00865B": "國泰US短期公債",
               "00662": "富邦NASDAQ", "00924": "復華S&P500成長", "009815": "大華美國MAG7+"}
 prices = {}
+def _num(x):
+    try: return float(str(x).replace(",", ""))
+    except Exception: return None
+# 上市（證交所）全部個股與 ETF 的收盤價
+try:
+    for r in json.loads(get("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL", tries=3)):
+        c = _num(r.get("ClosingPrice"))
+        if c: prices[r["Code"].strip()] = {"name": r.get("Name", "").strip(), "close": c, "date": None}
+    src_status["證交所收盤價"] = "ok"
+except Exception as e:
+    src_status["證交所收盤價"] = f"失敗: {type(e).__name__}"
+# 上櫃（櫃買中心）
+try:
+    for r in json.loads(get("https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", tries=3)):
+        code = (r.get("SecuritiesCompanyCode") or "").strip(); c = _num(r.get("Close"))
+        if code and c: prices[code] = {"name": (r.get("CompanyName") or "").strip(), "close": c, "date": None}
+    src_status["櫃買中心收盤價"] = "ok"
+except Exception as e:
+    src_status["櫃買中心收盤價"] = f"失敗: {type(e).__name__}"
+# 常用標的再用 FinMind 補日期（或在上面兩個來源失敗時補價格）
 start_px = (dt.date.today() - dt.timedelta(days=20)).isoformat()
+px_date = None
 for tk, nm in PF_TICKERS.items():
     try:
-        d = finmind("TaiwanStockPrice", tk, start_px)
-        d = d[d["close"] > 0]
-        if len(d): prices[tk] = {"name": nm, "close": float(d["close"].iloc[-1]), "date": d.index[-1].strftime("%Y-%m-%d")}
-    except Exception as e:
-        prices[tk] = {"name": nm, "close": None, "date": None}
-out["prices"] = prices
+        d = finmind("TaiwanStockPrice", tk, start_px); d = d[d["close"] > 0]
+        if len(d):
+            px_date = max(px_date or "", d.index[-1].strftime("%Y-%m-%d"))
+            if tk not in prices: prices[tk] = {"name": nm, "close": float(d["close"].iloc[-1]), "date": None}
+            elif not prices[tk]["name"]: prices[tk]["name"] = nm
+    except Exception:
+        pass
+prices_doc = {"date": px_date, "p": {k: [v["name"], v["close"]] for k, v in prices.items()}}
 
 
 # ---------------- 訊號變化（給每日排程推播用）----------------
@@ -263,10 +297,12 @@ if prev_path and os.path.exists(prev_path):
         changes.append(f"(比對失敗: {type(e).__name__})")
 
 os.makedirs(f"{OUT}/full", exist_ok=True); os.makedirs(f"{OUT}/friends", exist_ok=True)
+with open(f"{OUT}/full/prices.json", "w") as f:
+    json.dump(prices_doc, f, ensure_ascii=False, separators=(",", ":"))
 with open(f"{OUT}/full/data.json", "w") as f:
     json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
 us_only = {k: v for k, v in out.items() if k not in ("tw", "prices")}
-us_only["sources"] = {k: v for k, v in src_status.items() if k != "FinMind 加權指數"}
+us_only["sources"] = {k: v for k, v in src_status.items() if k not in ("FinMind 加權指數", "證交所收盤價", "櫃買中心收盤價", "FRED BAA 利差")}
 with open(f"{OUT}/friends/data.json", "w") as f:
     json.dump(us_only, f, ensure_ascii=False, separators=(",", ":"))
 print("CHANGES: " + ("；".join(changes) if changes else "none"))

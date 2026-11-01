@@ -2,7 +2,8 @@ name: 每日更新儀表板數據
 
 on:
   schedule:
-    - cron: "50 12 * * 1-5"   # 台北時間週一到週五 20:50（UTC 12:50）
+    - cron: "50 12 * * 1-5"   # 台北時間週一到週五 20:50（UTC 12:50）：收盤後完整更新
+    - cron: "20 13-21 * * 1-5" # 美股交易時段每小時：更新盤中 VIX（延遲約 15 分鐘）
   workflow_dispatch:          # 可在 Actions 頁面手動執行
     inputs:
       test_notify:
@@ -44,6 +45,7 @@ jobs:
           test -f out/full/data.json && test -f out/friends/data.json
           cp out/full/data.json docs/data.json
           cp out/friends/data.json docs/us/data.json
+          cp out/full/prices.json docs/prices.json
           CHANGES=$(grep '^CHANGES:' build.log | sed 's/^CHANGES: //')
           if [ "${{ inputs.test_notify }}" = "true" ]; then CHANGES="測試通知：設定成功，之後燈號改變時會收到這樣的訊息"; fi
           echo "changes=${CHANGES}" >> "$GITHUB_OUTPUT"
@@ -52,7 +54,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/data.json docs/us/data.json
+          git add docs/data.json docs/us/data.json docs/prices.json
           git diff --cached --quiet || git commit -m "data: $(date -u +%Y-%m-%d)"
           git push
 

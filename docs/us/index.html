@@ -141,7 +141,11 @@ label.f input{background:var(--bg);border:1px solid var(--line2);border-radius:8
 .pf-act b{color:var(--fg);font-variant-numeric:tabular-nums}
 .pf-set{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0 4px}
 .pf-set label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
-.pf-set input{width:130px}
+.pf-set input,.pf-set select{width:150px}
+.pf-tbl select{font-size:.8rem;padding:4px;max-width:150px}
+.btn-ghost{border:1px solid var(--line2);background:none;color:var(--fg);padding:6px 12px;border-radius:8px;font-size:.84rem;cursor:pointer}
+.btn-x{border:0;background:none;color:var(--faint);font-size:1.1rem;cursor:pointer}
+.pf-io{margin-top:8px}
 .refs summary{cursor:pointer;color:var(--muted);font-size:.86rem;padding:8px 2px}
 .refs .stats{margin-top:6px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
@@ -242,7 +246,7 @@ let VENUE = store.get('dash-venue') || 'us';
 /* ---------- text ---------- */
 const TX = {
 zh:{
-  h1_full:'雙市場加碼儀表板', h1_us:'納指加碼儀表板', eb_full:'台股 00685L ＋ 美股 QLD', eb_us:'QLD ＋ SGOV',
+  h1_full:'雙市場加碼儀表板', h1_us:'納指加碼儀表板', eb_full:'台股 00685L ＋ 美股 00670L／00830', eb_us:'QLD ＋ SGOV',
   subtitle:'正二加子彈的加碼與調節訊號，依 1990–2026 年回測規則，每個交易日更新',
   refresh:'立即更新數據', refreshing:'更新中…', loading:'讀取最新數據…', loadfail:'數據檔讀取失敗，請重新整理頁面。', nomarket:'這個市場的數據暫時沒有更新成功，請稍後再試。',
   stamp:'更新於 {t}（台北時間）', tab_tw:'台股', tab_us:'美股', tab_pf:'我的庫存',
@@ -263,7 +267,7 @@ zh:{
   ma60:'跌破季線', ma120:'跌破半年線', ma120_5:'低於半年線 5%', vix28:'VIX ≥ 28', vix32:'VIX ≥ 32', vix35:'VIX ≥ 35', vix36:'VIX ≥ 36', vix40:'VIX ≥ 40', dd30:'距高點 −30%', d_dd30:'目前距高點 {dd}・觸發價位 {p}', refill:'週 RSI > {th}（補子彈）',
   ln_ma60:'季線', ln_ma120:'半年線', ln_ma120_5:'半年線 −5%',
   d_mid:'{ln}位置 {p}，收盤{dir} {g}', d_hi:'還高', d_lo:'已低', d_vix:'目前 VIX {v}，門檻 {th}', d_first:'・這波下跌於 {d} 首次觸發',
-  k_vix:'VIX', s_vix:'{d}', k_dd:'距高點', s_dd:'高點 {p}（{d}）', k_rsi:'週 RSI', s_rsi:'> {th} 補子彈',
+  k_vix:'VIX', s_vix:'{d}', s_vix_live:'盤中 {t}（美東，約延遲 15 分鐘）', k_dd:'距高點', s_dd:'高點 {p}（{d}）', k_rsi:'週 RSI', s_rsi:'> {th} 補子彈',
   k_fg:'CNN 恐懼貪婪', k_vxn:'VXN（納指波動）', s_vxn:'通常比 VIX 高 4–8', k_term:'VIX / VIX3M', s_term:'> 1 代表短期恐慌',
   k_hy:'高收益債利差', s_hy:'3 個月變化 {v}', k_fpe:'NDX 前瞻本益比', s_fpe:'{d}・約每季更新', tag_main:'主要', tag_ref:'參考',
   fg0:'極度恐懼', fg1:'恐懼', fg2:'中性', fg3:'貪婪', fg4:'極度貪婪',
@@ -346,7 +350,7 @@ en:{
   ma60:'Below 60-day MA', ma120:'Below 120-day MA', ma120_5:'5% below 120-day MA', vix28:'VIX ≥ 28', vix32:'VIX ≥ 32', vix35:'VIX ≥ 35', vix36:'VIX ≥ 36', vix40:'VIX ≥ 40', dd30:'30% below high', d_dd30:'Now {dd} from high · trigger level {p}', refill:'Weekly RSI > {th} (rebuild reserve)',
   ln_ma60:'60-day MA', ln_ma120:'120-day MA', ln_ma120_5:'120-day MA −5%',
   d_mid:'{ln} at {p}, close is {g} {dir}', d_hi:'above', d_lo:'below', d_vix:'VIX now {v}, line at {th}', d_first:' · first hit {d} in this decline',
-  k_vix:'VIX', s_vix:'{d}', k_dd:'From high', s_dd:'High {p} ({d})', k_rsi:'Weekly RSI', s_rsi:'> {th} rebuild reserve',
+  k_vix:'VIX', s_vix:'{d}', s_vix_live:'Intraday {t} ET (about 15 min delayed)', k_dd:'From high', s_dd:'High {p} ({d})', k_rsi:'Weekly RSI', s_rsi:'> {th} rebuild reserve',
   k_fg:'CNN Fear & Greed', k_vxn:'VXN (Nasdaq vol)', s_vxn:'Usually 4–8 above VIX', k_term:'VIX / VIX3M', s_term:'> 1 means short-term panic',
   k_hy:'High-yield spread', s_hy:'3-month change {v}', k_fpe:'NDX forward P/E', s_fpe:'{d} · about quarterly', tag_main:'Signal', tag_ref:'Info',
   fg0:'Extreme fear', fg1:'Fear', fg2:'Neutral', fg3:'Greed', fg4:'Extreme greed',
@@ -438,6 +442,7 @@ function render(){
   const isTW = cur==='tw'; const idxD = isTW?0:2;
   const cur$ = isTW?t('twd'):(MODE==='us'&&VENUE==='eu'?'EUR':t('usd'));
   let lev = m.lev, bul = m.bul;
+  if (MODE==='full' && cur==='us'){ lev='00670L／00830'; bul='00865B'; }
   const EU = MODE==='us' && VENUE==='eu';
   if (EU){ lev='LQQ'; bul='IB01'; }
   const idx = isTW ? '加權指數' : 'QQQ';
@@ -567,7 +572,7 @@ function render(){
   const mac = DATA.macro||{};
   const stats = el('section',{class:'stats'});
   const stat=(k,v,s,main_)=>stats.append(el('div',{class:'stat'}, el('div',{class:'k'},k, el('span',{class:'tag'+(main_?' main':'')}, main_?t('tag_main'):t('tag_ref'))), el('div',{class:'v'},v), el('div',{class:'s'},s)));
-  stat(t('k_vix'), mac.vix?fmt(mac.vix.last,2):'—', mac.vix?t('s_vix',{d:D8(mac.vix.asof)})+(lastEp[String(vixT[0].line)]?' · '+t('last35',{th:vixT[0].line,d:D8(lastEp[String(vixT[0].line)])}):''):'', true);
+  stat(t('k_vix'), mac.vix?fmt(mac.vix.last,2):'—', mac.vix?(mac.vix.live?t('s_vix_live',{t:mac.vix.live.slice(5).replace('-','/')}):t('s_vix',{d:D8(mac.vix.asof)}))+(lastEp[String(vixT[0].line)]?' · '+t('last35',{th:vixT[0].line,d:D8(lastEp[String(vixT[0].line)])}):''):'', true);
   stat(t('k_dd'), sgn(m.dd), t('s_dd',{p:fmt(m.ath,idxD), d:D8(m.ath_date)}), true);
   stat(t('k_rsi'), m.rsi_w, t('s_rsi',{th:m.rsi_refill}), true);
   const cr=m.credit||((mac.baa)?{chg:mac.baa.chg63,th:null,block:false}:null);
@@ -608,126 +613,148 @@ function render(){
 
 
 // ===================== 我的庫存 =====================
-const PF_ROWS=[
-  ['g','台股'],
-  ['2330','核心持股（VIX ≥ 40 時換成正二）'],['00685L','台股正二'],['00631L','台股正二'],['00713','台股子彈'],['00918','台股子彈'],
-  ['g','美股（台灣上市）'],
-  ['00830','美股正二部位（1 倍費半）'],['00670L','美股正二部位'],['00865B','美股子彈'],
-  ['00662','待轉換（1 倍）'],['00924','待轉換（1 倍）'],['009815','待轉換（1 倍）'],
-];
+const ROLES={tl:'台股正二',tb:'台股子彈',core:'核心（VIX≥40 換正二）',ul:'美股正二',ub:'美股子彈',up:'美股待轉換',to:'台股其他',uo:'美股其他'};
+const AUTO={'00685L':'tl','00631L':'tl','00675L':'tl','00663L':'tl','00713':'tb','00918':'tb','0056':'tb','00878':'tb','00919':'tb','00701':'tb','00731':'tb','00929':'tb',
+  '2330':'core','00670L':'ul','00830':'ul','00865B':'ub','00719B':'ub','00864B':'ub','00662':'up','00924':'up','009815':'up','00646':'up','00757':'up'};
+const autoRole=c=>AUTO[c]||'to';
+let PRICES=null;
+async function loadPrices(){ if(PRICES) return PRICES; try{ const r=await fetch('prices.json',{cache:'no-store'}); PRICES=await r.json(); }catch(e){ PRICES={date:null,p:{}}; }
+  const old=DATA.prices||{}; for(const [k,v] of Object.entries(old)) if(!PRICES.p[k] && v.close) PRICES.p[k]=[v.name,v.close]; return PRICES; }
 function renderPF(main){
-  const P=DATA.prices||{}, TW=DATA.tw, US=DATA.us;
-  let sh={}; try{ sh=JSON.parse(store.get('pf-shares')||'{}'); }catch(e){}
-  let cfg={tw:70,sal:''}; try{ Object.assign(cfg, JSON.parse(store.get('pf-cfg')||'{}')); }catch(e){}
-  const px=k=>(P[k]&&P[k].close)||0;
+  main.append(el('div',{class:'loading'},'載入收盤價…'));
+  loadPrices().then(()=>{ main.textContent=''; renderPF2(main); });
+}
+function renderPF2(main){
+  const TW=DATA.tw, US=DATA.us;
+  let rows=[]; try{ rows=JSON.parse(store.get('pf-rows')||'null')||null; }catch(e){}
+  if(!rows){ // 舊版格式轉換
+    let sh={}; try{ sh=JSON.parse(store.get('pf-shares')||'{}'); }catch(e){}
+    rows=Object.entries(sh).filter(([k,v])=>+v>0).map(([k,v])=>({c:k,n:+v,r:''}));
+    if(!rows.length) rows=[{c:'',n:'',r:''}];
+  }
+  let cfg={tw:70,sal:'',ul:'mix'}; try{ Object.assign(cfg, JSON.parse(store.get('pf-cfg')||'{}')); }catch(e){}
+  const save=()=>{ store.set('pf-rows',JSON.stringify(rows)); store.set('pf-cfg',JSON.stringify(cfg)); };
+  const px=c=>{ const x=PRICES.p[c]; return x?x[1]:0; }, nm=c=>{ const x=PRICES.p[c]; return x?x[0]:''; };
+  const N=n=>Math.round(n).toLocaleString('en-US');
   const grid=el('div',{class:'pf-grid'});
   // ---- 持股表 ----
-  const c1=el('section',{class:'card'}); c1.append(el('h2',{},'持股'), el('p',{class:'muted',style:'margin:2px 0 10px;font-size:.82rem'},'輸入股數，市值用最近收盤價計算。只存在你的瀏覽器，不會上傳。'));
-  const tb=el('table',{class:'pf-tbl'}); const hr=el('tr'); ['代號','角色','股數','收盤價','市值'].forEach(h=>hr.append(el('th',{},h))); tb.append(hr);
-  const valCells={};
-  for(const [k,role] of PF_ROWS){
-    if(k==='g'){ const tr=el('tr',{class:'grp'}); tr.append(el('td',{colspan:'5'},role)); tb.append(tr); continue; }
-    const tr=el('tr'); const inp=el('input',{type:'number',inputmode:'numeric',min:'0',value:sh[k]||'',placeholder:'0'});
-    inp.oninput=()=>{ sh[k]=inp.value; store.set('pf-shares',JSON.stringify(sh)); upd(); };
-    const vc=el('td',{}); valCells[k]=vc;
-    tr.append(el('td',{},el('div',{},k), el('div',{class:'muted',style:'font-size:.72rem'},(P[k]||{}).name||'')), el('td',{class:'role'},role), el('td',{},inp), el('td',{},px(k)?fmt(px(k),2):'—'), vc);
-    tb.append(tr);
-  }
+  const c1=el('section',{class:'card'});
+  c1.append(el('h2',{},'持股'), el('p',{class:'muted',style:'margin:2px 0 10px;font-size:.82rem'},'輸入代號和股數，收盤價會自動帶入（台灣上市、上櫃的股票和 ETF 都可以）。資料只存在這台裝置的瀏覽器，別人打開這個網頁看不到。'));
+  const tb=el('table',{class:'pf-tbl'}); const head=el('tr'); ['代號','股數','收盤價','市值','分類',''].forEach(h=>head.append(el('th',{},h))); tb.append(head);
+  const body=el('tbody',{}); tb.append(body);
   const w=el('div',{class:'tbl'}); w.append(tb); c1.append(w);
-  const pd=Object.values(P).map(x=>x.date).filter(Boolean).sort().pop();
-  c1.append(el('p',{class:'note'},'收盤價日期：'+(pd?D8(pd):'—')+'。00918 是可選的子彈標的，沒有持有就留空。'));
-  // ---- 設定 + 現況 + 動作 ----
+  const addB=el('button',{class:'btn-ghost'},'＋ 新增一列'); addB.onclick=()=>{ rows.push({c:'',n:'',r:''}); save(); drawRows(); upd(); };
+  const expB=el('button',{class:'btn-ghost'},'匯出'); const impB=el('button',{class:'btn-ghost'},'匯入');
+  const io=el('div',{class:'pf-io',hidden:true}); const ta=el('textarea',{rows:'3',style:'width:100%'}); const ioOk=el('button',{class:'btn-ghost'},'套用匯入'); io.append(el('div',{class:'muted',style:'font-size:.8rem;margin-bottom:4px'},'在另一台裝置按「匯入」，貼上這段文字就能帶入同樣的持股。'),ta,ioOk);
+  expB.onclick=()=>{ io.hidden=false; ioOk.hidden=true; ta.value=btoa(unescape(encodeURIComponent(JSON.stringify({rows,cfg})))); ta.select(); };
+  impB.onclick=()=>{ io.hidden=false; ioOk.hidden=false; ta.value=''; ta.focus(); };
+  ioOk.onclick=()=>{ try{ const o=JSON.parse(decodeURIComponent(escape(atob(ta.value.trim())))); rows=o.rows||rows; Object.assign(cfg,o.cfg||{}); save(); main.textContent=''; renderPF2(main); }catch(e){ alertBox('匯入失敗：內容格式不對'); } };
+  const alertBox=m=>{ io.append(el('div',{class:'note',style:'color:var(--bad)'},m)); };
+  c1.append(el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px'},addB,expB,impB), io);
+  c1.append(el('p',{class:'note'},'收盤價日期：'+(PRICES.date?D8(PRICES.date):'最近交易日')+'。分類決定這檔怎麼算進規則，常見標的會自動判斷，也可以自己改。'));
+  const valCells=[];
+  function drawRows(){
+    body.textContent=''; valCells.length=0;
+    rows.forEach((r,i)=>{
+      const tr=el('tr');
+      const ci=el('input',{type:'text',value:r.c,placeholder:'例如 00685L',style:'width:96px;text-align:left'});
+      const ni=el('input',{type:'number',inputmode:'numeric',min:'0',value:r.n,placeholder:'0'});
+      const pc=el('td',{}), vc=el('td',{}); valCells.push([i,vc]);
+      const sel=el('select',{}); for(const [k,v] of Object.entries(ROLES)){ const o=el('option',{value:k},v); sel.append(o); } sel.value=r.r||autoRole(r.c.toUpperCase());
+      const del=el('button',{class:'btn-x',title:'刪除'},'×');
+      const nameDiv=el('div',{class:'muted',style:'font-size:.72rem'},nm(r.c.toUpperCase()));
+      const refresh=()=>{ const c=r.c.toUpperCase(); pc.textContent=px(c)?fmt(px(c),2):(c?'找不到':'—'); nameDiv.textContent=nm(c); if(!r.r) sel.value=autoRole(c); };
+      ci.oninput=()=>{ r.c=ci.value.trim(); save(); refresh(); upd(); };
+      ni.oninput=()=>{ r.n=ni.value; save(); upd(); };
+      sel.onchange=()=>{ r.r=sel.value; save(); upd(); };
+      del.onclick=()=>{ rows.splice(i,1); if(!rows.length) rows.push({c:'',n:'',r:''}); save(); drawRows(); upd(); };
+      tr.append(el('td',{},ci,nameDiv), el('td',{},ni), pc, vc, el('td',{},sel), el('td',{},del)); body.append(tr); refresh();
+    });
+  }
+  // ---- 現況 + 動作 ----
   const c2=el('section',{class:'card'}); c2.append(el('h2',{},'現況與今天要做的事'));
   const set=el('div',{class:'pf-set'});
   const fTw=el('input',{type:'number',min:'0',max:'100',value:cfg.tw}); const fSal=el('input',{type:'number',min:'0',inputmode:'numeric',placeholder:'例如 60000',value:cfg.sal});
-  fTw.oninput=fSal.oninput=()=>{ cfg.tw=+fTw.value||0; cfg.sal=fSal.value; store.set('pf-cfg',JSON.stringify(cfg)); upd(); };
-  set.append(el('label',{},'台股目標比重（%）',fTw), el('label',{},'本月可投入金額（元）',fSal)); c2.append(set);
+  const fUl=el('select',{}); [['mix','00670L、00830 各半'],['00670L','全部 00670L（納指 2 倍）'],['00830','全部 00830（費半 1 倍）']].forEach(([k,v])=>fUl.append(el('option',{value:k},v))); fUl.value=cfg.ul;
+  fTw.oninput=fSal.oninput=fUl.onchange=()=>{ cfg.tw=+fTw.value||0; cfg.sal=fSal.value; cfg.ul=fUl.value; save(); upd(); };
+  set.append(el('label',{},'台股目標比重（%）',fTw), el('label',{},'本月可投入金額（元）',fSal), el('label',{},'美股正二要買',fUl)); c2.append(set);
   const out=el('div',{}); c2.append(out);
   grid.append(c1,c2); main.append(grid);
-  const N=n=>Math.round(n).toLocaleString('en-US');
   const shares=(amt,k)=>px(k)?Math.floor(amt/px(k)):0;
   const bar=(lab,w_,txt)=>{ const b=el('div',{class:'bar'}); b.append(el('i',{class:'lev',style:`width:${Math.max(0,Math.min(1,w_))*100}%`}), el('i',{class:'bul',style:`width:${Math.max(0,1-w_)*100}%`})); return el('div',{class:'pf-bar'}, el('span',{class:'muted'},lab), b, el('span',{class:'num'},txt)); };
   function upd(){
-    const v={}; for(const [k] of PF_ROWS){ if(k==='g') continue; v[k]=(+sh[k]||0)*px(k); valCells[k].textContent=v[k]?N(v[k]):'—'; }
+    const S={tl:0,tb:0,core:0,ul:0,ub:0,up:0,to:0,uo:0}; const byRole={}; 
+    rows.forEach((r,i)=>{ const c=(r.c||'').toUpperCase(); const val=(+r.n||0)*px(c); const role=r.r||autoRole(c); S[role]+=val; (byRole[role]=byRole[role]||[]).push({c,val,n:+r.n||0}); const vc=valCells.find(x=>x[0]===i); if(vc) vc[1].textContent=val?N(val):'—'; });
     out.textContent='';
-    const L=v['00685L']+v['00631L'], B=v['00713']+v['00918'], C=v['2330'];
-    const UL=v['00830']+v['00670L'], UB=v['00865B'], G=v['00662']+v['00924']+v['009815'];
-    const TWv=L+B+C, USv=UL+UB+G, T=TWv+USv;
-    if(!T){ out.append(el('p',{class:'muted'},'在左邊輸入持股股數後，這裡會算出目前比例和每個燈號要買賣多少。')); return; }
+    const TWv=S.tl+S.tb+S.core+S.to, USv=S.ul+S.ub+S.up+S.uo, T=TWv+USv;
+    if(!T){ out.append(el('p',{class:'muted'},'在左邊輸入持股後，這裡會算出目前比例和每個燈號要買賣多少。')); return; }
     const tgt=(cfg.tw||70)/100;
+    const ulBuy = cfg.ul==='mix' ? [['00670L',.5],['00830',.5]] : [[cfg.ul,1]];
+    const buyUL=(amt)=>ulBuy.map(([k,f])=>`${k} ${b_(N(amt*f))} 元（約 ${b_(N(shares(amt*f,k)))} 股）`).join('、');
+    const sellFrom=(role,amt)=>{ const list=(byRole[role]||[]).filter(x=>x.val>0).sort((a,b)=>b.val-a.val); const res=[]; let left=amt;
+      for(const x of list){ const y=Math.min(left,x.val); if(y<=0) break; res.push(`${x.c} ${b_(N(y))} 元（約 ${b_(N(shares(y,x.c)))} 股）`); left-=y; } return res.join('、'); };
     out.append(el('div',{class:'eyebrow',style:'margin-top:6px'},`總市值 ${N(T)} 元`));
     out.append(bar('台股／美股',TWv/T,`${pct(TWv/T)} / ${pct(USv/T)}`));
     out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`目標 ${pct(tgt)} / ${pct(1-tgt)}`));
+    const L=S.tl, B=S.tb, C=S.core, UL=S.ul, UB=S.ub, G=S.up;
     if(L+B) out.append(bar('台股正二／子彈',L/(L+B),`${pct(L/(L+B))} / ${pct(B/(L+B))}`));
-    if(C) out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`2330 核心 ${N(C)} 元，不算在 60/40 裡`));
+    if(C) out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`核心持股 ${N(C)} 元，不算在 60/40 裡`));
     if(UL+UB) out.append(bar('美股正二／子彈',UL/(UL+UB),`${pct(UL/(UL+UB))} / ${pct(UB/(UL+UB))}`));
-    if(G) out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`待轉換的美股 1 倍 ETF ${N(G)} 元（00662、00924、009815）`));
+    if(G) out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`美股待轉換 ${N(G)} 元，下次美股燈號時轉換`));
     const acts=el('div',{class:'pf-acts'}); out.append(acts);
     const act=(c,h,items)=>{ const a=el('div',{class:'pf-act',style:`--c:${c}`}); a.append(el('h4',{},h)); const u=el('ul',{}); items.forEach(x=>{ const li=el('li',{}); li.innerHTML=x; u.append(li); }); a.append(u); acts.append(a); };
-    const b_=x=>`<b>${x}</b>`;
     // ---------- 台股 ----------
-    if(TW){
+    if(TW && (L+B+C)){
       const st=TW.state, base=TW.base; const items=[];
       if(st==='panic'){
-        const tg=TW.target; let need=tg*(L+B)-L;
-        if(need>0){ let left=need;
-          for(const k of ['00713','00918']){ const x=Math.min(left,v[k]); if(x>0){ items.push(`賣出 ${k} ${b_(N(x))} 元（約 ${b_(N(shares(x,k)))} 股）`); left-=x; } }
-          items.push(`買進 00685L ${b_(N(need-left))} 元（約 ${b_(N(shares(need-left,'00685L')))} 股），正二佔正二＋子彈的 ${pct(tg)}`);
-        } else items.push(`正二已經在 ${pct(tg)} 以上，子彈不用再動`);
-        const v40=TW.tiers.find(x=>x.id==='vix40'); if(v40&&v40.active&&C>0) items.push(`VIX ≥ 40：賣出 2330 全部 ${b_(N(sh['2330']||0))} 股（約 ${b_(N(C))} 元），全部買 00685L（約 ${b_(N(shares(C,'00685L')))} 股）`);
-        else if(C>0) items.push('2330 先不動，等 VIX ≥ 40 再換成正二');
-        act(C_bad(),'台股：恐慌加碼',items);
+        const tg=TW.target; const need=tg*(L+B)-L;
+        if(need>1){ const x=Math.min(need,B); items.push('賣出 '+sellFrom('tb',x)); items.push(`買進 00685L ${b_(N(x))} 元（約 ${b_(N(shares(x,'00685L')))} 股），正二佔正二＋子彈的 ${pct(tg)}`); }
+        else items.push(`正二已經在 ${pct(tg)} 以上，子彈不用再動`);
+        const v40=TW.tiers.find(x=>x.id==='vix40'); if(C>0){ if(v40&&v40.active) { items.push('VIX ≥ 40：賣出核心持股 '+sellFrom('core',C)); items.push(`全部買進 00685L（約 ${b_(N(shares(C,'00685L')))} 股）`); } else items.push('核心持股先不動，等 VIX ≥ 40 再換成正二'); }
+        act(C_.bad,'台股：恐慌加碼',items);
       } else if(st==='refill'){
         const w_=(L+B)?L/(L+B):0;
-        if(w_>base+0.03){ const x=L-base*(L+B); const k=v['00631L']>=x?'00631L':'00685L';
-          items.push(`賣出 ${k} ${b_(N(x))} 元（約 ${b_(N(shares(x,k)))} 股），正二調回 ${pct(base)}`); items.push(`買進 00713 ${b_(N(x))} 元（約 ${b_(N(shares(x,'00713')))} 股）`); }
+        if(w_>base+0.03){ const x=L-base*(L+B); items.push('賣出 '+sellFrom('tl',x)+`，正二調回 ${pct(base)}`); items.push(`買進 00713 ${b_(N(x))} 元（約 ${b_(N(shares(x,'00713')))} 股）`); }
         else items.push(`正二 ${pct(w_)}，已在 ${pct(base)} 附近，不用調節`);
-        act(C.info,'台股：過熱調節',items);
-      } else if(st==='dip'){ act(C.warn,'台股：中期回調',['子彈和持股都不動','本月投入台股的錢全部買 00685L']); }
-      else { const w_=(L+B)?L/(L+B):0; act(C.ok,'台股：平常狀態',[`正二 ${pct(w_)}（基準 ${pct(base)}），不用買賣`,`本月投入台股的錢照 ${pct(base)}／${pct(1-base)} 買 00685L／00713`]); }
+        act(C_.info,'台股：過熱調節',items);
+      } else if(st==='dip'){ act(C_.warn,'台股：中期回調',['子彈和持股都不動','本月投入台股的錢全部買 00685L']); }
+      else { const w_=(L+B)?L/(L+B):0; act(C_.ok,'台股：平常狀態',[`正二 ${pct(w_)}（基準 ${pct(base)}），不用買賣`,`本月投入台股的錢照 ${pct(base)}／${pct(1-base)} 買 00685L／00713`]); }
     }
     // ---------- 美股 ----------
-    if(US){
+    if(US && (UL+UB+G)){
       const st=US.state, base=US.base; const items=[]; const U=UL+UB+G;
-      if(st==='panic'){
-        const tg=US.target; const wantL=tg*U, wantB=(1-tg)*U;
-        if(G>0) items.push(`賣出待轉換的 1 倍 ETF：00662、00924、009815 全部（約 ${b_(N(G))} 元）`);
-        const buyL=wantL-UL; if(buyL>0) items.push(`買進 00830 ${b_(N(buyL))} 元（約 ${b_(N(shares(buyL,'00830')))} 股）`);
-        const dB=wantB-UB; if(dB<-1) items.push(`賣出 00865B ${b_(N(-dB))} 元（約 ${b_(N(shares(-dB,'00865B')))} 股）`); else if(dB>1) items.push(`買進 00865B ${b_(N(dB))} 元（約 ${b_(N(shares(dB,'00865B')))} 股）`);
-        items.push(`完成後美股正二部位佔 ${pct(tg)}`);
-        act(C_bad(),'美股：恐慌加碼',items);
-      } else if(st==='refill'){
-        if(G>0){ items.push(`賣出待轉換的 1 倍 ETF 全部（約 ${b_(N(G))} 元）`); }
-        const wantL=base*U, dL=wantL-UL, dB=(1-base)*U-UB;
-        if(dL<-1) items.push(`賣出 00830 ${b_(N(-dL))} 元（約 ${b_(N(shares(-dL,'00830')))} 股）`); else if(dL>1) items.push(`買進 00830 ${b_(N(dL))} 元（約 ${b_(N(shares(dL,'00830')))} 股）`);
-        if(dB>1) items.push(`買進 00865B ${b_(N(dB))} 元（約 ${b_(N(shares(dB,'00865B')))} 股）`);
-        items.push(`完成後美股正二部位 ${pct(base)}／子彈 ${pct(1-base)}`);
-        act(C.info,'美股：過熱調節',items);
+      const tg = st==='panic' ? US.target : base;
+      if(st==='panic' || st==='refill'){
+        if(G>0) items.push('賣出待轉換的 '+sellFrom('up',G));
+        const dL=tg*U-UL, dB=(1-tg)*U-UB;
+        if(dL>1) items.push('買進 '+buyUL(dL)); else if(dL<-1) items.push('賣出 '+sellFrom('ul',-dL));
+        if(dB>1) items.push(`買進 00865B ${b_(N(dB))} 元（約 ${b_(N(shares(dB,'00865B')))} 股）`); else if(dB<-1) items.push('賣出 '+sellFrom('ub',-dB));
+        items.push(`完成後美股正二部位 ${pct(tg)}／子彈 ${pct(1-tg)}`);
+        act(st==='panic'?C_.bad:C_.info, st==='panic'?'美股：恐慌加碼':'美股：過熱調節', items);
       } else {
-        if(G>0) items.push('待轉換的 1 倍 ETF 先不動，等美股出現恐慌加碼或過熱調節燈號時一起轉換');
-        if(st==='dip') items.push('本月投入美股的錢全部買 00830'); else items.push(`本月投入美股的錢照 ${pct(base)}／${pct(1-base)} 買 00830／00865B`);
-        act(st==='dip'?C.warn:C.ok, st==='dip'?'美股：中期回調':'美股：平常狀態', items);
+        if(G>0) items.push('待轉換的美股先不動，等恐慌加碼或過熱調節燈號時一起轉換');
+        items.push(st==='dip' ? '本月投入美股的錢全部買美股正二' : `本月投入美股的錢照 ${pct(base)}／${pct(1-base)} 買美股正二／00865B`);
+        act(st==='dip'?C_.warn:C_.ok, st==='dip'?'美股：中期回調':'美股：平常狀態', items);
       }
     }
     // ---------- 本月投入 ----------
-    const S=+cfg.sal||0;
-    if(S>0){
-      const after=TWv+S*tgt; let sTW=S*tgt, sUS=S*(1-tgt);
-      const tw_=TWv/T; if(tw_>tgt+0.05){ sTW=0; sUS=S; } else if(tw_<tgt-0.05){ sTW=S; sUS=0; }
-      const it=[];
-      const twDip=TW&&(TW.state==='dip'||TW.state==='panic'), usDip=US&&(US.state==='dip'||US.state==='panic');
+    const Sal=+cfg.sal||0;
+    if(Sal>0){
+      let sTW=Sal*tgt, sUS=Sal*(1-tgt); const tw_=TWv/T;
+      if(tw_>tgt+0.05){ sTW=0; sUS=Sal; } else if(tw_<tgt-0.05){ sTW=Sal; sUS=0; }
+      const it=[]; const twDip=TW&&(TW.state==='dip'||TW.state==='panic'), usDip=US&&(US.state==='dip'||US.state==='panic');
       if(sTW>0){ if(twDip) it.push(`台股 ${b_(N(sTW))} 元：全部買 00685L（約 ${b_(N(shares(sTW,'00685L')))} 股）`);
         else it.push(`台股 ${b_(N(sTW))} 元：00685L ${b_(N(sTW*TW.base))} 元（約 ${N(shares(sTW*TW.base,'00685L'))} 股）、00713 ${b_(N(sTW*(1-TW.base)))} 元（約 ${N(shares(sTW*(1-TW.base),'00713'))} 股）`); }
-      if(sUS>0){ if(usDip) it.push(`美股 ${b_(N(sUS))} 元：全部買 00830（約 ${b_(N(shares(sUS,'00830')))} 股）`);
-        else it.push(`美股 ${b_(N(sUS))} 元：00830 ${b_(N(sUS*US.base))} 元（約 ${N(shares(sUS*US.base,'00830'))} 股）、00865B ${b_(N(sUS*(1-US.base)))} 元（約 ${N(shares(sUS*(1-US.base),'00865B'))} 股）`); }
+      if(sUS>0){ if(usDip) it.push(`美股 ${b_(N(sUS))} 元：${buyUL(sUS)}`);
+        else it.push(`美股 ${b_(N(sUS))} 元：${buyUL(sUS*US.base)}、00865B ${b_(N(sUS*(1-US.base)))} 元（約 ${N(shares(sUS*(1-US.base),'00865B'))} 股）`); }
       if(tw_>tgt+0.05) it.push(`台股目前 ${pct(tw_)}，比目標高超過 5%，本月全部投入美股來拉回比重`);
       if(tw_<tgt-0.05) it.push(`台股目前 ${pct(tw_)}，比目標低超過 5%，本月全部投入台股來拉回比重`);
-      act(C.brass,'本月投入怎麼分',it);
+      act(C_.brass,'本月投入怎麼分',it);
     }
     out.append(el('p',{class:'note'},'股數依最近收盤價估算，下單前請用當時價格確認。台美比重只用新投入的錢慢慢調整，不為了比重賣股票。'));
   }
-  function C_bad(){ return C.bad; }
-  upd();
+  const C_=C; const b_=x=>`<b>${x}</b>`;
+  drawRows(); upd();
 }
 
 function euroBlock(){
@@ -755,6 +782,9 @@ function openGuide(){
   const s6=sec(t('g6'), null, t('g6_p')); s6.append(tbl(t(isTW?'bt_tw':'bt_us'), t('bt_cap'))); const uc=el('ul',{}); t(P+'cmp').forEach(i=>uc.append(el('li',{},i))); s6.append(uc); s6.append(el('p',{class:'note'}, t('bt_note')));
   body.append(histBlock());
   if (MODE==='us') body.append(euroBlock());
+  if (MODE==='full' && cur==='us'){ // 完整版的美股用台灣上市 ETF
+    body.prepend(el('p',{class:'note',style:'margin:0 0 12px'},'這一頁用台灣上市的 ETF 執行美股規則：QLD → 00670L（納指 2 倍）或 00830（費半 1 倍），SGOV → 00865B（美國短期公債）。訊號仍然看 QQQ 和 VIX；下面的回測數字是用 QLD／SGOV 計算的。'));
+  }
   const g=document.getElementById('guide'); g.hidden=false; document.body.style.overflow='hidden'; document.getElementById('guideClose').focus();
 }
 function closeGuide(){ document.getElementById('guide').hidden=true; document.body.style.overflow=''; document.getElementById('guideBtn').focus(); }
