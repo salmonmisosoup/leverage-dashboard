@@ -125,7 +125,8 @@ label.f input{background:var(--bg);border:1px solid var(--line2);border-radius:8
 .refs{margin-top:10px}
 .pf-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
 @media (max-width:900px){.pf-grid{grid-template-columns:1fr}}
-.pf-tbl{width:100%;border-collapse:collapse;font-size:.88rem}
+.pf-tbl{width:100%;max-width:720px;border-collapse:collapse;font-size:.88rem}
+.pf-tbl th:nth-child(5){text-align:left}
 .pf-tbl th,.pf-tbl td{padding:8px 5px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;vertical-align:top}
 .pf-tbl td.tx{line-height:34px}
 .pf-tbl input,.pf-tbl select{height:34px;box-sizing:border-box}
@@ -149,6 +150,8 @@ label.f input{background:var(--bg);border:1px solid var(--line2);border-radius:8
 .btn-ghost{border:1px solid var(--line2);background:none;color:var(--fg);padding:6px 12px;border-radius:8px;font-size:.84rem;cursor:pointer}
 .btn-x{border:0;background:none;color:var(--faint);font-size:1.1rem;cursor:pointer}
 .pf-io{margin-top:8px}
+.pf-slot{margin-top:18px;border-top:1px dashed var(--line2);padding-top:14px}
+.pf-slot h2{font-size:1rem;margin:0 0 6px}
 .refs summary{cursor:pointer;color:var(--muted);font-size:.86rem;padding:8px 2px}
 .refs .stats{margin-top:6px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
@@ -411,7 +414,7 @@ const sgn = (x,d=1) => x==null||isNaN(x) ? '—' : (x>0?'+':'')+(x*100).toFixed(
 const fmt = (x,d=0) => x==null||isNaN(x) ? '—' : Number(x).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const el = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='style') e.style.cssText=v; else e.setAttribute(k,v);} for(const k of kids){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(k)); } return e; };
 
-let DATA=null, charts=[], cur = MODE==='us' ? (store.get('dash-tab-us')==='pf'?'pf':'us') : (store.get('dash-tab') || 'tw');
+let DATA=null, charts=[], cur = MODE==='us' ? 'us' : (store.get('dash-tab') || 'tw');
 
 function chrome(){
   document.documentElement.lang = LANG==='en' ? 'en' : 'zh-Hant';
@@ -425,7 +428,7 @@ function chrome(){
   if (DATA) document.getElementById('stamp').textContent = t('stamp',{t:taipei(DATA.generated)});
   // tabs
   const tb=document.getElementById('tabs'); tb.textContent='';
-  tb.hidden=false; for(const k of (MODE==='us'?['us','pf']:['tw','us','pf'])){ const b=el('button',{role:'tab','aria-selected':String(cur===k)},(MODE==='us'&&k==='us')?t('tab_sig'):t('tab_'+k)); b.onclick=()=>{cur=k;store.set(MODE==='us'?'dash-tab-us':'dash-tab',k);chrome();render();}; tb.append(b); }
+  if (MODE==='us') tb.hidden=true; else for(const k of ['tw','us','pf']){ const b=el('button',{role:'tab','aria-selected':String(cur===k)},(MODE==='us'&&k==='us')?t('tab_sig'):t('tab_'+k)); b.onclick=()=>{cur=k;store.set(MODE==='us'?'dash-tab-us':'dash-tab',k);chrome();render();}; tb.append(b); }
   // language
   const lg=document.getElementById('lang'); lg.textContent='';
   if (MODE==='us'){ lg.hidden=false; for(const [k,n] of [['zh','中文'],['en','EN']]){ const b=el('button',{'aria-pressed':String(LANG===k)},n); b.onclick=()=>{LANG=k;store.set('dash-lang',k);chrome();render();sourcesRender();staleCheck();}; lg.append(b);} }
@@ -535,7 +538,7 @@ function render(){
   pS.append(el('div',{class:'calc-row'}, el('label',{class:'f',for:fs.id}, t('sal_in',{c:cur$}), fs)), so);
   showT(ctab);
   calc.append(el('div',{class:'note'}, t('privacy')+' '+t('exec_note')));
-  verdict.append(calc);
+  if (MODE!=='us'){ const go=el('button',{class:'btn-ghost',style:'margin-top:16px'},'到「我的庫存」看要買賣哪幾檔、幾股 →'); go.onclick=()=>{cur='pf';store.set('dash-tab','pf');chrome();render();window.scrollTo(0,0);}; verdict.append(el('div',{},go)); }
 
   // ===== ladder =====
   const lad = el('section',{class:'card'});
@@ -570,6 +573,7 @@ function render(){
   }
   lad.append(L2);
   const top = el('div',{class:'grid-top'}); top.append(verdict, lad); main.append(top);
+  if (MODE==='us') renderPFUS(main, verdict);
 
   // ===== stats =====
   const mac = DATA.macro||{};
@@ -639,7 +643,7 @@ function alignItems(o){ // o: {w,base,st,lev,bul,L,B,cur,buyLev,sellLev,sellBul,
 }
 
 // ===================== 朋友版：我的庫存（美股）=====================
-function renderPFUS(main){
+function renderPFUS(main, slot){
   const EN=LANG==='en', EU=VENUE==='eu';
   const L=(zh,en)=>EN?en:zh;
   const LEV=EU?'LQQ':'QLD', BUL=EU?'IB01':'SGOV', CUR=EU?'EUR':'USD';
@@ -656,8 +660,8 @@ function renderPFUS(main){
   const N=n=>Math.round(n).toLocaleString('en-US');
   const grid=el('div',{class:'pf-grid'});
   const c1=el('section',{class:'card'});
-  c1.append(el('h2',{},L('持股','Holdings')), el('p',{class:'muted',style:'margin:2px 0 10px;font-size:.82rem'},
-    EU? L('輸入代號和股數，LQQ、IB01、XEON、EQQQ、SXRV、CSPX、VUAA 等常見標的會自動帶入收盤價，並換算成歐元；其他的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares. Common tickers such as LQQ, IB01, XEON, EQQQ, SXRV, CSPX and VUAA get the latest close, converted to EUR; type a price for others. Saved only in this browser; nobody else can see it.')
+  c1.append(el('h2',{},L('你的持股','Your holdings')), el('p',{class:'muted',style:'margin:2px 0 10px;font-size:.82rem'},
+    EU? L('輸入代號和股數，LQQ、IB01、XEON、EQQQ、SXRV、CSPX、VUAA 等常見標的會自動帶入收盤價並換算成歐元，原本不是歐元計價的（例如 IB01 是美元）會在下方顯示原幣價格；其他的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares. Common tickers such as LQQ, IB01, XEON, EQQQ, SXRV, CSPX and VUAA get the latest close converted to EUR, with the original-currency price shown underneath (IB01 trades in USD); type a price for others. Saved only in this browser; nobody else can see it.')
       : L('輸入代號和股數，QLD、SGOV、QQQ、VOO 等常見標的會自動帶入收盤價，其他的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares. Common tickers such as QLD, SGOV, QQQ and VOO get the latest close automatically; type a price for others. Saved only in this browser; nobody else can see it.')));
   const tb=el('table',{class:'pf-tbl'}); const head=el('tr'); [L('代號','Ticker'),L('股數','Shares'),L('價格','Price'),L('市值','Value'),L('分類','Type'),''].forEach((h,k)=>head.append(el('th',{style:k===4?'text-align:left':''},h))); tb.append(head);
   const body=el('tbody',{}); tb.append(body); const w=el('div',{class:'tbl'}); w.append(tb); c1.append(w);
@@ -674,7 +678,7 @@ function renderPFUS(main){
       const pcell=el('td',{}); const vc=el('td',{class:'tx'}); vcs.push([i,vc]);
       const sel=el('select',{}); for(const [k,v] of Object.entries(ROL)) sel.append(el('option',{value:k},v)); sel.value=r.r||auto((r.c||'').toUpperCase());
       const del=el('button',{class:'btn-x',title:L('刪除','Remove')},'×');
-      const ref=()=>{ const c=(r.c||'').toUpperCase(); pcell.textContent=''; const ap=autoPx(c); if(ap){ pcell.className='tx'; pcell.textContent=fmt(ap,2); } else { pcell.className=''; pcell.append(pi); } if(!r.r) sel.value=auto(c); };
+      const ref=()=>{ const c=(r.c||'').toUpperCase(); pcell.textContent=''; const ap=autoPx(c); if(ap){ pcell.className='tx'; pcell.textContent=fmt(ap,2); const x=UP[c]; if(x&&x[3]&&x[3]!=='EUR'){ pcell.className=''; pcell.style.lineHeight='1.2'; pcell.style.paddingTop='8px'; pcell.append(el('div',{class:'sub',style:'text-align:right'},`${fmt(x[2],2)} ${x[3]}`)); } } else { pcell.className=''; pcell.append(pi); } if(!r.r) sel.value=auto(c); };
       ci.oninput=()=>{ r.c=ci.value.trim(); save(); ref(); upd(); };
       ni.oninput=()=>{ r.n=ni.value; save(); upd(); };
       pi.oninput=()=>{ r.p=pi.value; save(); upd(); };
@@ -683,11 +687,13 @@ function renderPFUS(main){
       tr.append(el('td',{},ci), el('td',{},ni), pcell, vc, el('td',{},sel), el('td',{class:'tx'},del)); body.append(tr); ref();
     });
   }
-  const c2=el('section',{class:'card'}); c2.append(el('h2',{},L('現況與今天要做的事','Your mix and what to do today')));
+  const c2=el('section',{class:'card'}); c2.append(el('h2',{},L('今天要做的事','What to do today')));
   const fs=el('input',{type:'number',min:'0',inputmode:'decimal',placeholder:L('例如 1000','e.g. 1000'),value:cfg.sal});
   fs.oninput=()=>{ cfg.sal=fs.value; save(); upd(); };
   c2.append(el('div',{class:'pf-set'}, el('label',{},L(`本月可投入金額（${CUR}）`,`To invest this month (${CUR})`),fs)));
-  const out=el('div',{}); c2.append(out); grid.append(c1,c2); main.append(grid);
+  const out=el('div',{}); c2.append(out);
+  if (slot){ c2.className='pf-slot'; slot.append(c2); c1.style.marginTop='16px'; main.append(c1); }
+  else { grid.append(c1,c2); grid.style.marginTop='16px'; main.append(grid); }
   const b_=x=>`<b>${x}</b>`;
   function upd(){
     const S={ul:0,ub:0,up:0,uo:0}; const by={};

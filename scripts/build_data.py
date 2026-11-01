@@ -283,7 +283,7 @@ try:
                       ("CNDX", "CNDX.L"), ("CSPX", "CSPX.L"), ("VUAA", "VUAA.DE"), ("ZPR1", "ZPR1.DE"), ("ERNE", "ERNE.L")]:
         try:
             v, cur = yahoo_close(sym)
-            if cur in fx: eprices[code] = [code, round(v * fx[cur], 4)]
+            if cur in fx: eprices[code] = [code, round(v * fx[cur], 4), round(v, 4), cur]
         except Exception:
             pass
     src_status["Yahoo 歐洲 ETF"] = "ok" if eprices else "失敗: 無資料"
