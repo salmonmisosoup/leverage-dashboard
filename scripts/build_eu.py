@@ -61,27 +61,31 @@ for c in ["USD", "GBP", "CHF", "SEK", "DKK", "NOK", "PLN"]:
 ok_cur = {"EUR"} | {k[3:] for k in fx}
 print(f"有價格 {len(px)} 檔")
 
-P, by_isin = {}, {}
+PREF = ["GER", "PAR", "AMS", "MIL", "MCE", "BRU", "LIS", "ISE", "HEL", "STO", "CPH", "OSL", "LSE", "EBS", "VIE"]
+OVERRIDE = {"LQQ": "LQQ.PA", "IB01": "IB01.L", "CSPX": "CSPX.L", "CNDX": "CNDX.L", "ERNE": "ERNE.L"}
+P, info = {}, {}
 for sym, isin, exch, name in rows:
     if sym not in px or px[sym][1] not in ok_cur or sym in P: continue
-    p, c = px[sym]; P[sym] = [round(p, 4), c, name]
-    by_isin.setdefault(isin or sym, []).append((sym, exch))
-# 同一個 ISIN 選一個主要掛牌：公司本國交易所 > 德國（歐元）> 其他
-def rank(isin, sym, exch):
-    home = HOME.get(isin[:2])
-    return (0 if exch == home else 1 if exch == "GER" else 2 if P[sym][1] == "EUR" else 3, EXCH.index(exch))
-main_of = {k: min(v, key=lambda x: rank(k, *x))[0] for k, v in by_isin.items()}
-I = {k: s for k, s in main_of.items() if len(k) == 12 and not k.endswith(".")}
-base = {}
-for k, ls in by_isin.items():
-    for sym, _ in ls: base.setdefault(sym.rsplit(".", 1)[0], set()).add(k)
+    p, c = px[sym]; P[sym] = [round(p, 4), c, name]; info[sym] = (isin, exch)
+# 主要掛牌：公司本國交易所 > 歐元計價 > 交易所順序
+def rank(sym):
+    isin, exch = info[sym]
+    return (0 if exch == HOME.get(isin[:2]) else 1 if P[sym][1] == "EUR" else 2, PREF.index(exch))
+by_isin, by_base = {}, {}
+for sym, (isin, exch) in info.items():
+    if isin: by_isin.setdefault(isin, []).append(sym)
+    by_base.setdefault(sym.rsplit(".", 1)[0], []).append(sym)
+I = {k: min(v, key=rank) for k, v in by_isin.items()}
 A, M = {}, {}
-for b, ks in base.items():
+for b, ls in by_base.items():
     if b in P: continue
-    if len(ks) == 1: A[b] = main_of[next(iter(ks))]
-    else: M[b] = sorted(main_of[k] for k in ks)
+    isins = {info[x][0] for x in ls if info[x][0]}
+    if len(isins) <= 1: A[b] = min(ls, key=rank)                       # 同一檔（或缺 ISIN）：選主要掛牌
+    else: M[b] = sorted(min([x for x in ls if info[x][0] == k], key=rank) for k in isins)
+for b, sym in OVERRIDE.items():
+    if sym in P: A[b] = sym; M.pop(b, None)
 doc = {"d": dt.date.today().isoformat(), "fx": fx, "p": P, "a": A, "m": M, "i": I}
 json.dump(doc, open(OUT, "w"), ensure_ascii=False, separators=(",", ":"))
 print(f"輸出 {len(P)} 檔，免交易所代碼 {len(A)}，同代號多檔 {len(M)}")
-for t in ["SAP", "SAN", "ASML", "VWCE", "IB01", "LQQ", "NESN", "AZN"]:
+for t in ["SAP", "SAN", "ASML", "VWCE", "IB01", "LQQ", "NESN", "AZN", "CSPX", "MT", "RACE", "SHEL", "IWDA"]:
     print(t, A.get(t), M.get(t))
