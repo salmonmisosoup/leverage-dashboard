@@ -126,10 +126,13 @@ label.f input{background:var(--bg);border:1px solid var(--line2);border-radius:8
 .pf-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
 @media (max-width:900px){.pf-grid{grid-template-columns:1fr}}
 .pf-tbl{width:100%;border-collapse:collapse;font-size:.88rem}
-.pf-tbl th,.pf-tbl td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.pf-tbl th,.pf-tbl td{padding:8px 5px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;vertical-align:top}
+.pf-tbl td.tx{line-height:34px}
+.pf-tbl input,.pf-tbl select{height:34px;box-sizing:border-box}
+.pf-tbl .sub{font-size:.72rem;color:var(--muted);margin-top:3px;white-space:normal;max-width:96px;line-height:1.3}
 .pf-tbl th:first-child,.pf-tbl td:first-child{text-align:left}
 .pf-tbl td.role{color:var(--muted);text-align:left;font-size:.8rem}
-.pf-tbl input{width:96px;padding:5px 7px;font-size:.88rem;text-align:right}
+.pf-tbl input{width:84px;padding:5px 7px;font-size:.88rem;text-align:right}
 .pf-tbl tr.grp td{color:var(--brass);font-weight:500;border-bottom:1px solid var(--line2);padding-top:14px;text-align:left}
 .pf-bar{display:grid;grid-template-columns:110px minmax(0,1fr) 120px;gap:10px;align-items:center;margin:8px 0;font-size:.86rem}
 .pf-bar .bar{height:10px}
@@ -142,7 +145,7 @@ label.f input{background:var(--bg);border:1px solid var(--line2);border-radius:8
 .pf-set{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0 4px}
 .pf-set label{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
 .pf-set input,.pf-set select{width:150px}
-.pf-tbl select{font-size:.8rem;padding:4px;max-width:150px}
+.pf-tbl select{font-size:.8rem;padding:4px;width:118px}
 .btn-ghost{border:1px solid var(--line2);background:none;color:var(--fg);padding:6px 12px;border-radius:8px;font-size:.84rem;cursor:pointer}
 .btn-x{border:0;background:none;color:var(--faint);font-size:1.1rem;cursor:pointer}
 .pf-io{margin-top:8px}
@@ -249,7 +252,7 @@ zh:{
   h1_full:'雙市場加碼儀表板', h1_us:'納指加碼儀表板', eb_full:'台股 00685L ＋ 美股 00670L／00830', eb_us:'QLD ＋ SGOV',
   subtitle:'正二加子彈的加碼與調節訊號，依 1990–2026 年回測規則，每個交易日更新',
   refresh:'立即更新數據', refreshing:'更新中…', loading:'讀取最新數據…', loadfail:'數據檔讀取失敗，請重新整理頁面。', nomarket:'這個市場的數據暫時沒有更新成功，請稍後再試。',
-  stamp:'更新於 {t}（台北時間）', tab_tw:'台股', tab_us:'美股', tab_pf:'我的庫存',
+  stamp:'更新於 {t}（台北時間）', tab_tw:'台股', tab_us:'美股', tab_pf:'我的庫存', tab_sig:'訊號',
   st_normal:'維持現狀', st_dip:'中期回調', st_panic:'恐慌加碼', st_refill:'補子彈',
   t_normal:'目前沒有觸發條件，照基準比例持有', t_dipX:'把子彈轉成 {lev}，正二比重拉到 {w}', t_sal:'這個月的薪資全部買 {lev}，子彈先不動', t_refillX:'把 {lev} 調回 {w}，其餘換回 {bul}',
   s_normal:'每月薪資照基準比例買進即可，不需要額外動作。', s_dip:'價格在季線下方。這段期間每月薪資全部買正二，子彈留給 VIX 恐慌訊號。回到季線上方後恢復原本比例。', s_panic:'VIX 進入回測中勝率最高的區間，依階梯把子彈轉成正二。', s_refill:'週 RSI 過高，把超出基準的正二賣出，換回子彈，留給下一次回調。',
@@ -332,7 +335,7 @@ en:{
   h1_us:'Nasdaq Leverage Dashboard', eb_us:'QLD + SGOV',
   subtitle:'When to add to or trim a 2x Nasdaq position, using rules backtested over 1990–2026. Updated every trading day.',
   refresh:'Refresh data', refreshing:'Updating…', loading:'Loading the latest data…', loadfail:'Could not read the data file. Reload the page.', nomarket:'This market did not update. Try again later.',
-  stamp:'Updated {t} (Taipei time)',
+  tab_pf:'My holdings', tab_sig:'Signals', stamp:'Updated {t} (Taipei time)',
   st_normal:'Hold', st_dip:'Pullback', st_panic:'Panic buy', st_refill:'Rebuild reserve',
   t_normal:'No signal right now. Hold the base mix.', t_dipX:'Move reserve into {lev}, up to {w} of the portfolio', t_sal:'Put all of this month\'s savings into {lev}; leave the reserve alone', t_refillX:'Trim {lev} back to {w} and put the rest in {bul}',
   s_normal:'Keep buying at the base ratio with your monthly savings. Nothing else to do.', s_dip:'Price is below the 60-day MA. While it stays there, put all monthly savings into 2x and keep the reserve for VIX signals. Return to the normal split once price is back above the line.', s_panic:'VIX is in the zone with the best historical win rate. Move reserve into 2x by the ladder.', s_refill:'Weekly RSI is running hot. Sell the 2x above the base and rebuild the reserve for the next pullback.',
@@ -408,7 +411,7 @@ const sgn = (x,d=1) => x==null||isNaN(x) ? '—' : (x>0?'+':'')+(x*100).toFixed(
 const fmt = (x,d=0) => x==null||isNaN(x) ? '—' : Number(x).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const el = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='style') e.style.cssText=v; else e.setAttribute(k,v);} for(const k of kids){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(k)); } return e; };
 
-let DATA=null, charts=[], cur = MODE==='us' ? 'us' : (store.get('dash-tab') || 'tw');
+let DATA=null, charts=[], cur = MODE==='us' ? (store.get('dash-tab-us')==='pf'?'pf':'us') : (store.get('dash-tab') || 'tw');
 
 function chrome(){
   document.documentElement.lang = LANG==='en' ? 'en' : 'zh-Hant';
@@ -422,7 +425,7 @@ function chrome(){
   if (DATA) document.getElementById('stamp').textContent = t('stamp',{t:taipei(DATA.generated)});
   // tabs
   const tb=document.getElementById('tabs'); tb.textContent='';
-  if (MODE==='us') tb.hidden=true; else for(const k of ['tw','us','pf']){ const b=el('button',{role:'tab','aria-selected':String(cur===k)},t('tab_'+k)); b.onclick=()=>{cur=k;store.set('dash-tab',k);chrome();render();}; tb.append(b); }
+  tb.hidden=false; for(const k of (MODE==='us'?['us','pf']:['tw','us','pf'])){ const b=el('button',{role:'tab','aria-selected':String(cur===k)},(MODE==='us'&&k==='us')?t('tab_sig'):t('tab_'+k)); b.onclick=()=>{cur=k;store.set(MODE==='us'?'dash-tab-us':'dash-tab',k);chrome();render();}; tb.append(b); }
   // language
   const lg=document.getElementById('lang'); lg.textContent='';
   if (MODE==='us'){ lg.hidden=false; for(const [k,n] of [['zh','中文'],['en','EN']]){ const b=el('button',{'aria-pressed':String(LANG===k)},n); b.onclick=()=>{LANG=k;store.set('dash-lang',k);chrome();render();sourcesRender();staleCheck();}; lg.append(b);} }
@@ -436,7 +439,7 @@ const tierName = (id, m) => id==='refill' ? t('refill',{th:m.rsi_refill}) : t(id
 function render(){
   charts.forEach(c=>c.dispose()); charts=[];
   const main=document.getElementById('main'); main.textContent='';
-  if (cur==='pf'){ renderPF(main); return; }
+  if (cur==='pf'){ if(MODE==='us') renderPFUS(main); else renderPF(main); return; }
   const m = DATA[cur];
   if(!m){ main.append(el('div',{class:'loading'},t('nomarket'))); return; }
   const isTW = cur==='tw'; const idxD = isTW?0:2;
@@ -612,6 +615,98 @@ function render(){
 }
 
 
+
+// ===================== 朋友版：我的庫存（美股）=====================
+function renderPFUS(main){
+  const EN=LANG==='en', EU=VENUE==='eu';
+  const L=(zh,en)=>EN?en:zh;
+  const LEV=EU?'LQQ':'QLD', BUL=EU?'IB01':'SGOV', CUR=EU?'EUR':'USD';
+  const ROL={ul:L('正二','2x'),ub:L('子彈','Reserve'),up:L('待轉換（1 倍）','To convert (1x)'),uo:L('其他','Other')};
+  const AU={QLD:'ul',LQQ:'ul',TQQQ:'ul',SGOV:'ub',IB01:'ub',BIL:'ub',SHV:'ub',XEON:'ub',QQQ:'up',QQQM:'up',VOO:'up',SPY:'up',CSPX:'up',EQQQ:'up',CNDX:'up'};
+  const auto=c=>AU[c]||'uo';
+  const UP=DATA.uprices||{};
+  const key='pfus-'+(EU?'eu':'us');
+  let rows=[]; try{ rows=JSON.parse(store.get(key)||'null')||[]; }catch(e){} if(!rows.length) rows=[{c:'',n:'',p:'',r:''}];
+  let cfg={sal:''}; try{ Object.assign(cfg, JSON.parse(store.get(key+'-cfg')||'{}')); }catch(e){}
+  const save=()=>{ store.set(key,JSON.stringify(rows)); store.set(key+'-cfg',JSON.stringify(cfg)); };
+  const autoPx=c=>{ const x=UP[c]; return (!EU&&x)?x[1]:0; };
+  const price=r=>{ const c=(r.c||'').toUpperCase(); return autoPx(c) || (+r.p||0); };
+  const N=n=>Math.round(n).toLocaleString('en-US');
+  const grid=el('div',{class:'pf-grid'});
+  const c1=el('section',{class:'card'});
+  c1.append(el('h2',{},L('持股','Holdings')), el('p',{class:'muted',style:'margin:2px 0 10px;font-size:.82rem'},
+    EU? L('輸入代號、股數和價格（歐洲標的沒有自動報價）。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker, shares and price (no automatic quotes for European listings). Saved only in this browser; nobody else can see it.')
+      : L('輸入代號和股數，QLD、SGOV、QQQ、VOO 等常見標的會自動帶入收盤價，其他的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares. Common tickers such as QLD, SGOV, QQQ and VOO get the latest close automatically; type a price for others. Saved only in this browser; nobody else can see it.')));
+  const tb=el('table',{class:'pf-tbl'}); const head=el('tr'); [L('代號','Ticker'),L('股數','Shares'),L('價格','Price'),L('市值','Value'),L('分類','Type'),''].forEach((h,k)=>head.append(el('th',{style:k===4?'text-align:left':''},h))); tb.append(head);
+  const body=el('tbody',{}); tb.append(body); const w=el('div',{class:'tbl'}); w.append(tb); c1.append(w);
+  const addB=el('button',{class:'btn-ghost'},L('＋ 新增一列','+ Add row')); addB.onclick=()=>{ rows.push({c:'',n:'',p:'',r:''}); save(); draw(); upd(); };
+  c1.append(el('div',{style:'margin-top:10px'},addB));
+  const vcs=[];
+  function draw(){
+    body.textContent=''; vcs.length=0;
+    rows.forEach((r,i)=>{
+      const tr=el('tr');
+      const ci=el('input',{type:'text',value:r.c,placeholder:LEV,style:'width:86px;text-align:left'});
+      const ni=el('input',{type:'number',inputmode:'decimal',min:'0',value:r.n,placeholder:'0'});
+      const pi=el('input',{type:'number',inputmode:'decimal',min:'0',value:r.p,placeholder:'0'});
+      const pcell=el('td',{}); const vc=el('td',{class:'tx'}); vcs.push([i,vc]);
+      const sel=el('select',{}); for(const [k,v] of Object.entries(ROL)) sel.append(el('option',{value:k},v)); sel.value=r.r||auto((r.c||'').toUpperCase());
+      const del=el('button',{class:'btn-x',title:L('刪除','Remove')},'×');
+      const ref=()=>{ const c=(r.c||'').toUpperCase(); pcell.textContent=''; const ap=autoPx(c); if(ap){ pcell.className='tx'; pcell.textContent=fmt(ap,2); } else { pcell.className=''; pcell.append(pi); } if(!r.r) sel.value=auto(c); };
+      ci.oninput=()=>{ r.c=ci.value.trim(); save(); ref(); upd(); };
+      ni.oninput=()=>{ r.n=ni.value; save(); upd(); };
+      pi.oninput=()=>{ r.p=pi.value; save(); upd(); };
+      sel.onchange=()=>{ r.r=sel.value; save(); upd(); };
+      del.onclick=()=>{ rows.splice(i,1); if(!rows.length) rows.push({c:'',n:'',p:'',r:''}); save(); draw(); upd(); };
+      tr.append(el('td',{},ci), el('td',{},ni), pcell, vc, el('td',{},sel), el('td',{class:'tx'},del)); body.append(tr); ref();
+    });
+  }
+  const c2=el('section',{class:'card'}); c2.append(el('h2',{},L('現況與今天要做的事','Your mix and what to do today')));
+  const fs=el('input',{type:'number',min:'0',inputmode:'decimal',placeholder:L('例如 1000','e.g. 1000'),value:cfg.sal});
+  fs.oninput=()=>{ cfg.sal=fs.value; save(); upd(); };
+  c2.append(el('div',{class:'pf-set'}, el('label',{},L(`本月可投入金額（${CUR}）`,`To invest this month (${CUR})`),fs)));
+  const out=el('div',{}); c2.append(out); grid.append(c1,c2); main.append(grid);
+  const b_=x=>`<b>${x}</b>`;
+  function upd(){
+    const S={ul:0,ub:0,up:0,uo:0}; const by={};
+    rows.forEach((r,i)=>{ const c=(r.c||'').toUpperCase(); const v=(+r.n||0)*price(r); const role=r.r||auto(c); S[role]+=v; (by[role]=by[role]||[]).push({c,v,px:price(r)}); const x=vcs.find(z=>z[0]===i); if(x) x[1].textContent=v?N(v):'—'; });
+    out.textContent='';
+    const T=S.ul+S.ub+S.up; const all=T+S.uo;
+    if(!all){ out.append(el('p',{class:'muted'},L('在左邊輸入持股後，這裡會算出目前比例和燈號出現時要買賣多少。','Enter your holdings on the left to see your current mix and what to trade when a signal fires.'))); return; }
+    const US=DATA.us, base=US.base, st=US.state;
+    out.append(el('div',{class:'eyebrow',style:'margin-top:6px'},L(`總市值 ${N(all)} ${CUR}`,`Total ${N(all)} ${CUR}`)));
+    if(S.ul+S.ub){ const w_=S.ul/(S.ul+S.ub); const b=el('div',{class:'bar'}); b.append(el('i',{class:'lev',style:`width:${w_*100}%`}), el('i',{class:'bul',style:`width:${(1-w_)*100}%`})); out.append(el('div',{class:'pf-bar'}, el('span',{class:'muted'},`${LEV}／${BUL}`), b, el('span',{class:'num'},`${pct(w_)} / ${pct(1-w_)}`))); }
+    if(S.up) out.append(el('p',{class:'note'},L(`待轉換的 1 倍 ETF ${N(S.up)} ${CUR}，下次恐慌加碼或過熱調節時轉換`,`1x funds to convert: ${N(S.up)} ${CUR}, at the next panic or trim signal`)));
+    const sh=(amt,k)=>{ const r=(by.ul||[]).concat(by.ub||[]).find(x=>x.c===k&&x.px); const p_=r?r.px:autoPx(k); return p_?` ${L('（約','(about')} ${b_(N(Math.floor(amt/p_)))} ${L('股）','shares)')}`:''; };
+    const sellFrom=(role,amt)=>{ const res=[]; let left=amt; for(const x of (by[role]||[]).filter(x=>x.v>0).sort((a,b)=>b.v-a.v)){ const y=Math.min(left,x.v); if(y<=0) break; res.push(`${x.c} ${b_(N(y))} ${CUR}${x.px?` ${L('（約','(about')} ${b_(N(Math.floor(y/x.px)))} ${L('股）','shares)')}`:''}`); left-=y; } return res.join(L('、',', ')); };
+    const acts=el('div',{class:'pf-acts'}); out.append(acts);
+    const act=(c,h,items)=>{ const a=el('div',{class:'pf-act',style:`--c:${c}`}); a.append(el('h4',{},h)); const u=el('ul',{}); items.forEach(x=>{ const li=el('li',{}); li.innerHTML=x; u.append(li); }); a.append(u); acts.append(a); };
+    const items=[];
+    if(st==='panic'||st==='refill'){
+      const tg=st==='panic'?US.target:base;
+      if(S.up>0) items.push(L('賣出待轉換的 ','Sell the 1x funds: ')+sellFrom('up',S.up));
+      const dL=tg*T-S.ul, dB=(1-tg)*T-S.ub;
+      if(dL>1) items.push(L('買進 ','Buy ')+`${LEV} ${b_(N(dL))} ${CUR}`+sh(dL,LEV)); else if(dL<-1) items.push(L('賣出 ','Sell ')+sellFrom('ul',-dL));
+      if(dB>1) items.push(L('買進 ','Buy ')+`${BUL} ${b_(N(dB))} ${CUR}`+sh(dB,BUL)); else if(dB<-1) items.push(L('賣出 ','Sell ')+sellFrom('ub',-dB));
+      items.push(L(`完成後 ${LEV} ${pct(tg)}／${BUL} ${pct(1-tg)}`,`After this: ${LEV} ${pct(tg)} / ${BUL} ${pct(1-tg)}`));
+      act(st==='panic'?C.bad:C.info, st==='panic'?L('恐慌加碼','Panic buying'):L('過熱調節','Trim'), items);
+    } else {
+      if(S.up>0) items.push(L('待轉換的 1 倍 ETF 先不動，等恐慌加碼或過熱調節燈號時一起轉換','Leave the 1x funds for now; convert them at the next panic or trim signal'));
+      const w_=(S.ul+S.ub)?S.ul/(S.ul+S.ub):0;
+      if(st==='dip') items.push(L(`子彈不動，本月的錢全部買 ${LEV}`,`Leave the reserve alone; put all new money into ${LEV}`));
+      else items.push(L(`${LEV} 目前 ${pct(w_)}（基準 ${pct(base)}），不用買賣`,`${LEV} is ${pct(w_)} (base ${pct(base)}); no trades needed`));
+      act(st==='dip'?C.warn:C.ok, st==='dip'?L('中期回調','Pullback'):L('平常狀態','Normal'), items);
+    }
+    const sal=+cfg.sal||0;
+    if(sal>0){ const it=[]; const dip=st==='dip'||st==='panic';
+      if(dip) it.push(L(`全部買 ${LEV} ${b_(N(sal))} ${CUR}`,`All ${b_(N(sal))} ${CUR} into ${LEV}`)+sh(sal,LEV));
+      else it.push(L(`${LEV} ${b_(N(sal*base))} ${CUR}${sh(sal*base,LEV)}、${BUL} ${b_(N(sal*(1-base)))} ${CUR}${sh(sal*(1-base),BUL)}`,`${LEV} ${b_(N(sal*base))} ${CUR}${sh(sal*base,LEV)}, ${BUL} ${b_(N(sal*(1-base)))} ${CUR}${sh(sal*(1-base),BUL)}`));
+      act(C.brass,L('本月投入怎麼分','This month\'s money'),it); }
+    out.append(el('p',{class:'note'},L('股數依最近收盤價估算，下單前請用當時價格確認。','Share counts use the latest close; check the live price before you trade.')));
+  }
+  draw(); upd();
+}
+
 // ===================== 我的庫存 =====================
 const ROLES={tl:'台股正二',tb:'台股子彈',core:'核心（VIX≥40 換正二）',ul:'美股正二',ub:'美股子彈',up:'美股待轉換',to:'台股其他',uo:'美股其他'};
 const AUTO={'00685L':'tl','00631L':'tl','00675L':'tl','00663L':'tl','00713':'tb','00918':'tb','0056':'tb','00878':'tb','00919':'tb','00701':'tb','00731':'tb','00929':'tb',
@@ -639,36 +734,30 @@ function renderPF2(main){
   const grid=el('div',{class:'pf-grid'});
   // ---- 持股表 ----
   const c1=el('section',{class:'card'});
-  c1.append(el('h2',{},'持股'), el('p',{class:'muted',style:'margin:2px 0 10px;font-size:.82rem'},'輸入代號和股數，收盤價會自動帶入（台灣上市、上櫃的股票和 ETF 都可以）。資料只存在這台裝置的瀏覽器，別人打開這個網頁看不到。'));
-  const tb=el('table',{class:'pf-tbl'}); const head=el('tr'); ['代號','股數','收盤價','市值','分類',''].forEach(h=>head.append(el('th',{},h))); tb.append(head);
+  c1.append(el('h2',{},'持股'), el('p',{class:'muted',style:'margin:2px 0 10px;font-size:.82rem'},'輸入代號和股數，收盤價會自動帶入（台灣上市、上櫃的股票和 ETF 都可以）。資料會記在這台裝置的瀏覽器，下次打開還在；別人打開這個網頁看不到。'));
+  const tb=el('table',{class:'pf-tbl'}); const head=el('tr'); ['代號','股數','收盤價','市值','分類',''].forEach((h,k)=>head.append(el('th',{style:k===4?'text-align:left':''},h))); tb.append(head);
   const body=el('tbody',{}); tb.append(body);
   const w=el('div',{class:'tbl'}); w.append(tb); c1.append(w);
   const addB=el('button',{class:'btn-ghost'},'＋ 新增一列'); addB.onclick=()=>{ rows.push({c:'',n:'',r:''}); save(); drawRows(); upd(); };
-  const expB=el('button',{class:'btn-ghost'},'匯出'); const impB=el('button',{class:'btn-ghost'},'匯入');
-  const io=el('div',{class:'pf-io',hidden:true}); const ta=el('textarea',{rows:'3',style:'width:100%'}); const ioOk=el('button',{class:'btn-ghost'},'套用匯入'); io.append(el('div',{class:'muted',style:'font-size:.8rem;margin-bottom:4px'},'在另一台裝置按「匯入」，貼上這段文字就能帶入同樣的持股。'),ta,ioOk);
-  expB.onclick=()=>{ io.hidden=false; ioOk.hidden=true; ta.value=btoa(unescape(encodeURIComponent(JSON.stringify({rows,cfg})))); ta.select(); };
-  impB.onclick=()=>{ io.hidden=false; ioOk.hidden=false; ta.value=''; ta.focus(); };
-  ioOk.onclick=()=>{ try{ const o=JSON.parse(decodeURIComponent(escape(atob(ta.value.trim())))); rows=o.rows||rows; Object.assign(cfg,o.cfg||{}); save(); main.textContent=''; renderPF2(main); }catch(e){ alertBox('匯入失敗：內容格式不對'); } };
-  const alertBox=m=>{ io.append(el('div',{class:'note',style:'color:var(--bad)'},m)); };
-  c1.append(el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px'},addB,expB,impB), io);
+  c1.append(el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px'},addB));
   c1.append(el('p',{class:'note'},'收盤價日期：'+(PRICES.date?D8(PRICES.date):'最近交易日')+'。分類決定這檔怎麼算進規則，常見標的會自動判斷，也可以自己改。'));
   const valCells=[];
   function drawRows(){
     body.textContent=''; valCells.length=0;
     rows.forEach((r,i)=>{
       const tr=el('tr');
-      const ci=el('input',{type:'text',value:r.c,placeholder:'例如 00685L',style:'width:96px;text-align:left'});
+      const ci=el('input',{type:'text',value:r.c,placeholder:'例如 00685L',style:'width:86px;text-align:left'});
       const ni=el('input',{type:'number',inputmode:'numeric',min:'0',value:r.n,placeholder:'0'});
-      const pc=el('td',{}), vc=el('td',{}); valCells.push([i,vc]);
+      const pc=el('td',{class:'tx'}), vc=el('td',{class:'tx'}); valCells.push([i,vc]);
       const sel=el('select',{}); for(const [k,v] of Object.entries(ROLES)){ const o=el('option',{value:k},v); sel.append(o); } sel.value=r.r||autoRole(r.c.toUpperCase());
       const del=el('button',{class:'btn-x',title:'刪除'},'×');
-      const nameDiv=el('div',{class:'muted',style:'font-size:.72rem'},nm(r.c.toUpperCase()));
+      const nameDiv=el('div',{class:'sub'},nm(r.c.toUpperCase()));
       const refresh=()=>{ const c=r.c.toUpperCase(); pc.textContent=px(c)?fmt(px(c),2):(c?'找不到':'—'); nameDiv.textContent=nm(c); if(!r.r) sel.value=autoRole(c); };
       ci.oninput=()=>{ r.c=ci.value.trim(); save(); refresh(); upd(); };
       ni.oninput=()=>{ r.n=ni.value; save(); upd(); };
       sel.onchange=()=>{ r.r=sel.value; save(); upd(); };
       del.onclick=()=>{ rows.splice(i,1); if(!rows.length) rows.push({c:'',n:'',r:''}); save(); drawRows(); upd(); };
-      tr.append(el('td',{},ci,nameDiv), el('td',{},ni), pc, vc, el('td',{},sel), el('td',{},del)); body.append(tr); refresh();
+      tr.append(el('td',{},ci,nameDiv), el('td',{},ni), pc, vc, el('td',{},sel), el('td',{class:'tx'},del)); body.append(tr); refresh();
     });
   }
   // ---- 現況 + 動作 ----
@@ -768,7 +857,7 @@ function euroBlock(){
 }
 
 function openGuide(){
-  const isTW = cur!=='us'; const P = isTW?'tw_':'us_'; const body=document.getElementById('guideBody'); body.textContent='';
+  const isTW = MODE!=='us' && cur!=='us'; const P = isTW?'tw_':'us_'; const body=document.getElementById('guideBody'); body.textContent='';
   document.getElementById('guideTitle').textContent = t('guide') + (MODE==='us'?'':'・'+t('tab_'+(cur==='us'?'us':'tw')));
   const sec=(h,items,intro)=>{ const s=el('section',{class:'gsec'}); s.append(el('h3',{},h)); if(intro) s.append(el('p',{class:'gintro'},intro)); if(items){ const u=el('ul',{}); items.forEach(i=>u.append(el('li',{},i))); s.append(u);} body.append(s); return s; };
   const tbl=(rows,cap)=>{ const w=el('div',{class:'tbl'}); const tb=el('table',{class:'bt gt'}); if(cap) tb.append(el('caption',{},cap)); rows.forEach((r,i)=>{ const tr=el('tr'); r.forEach(c=>tr.append(el(i?'td':'th',{},c))); tb.append(tr); }); w.append(tb); return w; };

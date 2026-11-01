@@ -266,6 +266,27 @@ for tk, nm in PF_TICKERS.items():
     except Exception:
         pass
 prices_doc = {"date": px_date, "p": {k: [v["name"], v["close"]] for k, v in prices.items()}}
+# 朋友版：美國上市常見標的的收盤價
+uprices = {}
+for tk in ["QLD", "SGOV", "QQQ", "TQQQ", "VOO", "SPY", "BIL", "SHV", "SCHD", "QQQM"]:
+    try:
+        d = finmind("USStockPrice", tk, start_px)
+        if len(d): uprices[tk] = [tk, float(d["Close"].iloc[-1])]
+    except Exception:
+        pass
+
+# 美股常見標的（給朋友版「我的庫存」用）
+US_TICKERS = ["QLD", "SGOV", "QQQ", "TQQQ", "QQQM", "SPY", "VOO", "VTI", "SSO", "UPRO", "BIL", "SHV", "USFR", "IEF", "TLT",
+              "SCHD", "SOXX", "SMH", "SOXL", "NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "TSM"]
+us_px = {}
+start_us = (dt.date.today() - dt.timedelta(days=12)).isoformat()
+for tk in US_TICKERS:
+    try:
+        d = finmind("USStockPrice", tk, start_us)
+        if len(d): us_px[tk] = float(d["Close"].iloc[-1])
+    except Exception:
+        pass
+out["us_prices"] = us_px
 
 
 # ---------------- 訊號變化（給每日排程推播用）----------------
@@ -302,6 +323,7 @@ with open(f"{OUT}/full/prices.json", "w") as f:
 with open(f"{OUT}/full/data.json", "w") as f:
     json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
 us_only = {k: v for k, v in out.items() if k not in ("tw", "prices")}
+us_only["uprices"] = uprices
 us_only["sources"] = {k: v for k, v in src_status.items() if k not in ("FinMind 加權指數", "證交所收盤價", "櫃買中心收盤價", "FRED BAA 利差")}
 with open(f"{OUT}/friends/data.json", "w") as f:
     json.dump(us_only, f, ensure_ascii=False, separators=(",", ":"))
