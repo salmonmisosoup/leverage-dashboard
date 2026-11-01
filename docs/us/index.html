@@ -682,9 +682,10 @@ function renderPFUS(main, slot){
     for(const [k,v] of Object.entries(db.i||{})) put(k,v);
     if(EU){ for(const [k,v] of Object.entries(db.a||{})) put(k,v); for(const [k,v] of Object.entries(db.m||{})) if(!UP[k]) AMB[k]=v.map(x=>[x,(db.p[x]||[])[2]||'']); } }
   const needEU=()=>EU||rows.some(r=>{ const c=(r.c||'').toUpperCase(); return c.includes('.')||isISIN(c); });
-  let euLoading=false;
+  let euLoading=false; let USN=null; const REFS=[]; const reref=()=>REFS.forEach(f=>f());
+  function loadUSN(){ if(USN) return; USN={}; fetch('usn.json').then(r=>r.json()).then(d=>{ USN=d; reref(); }).catch(()=>{}); }
   function loadEU(){ if(euReady||euLoading||!needEU()) return; euLoading=true;
-    fetch('eu.json').then(r=>r.json()).then(db=>{ addEU(db); }).catch(()=>{}).finally(()=>{ euReady=true; draw(); upd(); }); }
+    fetch('eu.json').then(r=>r.json()).then(db=>{ addEU(db); }).catch(()=>{}).finally(()=>{ euReady=true; reref(); upd(); }); }
   const autoPx=c=>{ const x=UP[c]; if(x) return x[1]; const q=LIVE[c]; return q&&q.v?q.v:0; };
   const price=r=>{ const c=(r.c||'').toUpperCase(); return autoPx(c) || (+r.p||0); };
   const N=n=>Math.round(n).toLocaleString('en-US');
@@ -699,7 +700,7 @@ function renderPFUS(main, slot){
   c1.append(el('div',{style:'margin-top:10px'},addB));
   const vcs=[];
   function draw(){
-    body.textContent=''; vcs.length=0;
+    body.textContent=''; vcs.length=0; REFS.length=0;
     rows.forEach((r,i)=>{
       const tr=el('tr');
       const ci=el('input',{type:'text',value:r.c,placeholder:LEV,style:'width:86px;text-align:left'});
@@ -710,21 +711,21 @@ function renderPFUS(main, slot){
       const del=el('button',{class:'btn-x',title:L('刪除','Remove')},'×');
       const ref=()=>{ const c=(r.c||'').toUpperCase(); csub.remove(); csub.style.color=''; csub.textContent='';
         if(c && AMB[c] && !UP[c]){ csub.style.color='var(--warn)'; csub.textContent=L(`${c} 有好幾檔不同的標的：`,`${c} matches several different securities: `)+AMB[c].map(([x,n])=>`${x}${n?L('（'+n+'）',' ('+n+')'):''}`).join(L('、',', '))+L('。請輸入完整代號。',' — type the full ticker.'); ccell.append(csub); }
-        else if(c && NM[c] && UP[c]){ csub.textContent=NM[c]; ccell.append(csub); }
+        else if(c && autoPx(c)){ const nm=(UP[c]&&NM[c])||(USN&&USN[c]); if(nm){ csub.textContent=nm; ccell.append(csub); } }
         pcell.textContent=''; pcell.style.lineHeight=''; pcell.style.paddingTop=''; const ap=autoPx(c);
         if(ap){ pcell.className='tx'; pcell.textContent=fmt(ap,2); const x=UP[c]; const q=LIVE[c];
           const oc = x&&x[3]&&x[3]!==CUR ? [x[2],x[3]] : (q&&q.cur!==CUR ? [q.p,q.cur] : null);
           if(oc){ pcell.className=''; pcell.style.lineHeight='1.2'; pcell.style.paddingTop='8px'; pcell.append(el('div',{class:'sub',style:'text-align:right'},`${fmt(oc[0],2)} ${oc[1]}`)); } }
         else { pcell.className=''; pcell.append(pi);
           loadEU();
-          if(c && !UP[c] && !AMB[c] && !(c in LIVE) && document.activeElement!==ci && (euReady||!needEU()) && !isISIN(c) && !c.includes('.')){ LIVE[c]=null; fetchQuote(c).then(q=>{ if(q){ const v=fxConv(q.p,q.cur,CUR); if(v){ LIVE[c]={v,p:q.p,cur:q.cur}; ref(); upd(); } } }); } }
+          if(c && !UP[c] && !AMB[c] && !(c in LIVE) && document.activeElement!==ci && (euReady||!needEU()) && !isISIN(c) && !c.includes('.')){ LIVE[c]=null; fetchQuote(c).then(q=>{ if(q){ const v=fxConv(q.p,q.cur,CUR); if(v){ LIVE[c]={v,p:q.p,cur:q.cur}; reref(); upd(); } } }); } }
         if(!r.r) sel.value=auto(c); };
       ci.oninput=()=>{ r.c=ci.value.trim(); save(); ref(); upd(); }; ci.onchange=()=>{ ref(); };
       ni.oninput=()=>{ r.n=ni.value; save(); upd(); };
       pi.oninput=()=>{ r.p=pi.value; save(); upd(); };
       sel.onchange=()=>{ r.r=sel.value; save(); upd(); };
       del.onclick=()=>{ rows.splice(i,1); if(!rows.length) rows.push({c:'',n:'',p:'',r:''}); save(); draw(); upd(); };
-      tr.append(ccell, el('td',{},ni), pcell, vc, el('td',{},sel), el('td',{class:'tx'},del)); body.append(tr); ref();
+      tr.append(ccell, el('td',{},ni), pcell, vc, el('td',{},sel), el('td',{class:'tx'},del)); body.append(tr); REFS.push(ref); ref();
     });
   }
   const c2=el('section',{class:'card'}); c2.append(el('h2',{},L('今天要做的事','What to do today')));
@@ -771,14 +772,14 @@ function renderPFUS(main, slot){
     }
     const sal=+cfg.sal||0;
     if(sal>0){ const it=[]; const dip=all>0&&(st==='dip'||st==='panic');
-      if(!all){ const tg=st==='panic'?US.target:base; it.push(L(`還沒有持股，第一次投入先照${st==='panic'?'恐慌加碼目標':'基準'}比例建立組合：`,`No holdings yet. Build the ${st==='panic'?'panic-buy target':'base'} mix with your first money:`)); it.push(`${LEV} ${b_(N(sal*tg))} ${CUR}${sh(sal*tg,LEV)}${L('、',', ')}${BUL} ${b_(N(sal*(1-tg)))} ${CUR}${sh(sal*(1-tg),BUL)}`); it.push(L('之後每個月照上面的燈號操作。','From next month on, follow the signal above.')); }
+      if(!all){ const tg=st==='panic'?US.target:base; it.push(L(`還沒有持股，第一次投入先照${st==='panic'?'恐慌加碼目標':'基準'}比例建立組合：`,`No holdings yet. Build the ${st==='panic'?'panic-buy target':'base'} mix with your first money:`)); it.push(`${LEV} ${b_(N(sal*tg))} ${CUR}${sh(sal*tg,LEV)}${L('、',', ')}${BUL} ${b_(N(sal*(1-tg)))} ${CUR}${sh(sal*(1-tg),BUL)}`); it.push(L('之後每個月照上面的燈號操作。','From next month on, follow the signal above.')); if(st==='dip') it.push(L('為什麼不是全買正二：回調時「薪資全買正二」的前提是手上已經有 40% 子彈留給 VIX 恐慌訊號；第一次投入還沒有子彈，所以先照基準建立。','Why not all into 2x? The pullback rule assumes you already hold a 40% reserve for VIX panic signals. Your first money has to build that reserve, so start at the base mix.')); }
       else
       if(dip) it.push(L(`全部買 ${LEV} ${b_(N(sal))} ${CUR}`,`All ${b_(N(sal))} ${CUR} into ${LEV}`)+sh(sal,LEV));
       else it.push(L(`${LEV} ${b_(N(sal*base))} ${CUR}${sh(sal*base,LEV)}、${BUL} ${b_(N(sal*(1-base)))} ${CUR}${sh(sal*(1-base),BUL)}`,`${LEV} ${b_(N(sal*base))} ${CUR}${sh(sal*base,LEV)}, ${BUL} ${b_(N(sal*(1-base)))} ${CUR}${sh(sal*(1-base),BUL)}`));
       act(C.brass,L('本月投入怎麼分','This month\'s money'),it); }
     out.append(el('p',{class:'note'},L('股數依最近收盤價估算，下單前請用當時價格確認。','Share counts use the latest close; check the live price before you trade.')));
   }
-  draw(); upd(); loadEU();
+  draw(); upd(); loadEU(); loadUSN();
 }
 
 // ===================== 我的庫存 =====================
@@ -850,12 +851,21 @@ function renderPF2(main){
     rows.forEach((r,i)=>{ const c=(r.c||'').toUpperCase(); const val=(+r.n||0)*px(c); const role=r.r||autoRole(c); S[role]+=val; (byRole[role]=byRole[role]||[]).push({c,val,n:+r.n||0}); const vc=valCells.find(x=>x[0]===i); if(vc) vc[1].textContent=val?N(val):'—'; });
     out.textContent='';
     const TWv=S.tl+S.tb+S.core+S.to, USv=S.ul+S.ub+S.up+S.uo, T=TWv+USv;
-    if(!T){ out.append(el('p',{class:'muted'},'在左邊輸入持股後，這裡會算出目前比例和每個燈號要買賣多少。')); return; }
+    if(!T && !(+cfg.sal>0)){ out.append(el('p',{class:'muted'},'在左邊輸入持股，或填本月可投入金額，這裡會算出要買賣多少。')); return; }
     const tgt=(cfg.tw||70)/100;
     const ulBuy = cfg.ul==='mix' ? [['00670L',.5],['00830',.5]] : [[cfg.ul,1]];
     const buyUL=(amt)=>ulBuy.map(([k,f])=>`${k} ${b_(N(amt*f))} 元（約 ${b_(N(shares(amt*f,k)))} 股）`).join('、');
     const sellFrom=(role,amt)=>{ const list=(byRole[role]||[]).filter(x=>x.val>0).sort((a,b)=>b.val-a.val); const res=[]; let left=amt;
       for(const x of list){ const y=Math.min(left,x.val); if(y<=0) break; res.push(`${x.c} ${b_(N(y))} 元（約 ${b_(N(shares(y,x.c)))} 股）`); left-=y; } return res.join('、'); };
+    if(!T){ const Sal=+cfg.sal, sTW=Sal*tgt, sUS=Sal*(1-tgt); const twT=TW.state==='panic'?TW.target:TW.base, usT=US.state==='panic'?US.target:US.base;
+      const acts=el('div',{class:'pf-acts'}); out.append(acts); const a=el('div',{class:'pf-act',style:`--c:${C_.brass}`}); a.append(el('h4',{},'本月投入怎麼分')); const u=el('ul',{});
+      [`還沒有持股，第一次投入先照台美 ${pct(tgt)}／${pct(1-tgt)} 和各自的${TW.state==='panic'||US.state==='panic'?'加碼目標':'基準'}比例建立組合：`,
+       `台股 ${b_(N(sTW))} 元：00685L ${b_(N(sTW*twT))} 元（約 ${b_(N(shares(sTW*twT,'00685L')))} 股）、00713 ${b_(N(sTW*(1-twT)))} 元（約 ${b_(N(shares(sTW*(1-twT),'00713')))} 股）`,
+       `美股 ${b_(N(sUS))} 元：${buyUL(sUS*usT)}、00865B ${b_(N(sUS*(1-usT)))} 元（約 ${b_(N(shares(sUS*(1-usT),'00865B')))} 股）`,
+       '之後每個月照上面的燈號操作。']
+       .concat(TW.state==='dip'||US.state==='dip'?['為什麼不是全買正二：回調時「薪資全買正二」的前提是手上已經有 40% 子彈留給 VIX 恐慌訊號；第一次投入還沒有子彈，所以先照基準建立。']:[])
+       .forEach(x=>{ const li=el('li',{}); li.innerHTML=x; u.append(li); }); a.append(u); acts.append(a);
+      out.append(el('p',{class:'note'},'股數依最近收盤價估算，下單前請用當時價格確認。')); return; }
     out.append(el('div',{class:'eyebrow',style:'margin-top:6px'},`總市值 ${N(T)} 元`));
     out.append(bar('台股／美股',TWv/T,`${pct(TWv/T)} / ${pct(USv/T)}`));
     out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`目標 ${pct(tgt)} / ${pct(1-tgt)}`));
