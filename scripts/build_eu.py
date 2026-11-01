@@ -1,0 +1,87 @@
+"""每天抓一次歐洲各交易所的股票和 ETF 收盤價，給朋友版「你的持股」查價用。
+代號清單來自 FinanceDatabase（MIT 授權，https://github.com/JerBouma/FinanceDatabase），價格來自 Yahoo Finance。
+輸出 docs/us/eu.json：
+  p: {代號: [原幣價格, 幣別, 名稱]}
+  a: {沒有交易所代碼的代號: 完整代號}     例 SAP -> SAP.DE
+  m: {同代號但不同公司: [完整代號, ...]}  例 SAN -> [SAN.MC, SAN.PA]
+  i: {ISIN: 完整代號}
+  fx: {EURUSD: ..., EURGBP: ...}"""
+import sys, json, time, urllib.request, datetime as dt
+from concurrent.futures import ThreadPoolExecutor
+import financedatabase as fd
+
+OUT = sys.argv[1] if len(sys.argv) > 1 else "docs/us/eu.json"
+EXCH = ["GER", "PAR", "AMS", "BRU", "MIL", "MCE", "LIS", "ISE", "HEL", "STO", "CPH", "OSL", "EBS", "VIE", "LSE"]
+EU_ISIN = set("DE FR NL BE IT ES PT IE LU FI SE DK NO CH AT GB JE GG IM".split())
+HOME = {"DE": "GER", "FR": "PAR", "NL": "AMS", "BE": "BRU", "IT": "MIL", "ES": "MCE", "PT": "LIS", "FI": "HEL", "SE": "STO",
+        "DK": "CPH", "NO": "OSL", "CH": "EBS", "AT": "VIE", "GB": "LSE", "JE": "LSE", "GG": "LSE", "IM": "LSE"}
+
+def get(url, tries=3):
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=40) as r: return json.loads(r.read().decode())
+        except Exception as e:
+            last = e; time.sleep(3 * (i + 1))
+    raise last
+
+rows = []
+for df in (fd.Equities().select(), fd.ETFs().select()):
+    df = df[df["exchange"].isin(EXCH)]
+    if "delisted" in df: df = df[df["delisted"] != True]
+    for sym, r in df.iterrows():
+        isin = r["isin"] if isinstance(r["isin"], str) and len(r["isin"]) == 12 else ""
+        if isin and isin[:2] not in EU_ISIN: continue          # 歐洲交易所掛的美股等，請直接用原本的代號
+        rows.append((str(sym).upper(), isin, r["exchange"], str(r["name"] or "")[:48]))
+syms = sorted({r[0] for r in rows})
+print(f"候選 {len(syms)} 檔")
+
+def spark(batch):
+    try: j = get("https://query1.finance.yahoo.com/v7/finance/spark?symbols=" + ",".join(batch) + "&range=5d&interval=1d")
+    except Exception: return []
+    res = []
+    for it in (j.get("spark") or {}).get("result") or []:
+        try:
+            m = it["response"][0]["meta"]; p = m.get("regularMarketPrice"); cur = m.get("currency"); t = m.get("regularMarketTime") or 0
+            if p and cur and time.time() - t < 15 * 86400:
+                if cur in ("GBp", "GBX"): p, cur = p / 100, "GBP"
+                res.append((it["symbol"].upper(), float(p), cur))
+        except Exception: pass
+    return res
+
+batches = [syms[i:i + 20] for i in range(0, len(syms), 20)]
+px = {}
+with ThreadPoolExecutor(4) as ex:
+    for res in ex.map(spark, batches):
+        for s, p, c in res: px[s] = (p, c)
+fx = {}
+for c in ["USD", "GBP", "CHF", "SEK", "DKK", "NOK", "PLN"]:
+    try: fx["EUR" + c] = round(get(f"https://query1.finance.yahoo.com/v8/finance/chart/EUR{c}=X?range=5d&interval=1d")["chart"]["result"][0]["meta"]["regularMarketPrice"], 5)
+    except Exception: pass
+ok_cur = {"EUR"} | {k[3:] for k in fx}
+print(f"有價格 {len(px)} 檔")
+
+P, by_isin = {}, {}
+for sym, isin, exch, name in rows:
+    if sym not in px or px[sym][1] not in ok_cur or sym in P: continue
+    p, c = px[sym]; P[sym] = [round(p, 4), c, name]
+    by_isin.setdefault(isin or sym, []).append((sym, exch))
+# 同一個 ISIN 選一個主要掛牌：公司本國交易所 > 德國（歐元）> 其他
+def rank(isin, sym, exch):
+    home = HOME.get(isin[:2])
+    return (0 if exch == home else 1 if exch == "GER" else 2 if P[sym][1] == "EUR" else 3, EXCH.index(exch))
+main_of = {k: min(v, key=lambda x: rank(k, *x))[0] for k, v in by_isin.items()}
+I = {k: s for k, s in main_of.items() if len(k) == 12 and not k.endswith(".")}
+base = {}
+for k, ls in by_isin.items():
+    for sym, _ in ls: base.setdefault(sym.rsplit(".", 1)[0], set()).add(k)
+A, M = {}, {}
+for b, ks in base.items():
+    if b in P: continue
+    if len(ks) == 1: A[b] = main_of[next(iter(ks))]
+    else: M[b] = sorted(main_of[k] for k in ks)
+doc = {"d": dt.date.today().isoformat(), "fx": fx, "p": P, "a": A, "m": M, "i": I}
+json.dump(doc, open(OUT, "w"), ensure_ascii=False, separators=(",", ":"))
+print(f"輸出 {len(P)} 檔，免交易所代碼 {len(A)}，同代號多檔 {len(M)}")
+for t in ["SAP", "SAN", "ASML", "VWCE", "IB01", "LQQ", "NESN", "AZN"]:
+    print(t, A.get(t), M.get(t))
