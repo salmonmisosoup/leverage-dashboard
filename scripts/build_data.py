@@ -218,6 +218,21 @@ if fpe:
     macro["fpe"] = {"last": fpe[-1]["value"], "asof": fpe[-1]["trading_day (EOD)"], "series": fpe}
 out["macro"] = macro
 
+# ---------------- 我的庫存用的收盤價（只放在完整版）----------------
+PF_TICKERS = {"2330": "台積電", "00685L": "群益臺灣加權正2", "00631L": "元大台灣50正2", "00713": "元大台灣高息低波",
+              "00918": "大華優利高填息30", "00830": "國泰費城半導體", "00670L": "富邦NASDAQ正2", "00865B": "國泰US短期公債",
+              "00662": "富邦NASDAQ", "00924": "復華S&P500成長", "009815": "大華美國MAG7+"}
+prices = {}
+start_px = (dt.date.today() - dt.timedelta(days=20)).isoformat()
+for tk, nm in PF_TICKERS.items():
+    try:
+        d = finmind("TaiwanStockPrice", tk, start_px)
+        d = d[d["close"] > 0]
+        if len(d): prices[tk] = {"name": nm, "close": float(d["close"].iloc[-1]), "date": d.index[-1].strftime("%Y-%m-%d")}
+    except Exception as e:
+        prices[tk] = {"name": nm, "close": None, "date": None}
+out["prices"] = prices
+
 
 # ---------------- 訊號變化（給每日排程推播用）----------------
 def _sig(m):
@@ -250,7 +265,7 @@ if prev_path and os.path.exists(prev_path):
 os.makedirs(f"{OUT}/full", exist_ok=True); os.makedirs(f"{OUT}/friends", exist_ok=True)
 with open(f"{OUT}/full/data.json", "w") as f:
     json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
-us_only = {k: v for k, v in out.items() if k != "tw"}
+us_only = {k: v for k, v in out.items() if k not in ("tw", "prices")}
 us_only["sources"] = {k: v for k, v in src_status.items() if k != "FinMind 加權指數"}
 with open(f"{OUT}/friends/data.json", "w") as f:
     json.dump(us_only, f, ensure_ascii=False, separators=(",", ":"))
