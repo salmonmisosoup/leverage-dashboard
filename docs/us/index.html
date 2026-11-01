@@ -642,6 +642,34 @@ function alignItems(o){ // o: {w,base,st,lev,bul,L,B,cur,buyLev,sellLev,sellBul,
   return it;
 }
 
+
+// 任意代號報價：美股用 FinMind，其他（例如 SAP.DE、ASML.AS、IB01.L）用 Yahoo Finance（經公開 CORS 代理）
+const QCACHE_MS=6*3600*1000;
+async function fetchQuote(code){
+  const k='q:'+code; try{ const c=JSON.parse(store.get(k)||'null'); if(c&&Date.now()-c.t<QCACHE_MS) return c; }catch(e){}
+  let res=null;
+  if(/^[A-Z][A-Z0-9\-]{0,5}$/.test(code)){
+    try{ const d=new Date(Date.now()-12*864e5).toISOString().slice(0,10);
+      const r=await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=USStockPrice&data_id=${code}&start_date=${d}`); const j=await r.json();
+      if(j.data&&j.data.length){ const x=j.data[j.data.length-1]; res={p:+x.Close,cur:'USD',d:x.date}; } }catch(e){}
+  }
+  if(!res){
+    const y=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(code)}?range=5d&interval=1d`;
+    for(const u of [`https://api.allorigins.win/raw?url=${encodeURIComponent(y)}`, `https://corsproxy.io/?url=${encodeURIComponent(y)}`]){
+      try{ const r=await fetch(u); if(!r.ok) continue; const j=await r.json(); const m=j.chart.result[0]; const cl=(m.indicators.quote[0].close||[]).filter(v=>v!=null);
+        let p=cl.length?cl[cl.length-1]:m.meta.regularMarketPrice, cur=m.meta.currency; if(cur==='GBp'){ p/=100; cur='GBP'; }
+        if(p){ res={p:+p,cur}; break; } }catch(e){}
+    }
+  }
+  if(res){ res.t=Date.now(); store.set(k,JSON.stringify(res)); }
+  return res;
+}
+function fxConv(p, from, to){
+  const F=(DATA&&DATA.fx)||{}; const eu=F.EURUSD||1.1, eg=F.EURGBP||0.85;
+  const toEUR={EUR:1,USD:1/eu,GBP:1/eg}[from]; if(toEUR==null) return null;
+  const e=p*toEUR; return to==='EUR'?e:to==='USD'?e*eu:null;
+}
+
 // ===================== 朋友版：我的庫存（美股）=====================
 function renderPFUS(main, slot){
   const EN=LANG==='en', EU=VENUE==='eu';
@@ -655,14 +683,15 @@ function renderPFUS(main, slot){
   let rows=[]; try{ rows=JSON.parse(store.get(key)||'null')||[]; }catch(e){} if(!rows.length) rows=[{c:'',n:'',p:'',r:''}];
   let cfg={sal:''}; try{ Object.assign(cfg, JSON.parse(store.get(key+'-cfg')||'{}')); }catch(e){}
   const save=()=>{ store.set(key,JSON.stringify(rows)); store.set(key+'-cfg',JSON.stringify(cfg)); };
-  const autoPx=c=>{ const x=UP[c]; return x?x[1]:0; };
+  const LIVE={};
+  const autoPx=c=>{ const x=UP[c]; if(x) return x[1]; const q=LIVE[c]; return q&&q.v?q.v:0; };
   const price=r=>{ const c=(r.c||'').toUpperCase(); return autoPx(c) || (+r.p||0); };
   const N=n=>Math.round(n).toLocaleString('en-US');
   const grid=el('div',{class:'pf-grid'});
   const c1=el('section',{class:'card'});
   c1.append(el('h2',{},L('你的持股','Your holdings')), el('p',{class:'muted',style:'margin:2px 0 10px;font-size:.82rem'},
-    EU? L('輸入代號和股數，LQQ、IB01、XEON、EQQQ、SXRV、CSPX、VUAA 等常見標的會自動帶入收盤價並換算成歐元，原本不是歐元計價的（例如 IB01 是美元）會在下方顯示原幣價格；其他的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares. Common tickers such as LQQ, IB01, XEON, EQQQ, SXRV, CSPX and VUAA get the latest close converted to EUR, with the original-currency price shown underneath (IB01 trades in USD); type a price for others. Saved only in this browser; nobody else can see it.')
-      : L('輸入代號和股數，QLD、SGOV、QQQ、VOO 等常見標的會自動帶入收盤價，其他的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares. Common tickers such as QLD, SGOV, QQQ and VOO get the latest close automatically; type a price for others. Saved only in this browser; nobody else can see it.')));
+    EU? L('輸入代號和股數，價格會自動帶入並換算成歐元，原幣價格顯示在下方。美股直接輸入代號（例如 NVDA）；歐股請加上交易所代碼（例如 SAP.DE、ASML.AS、IB01.L）。抓不到的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares; prices fill in automatically and are converted to EUR, with the original-currency price underneath. Type US tickers as is (e.g. NVDA); add the exchange suffix for European ones (e.g. SAP.DE, ASML.AS, IB01.L). If a price can’t be found, type it in. Saved only in this browser; nobody else can see it.')
+      : L('輸入代號和股數，價格會自動帶入。美股直接輸入代號（例如 NVDA、GOOG）；其他市場請加上交易所代碼（例如 SAP.DE），非美元計價的會換算成美元。抓不到的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares; prices fill in automatically. Type US tickers as is (e.g. NVDA, GOOG); add the exchange suffix for other markets (e.g. SAP.DE), converted to USD. If a price can’t be found, type it in. Saved only in this browser; nobody else can see it.')));
   const tb=el('table',{class:'pf-tbl'}); const head=el('tr'); [L('代號','Ticker'),L('股數','Shares'),L('價格','Price'),L('市值','Value'),L('分類','Type'),''].forEach((h,k)=>head.append(el('th',{style:k===4?'text-align:left':''},h))); tb.append(head);
   const body=el('tbody',{}); tb.append(body); const w=el('div',{class:'tbl'}); w.append(tb); c1.append(w);
   const addB=el('button',{class:'btn-ghost'},L('＋ 新增一列','+ Add row')); addB.onclick=()=>{ rows.push({c:'',n:'',p:'',r:''}); save(); draw(); upd(); };
@@ -678,8 +707,14 @@ function renderPFUS(main, slot){
       const pcell=el('td',{}); const vc=el('td',{class:'tx'}); vcs.push([i,vc]);
       const sel=el('select',{}); for(const [k,v] of Object.entries(ROL)) sel.append(el('option',{value:k},v)); sel.value=r.r||auto((r.c||'').toUpperCase());
       const del=el('button',{class:'btn-x',title:L('刪除','Remove')},'×');
-      const ref=()=>{ const c=(r.c||'').toUpperCase(); pcell.textContent=''; const ap=autoPx(c); if(ap){ pcell.className='tx'; pcell.textContent=fmt(ap,2); const x=UP[c]; if(x&&x[3]&&x[3]!=='EUR'){ pcell.className=''; pcell.style.lineHeight='1.2'; pcell.style.paddingTop='8px'; pcell.append(el('div',{class:'sub',style:'text-align:right'},`${fmt(x[2],2)} ${x[3]}`)); } } else { pcell.className=''; pcell.append(pi); } if(!r.r) sel.value=auto(c); };
-      ci.oninput=()=>{ r.c=ci.value.trim(); save(); ref(); upd(); };
+      const ref=()=>{ const c=(r.c||'').toUpperCase(); pcell.textContent=''; pcell.style.lineHeight=''; pcell.style.paddingTop=''; const ap=autoPx(c);
+        if(ap){ pcell.className='tx'; pcell.textContent=fmt(ap,2); const x=UP[c]; const q=LIVE[c];
+          const oc = x&&x[3]&&x[3]!==CUR ? [x[2],x[3]] : (q&&q.cur!==CUR ? [q.p,q.cur] : null);
+          if(oc){ pcell.className=''; pcell.style.lineHeight='1.2'; pcell.style.paddingTop='8px'; pcell.append(el('div',{class:'sub',style:'text-align:right'},`${fmt(oc[0],2)} ${oc[1]}`)); } }
+        else { pcell.className=''; pcell.append(pi);
+          if(c && !UP[c] && !(c in LIVE) && document.activeElement!==ci){ LIVE[c]=null; fetchQuote(c).then(q=>{ if(q){ const v=fxConv(q.p,q.cur,CUR); if(v){ LIVE[c]={v,p:q.p,cur:q.cur}; ref(); upd(); } } }); } }
+        if(!r.r) sel.value=auto(c); };
+      ci.oninput=()=>{ r.c=ci.value.trim(); save(); ref(); upd(); }; ci.onchange=()=>{ ref(); };
       ni.oninput=()=>{ r.n=ni.value; save(); upd(); };
       pi.oninput=()=>{ r.p=pi.value; save(); upd(); };
       sel.onchange=()=>{ r.r=sel.value; save(); upd(); };

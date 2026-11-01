@@ -348,6 +348,10 @@ with open(f"{OUT}/full/data.json", "w") as f:
 us_only = {k: v for k, v in out.items() if k not in ("tw", "prices")}
 us_only["uprices"] = uprices
 us_only["eprices"] = eprices
+try:
+    us_only["fx"] = {"EURUSD": round(1 / fx["USD"], 5), "EURGBP": round(1 / fx["GBP"], 5)}
+except Exception:
+    pass
 us_only["sources"] = {k: v for k, v in src_status.items() if k not in ("FinMind 加權指數", "證交所收盤價", "櫃買中心收盤價", "FRED BAA 利差")}
 with open(f"{OUT}/friends/data.json", "w") as f:
     json.dump(us_only, f, ensure_ascii=False, separators=(",", ":"))
