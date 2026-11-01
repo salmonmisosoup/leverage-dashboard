@@ -5,6 +5,7 @@
   a: {沒有交易所代碼的代號: 完整代號}     例 SAP -> SAP.DE
   m: {同代號但不同公司: [完整代號, ...]}  例 SAN -> [SAN.MC, SAN.PA]
   i: {ISIN: 完整代號}
+另外輸出 docs/us/usn.json：{美股代號: 名稱}
   fx: {EURUSD: ..., EURGBP: ...}"""
 import sys, json, time, urllib.request, datetime as dt
 from concurrent.futures import ThreadPoolExecutor
@@ -25,8 +26,19 @@ def get(url, tries=3):
             last = e; time.sleep(3 * (i + 1))
     raise last
 
+US_EXCH = ["NMS", "NYQ", "NGM", "NCM", "ASE", "PCX", "BTS"]
+dfs = (fd.Equities().select(), fd.ETFs().select())
+# 美股名稱（價格由網頁向 FinMind 即時查）
+usn = {}
+for df in dfs:
+    for sym, r in df[df["exchange"].isin(US_EXCH)].iterrows():
+        sym = str(sym).upper()
+        if "." in sym or (r.get("delisted") is True): continue
+        if isinstance(r["name"], str) and sym not in usn: usn[sym] = r["name"][:44]
+json.dump(usn, open(OUT.replace("eu.json", "usn.json"), "w"), ensure_ascii=False, separators=(",", ":"))
+print(f"美股名稱 {len(usn)} 檔", {k: usn.get(k) for k in ["NVDA", "QLD", "GOOG", "GGLL", "SPCX", "SGOV"]})
 rows = []
-for df in (fd.Equities().select(), fd.ETFs().select()):
+for df in dfs:
     df = df[df["exchange"].isin(EXCH)]
     if "delisted" in df: df = df[df["delisted"] != True]
     for sym, r in df.iterrows():
