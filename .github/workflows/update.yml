@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "50 12 * * 1-5"   # 台北時間週一到週五 20:50（UTC 12:50）
   workflow_dispatch:          # 可在 Actions 頁面手動執行
+    inputs:
+      test_notify:
+        description: "送一則測試通知（確認 Email／WhatsApp 設定）"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -40,6 +45,7 @@ jobs:
           cp out/full/data.json docs/data.json
           cp out/friends/data.json docs/us/data.json
           CHANGES=$(grep '^CHANGES:' build.log | sed 's/^CHANGES: //')
+          if [ "${{ inputs.test_notify }}" = "true" ]; then CHANGES="測試通知：設定成功，之後燈號改變時會收到這樣的訊息"; fi
           echo "changes=${CHANGES}" >> "$GITHUB_OUTPUT"
 
       - name: 提交新數據
