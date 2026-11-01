@@ -9,12 +9,13 @@ import pandas as pd, numpy as np
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 
 import time
-def get(url, tries=4):
+def get(url, tries=5):
     last = None
     for i in range(tries):
         if i: time.sleep(5 * i)
         try:
-            with urllib.request.urlopen(url, timeout=90) as r:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; leverage-dashboard/1.0)", "Accept": "*/*"})
+            with urllib.request.urlopen(req, timeout=90) as r:
                 return r.read().decode("utf-8")
         except Exception as e:
             last = e

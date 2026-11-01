@@ -235,7 +235,7 @@ zh:{
   calc_eb:'輸入你目前的持股市值，算出要轉多少', val:'{x} 市值（{c}）', eg:'例如 {n}',
   calc_empty:'輸入兩個市值後，這裡會顯示具體要轉換的金額與調整後組合。', calc_now:'目前正二比重 {a}，建議 {b}',
   sell_buy:'賣出 {amt} {c} 的 {from}，買進 {to}。', after:'調整後：{lev} {a}（{wa}）／{bul} {b}（{wb}）',
-  below_base:'正二低於基準，但目前沒有加碼訊號。可以用每月薪資優先買 {lev}，慢慢補回 {w}。', in_range:'比例已在建議範圍內（±3%），不需要調整。', calc_sal:'這次不需要動用子彈。本月薪資全部買 {lev}。', exec_note:'訊號以收盤價計算，下一個交易日執行即可，不用盯盤。', stale:'數據已經 {n} 天沒有更新，或有資料來源失敗。燈號可能不是最新的，請先不要依此操作。', last35:'上次 ≥ {th}：{d}', g_mid_sal:'中期回調（只用薪資，不動子彈）', r_sal:'收盤在季線下方', d_sal:'季線 {a}・半年線 {b}', w_sal:'薪資全買正二', d_lastep:'・上次出現 {d}', w_base:'正二 {w}', w_trim:'調節正二至 {w}', w_add:'加碼正二至 {w}', sal_out_dip:'本月全部買 {lev} {a} {c}', sal_note_dip:'價格在季線下方，這個月的薪資全部買正二；回到季線上方後，恢復 {a}／{b}。', above:'目前正二比重高於建議，不需要再加碼。規則只在週 RSI 超過 {th} 時才賣出，所以現在先不用動。',
+  below_base:'正二低於基準，但目前沒有加碼訊號。可以用每月薪資優先買 {lev}，慢慢補回 {w}。', in_range:'比例已在建議範圍內（±3%），不需要調整。', calc_sal:'這次不需要動用子彈。本月薪資全部買 {lev}。', exec_note:'訊號以收盤價計算，下一個交易日執行即可，不用盯盤。', stale:'數據已經 {n} 天沒有更新，燈號可能不是最新的，請先不要依此操作。', stale_src:'今天的資料有來源抓取失敗（{s}），燈號可能不準確，請先不要依此操作。下一次自動更新通常會恢復。', last35:'上次 ≥ {th}：{d}', g_mid_sal:'中期回調（只用薪資，不動子彈）', r_sal:'收盤在季線下方', d_sal:'季線 {a}・半年線 {b}', w_sal:'薪資全買正二', d_lastep:'・上次出現 {d}', w_base:'正二 {w}', w_trim:'調節正二至 {w}', w_add:'加碼正二至 {w}', sal_out_dip:'本月全部買 {lev} {a} {c}', sal_note_dip:'價格在季線下方，這個月的薪資全部買正二；回到季線上方後，恢復 {a}／{b}。', above:'目前正二比重高於建議，不需要再加碼。規則只在週 RSI 超過 {th} 時才賣出，所以現在先不用動。',
   privacy:'市值只存在你自己的瀏覽器裡，不會上傳。', once:' 如果這一波已經依同一級轉換過，就不用重複轉。',
   wave_note:'「這波下跌」是指從 {d} 的最高點以來。同一波下跌中，每一級只在第一次觸發時調整一次；創新高後重新計算。', ladder:'加碼與調節階梯', lad_sub:'{idx} {c}　距高點 {dd}　週 RSI {rsi}　VIX {vix}（{vd}）',
   g_heat:'過熱調節', g_base:'基準', g_add:'加碼調節', g_mid:'中期回調（最多用 1/3 子彈）', g_mid_us:'中期回調（選用，最多用 1/3 子彈）', g_panic:'恐慌加碼（保留給大訊號）',
@@ -318,7 +318,7 @@ en:{
   calc_eb:'Enter your current holdings to see how much to move', val:'{x} value ({c})', eg:'e.g. {n}',
   calc_empty:'Enter both values to see the exact amount to move and the mix afterwards.', calc_now:'2x share now {a}, suggested {b}',
   sell_buy:'Sell {amt} {c} of {from} and buy {to}.', after:'After: {lev} {a} ({wa}) / {bul} {b} ({wb})',
-  below_base:'Your 2x share is below the base, but there is no buy signal. Put monthly savings into {lev} first until you are back at {w}.', in_range:'Your mix is within ±3% of the target. No change needed.', calc_sal:'No need to touch the reserve. Put all of this month\'s savings into {lev}.', exec_note:'Signals use closing prices; acting on the next trading day is fine. No need to watch intraday.', stale:'The data has not updated for {n} days, or a data source failed. The light may be out of date; hold off acting on it.', last35:'last ≥ {th}: {d}', g_mid_sal:'Pullback (new money only, reserve untouched)', r_sal:'Close below the 60-day MA', d_sal:'60-day MA {a} · 120-day MA {b}', w_sal:'All savings to 2x', d_lastep:' · last seen {d}', w_base:'2x at {w}', w_trim:'Trim 2x to {w}', w_add:'Add 2x to {w}', sal_out_dip:'This month: all {a} {c} into {lev}', sal_note_dip:'Price is below the 60-day MA, so put this month\'s savings into 2x. Go back to {a} / {b} once it is above the line.', above:'Your 2x share is already above the suggestion, so there is nothing to add. The rules only sell when weekly RSI goes above {th}, so leave it for now.',
+  below_base:'Your 2x share is below the base, but there is no buy signal. Put monthly savings into {lev} first until you are back at {w}.', in_range:'Your mix is within ±3% of the target. No change needed.', calc_sal:'No need to touch the reserve. Put all of this month\'s savings into {lev}.', exec_note:'Signals use closing prices; acting on the next trading day is fine. No need to watch intraday.', stale:'The data has not updated for {n} days. The light may be out of date; hold off acting on it.', stale_src:'A data source failed today ({s}), so the light may be wrong. Hold off acting on it; the next update usually fixes this.', last35:'last ≥ {th}: {d}', g_mid_sal:'Pullback (new money only, reserve untouched)', r_sal:'Close below the 60-day MA', d_sal:'60-day MA {a} · 120-day MA {b}', w_sal:'All savings to 2x', d_lastep:' · last seen {d}', w_base:'2x at {w}', w_trim:'Trim 2x to {w}', w_add:'Add 2x to {w}', sal_out_dip:'This month: all {a} {c} into {lev}', sal_note_dip:'Price is below the 60-day MA, so put this month\'s savings into 2x. Go back to {a} / {b} once it is above the line.', above:'Your 2x share is already above the suggestion, so there is nothing to add. The rules only sell when weekly RSI goes above {th}, so leave it for now.',
   privacy:'Your values stay in your own browser and are never uploaded.', once:' If you already made this step during this decline, skip it.',
   wave_note:'"This decline" means since the high on {d}. Each step is acted on once, the first time it triggers in a decline, and resets after a new high.', ladder:'Buy and trim ladder', lad_sub:'{idx} {c}   from high {dd}   weekly RSI {rsi}   VIX {vix} ({vd})',
   g_heat:'Trim when hot', g_base:'Base', g_add:'Add when it falls', g_mid:'Pullback steps (up to 1/3 of reserve)', g_mid_us:'Pullback steps (optional, up to 1/3 of reserve)', g_panic:'Panic steps (keep reserve for these)',
@@ -389,7 +389,7 @@ let DATA=null, charts=[], cur = MODE==='us' ? 'us' : (store.get('dash-tab') || '
 
 function chrome(){
   document.documentElement.lang = LANG==='en' ? 'en' : 'zh-Hant';
-  document.getElementById('eyebrow').textContent = MODE==='us'?(VENUE==='eu'?'LQQ ＋ XEON':'QLD ＋ SGOV'):t('eb_full');
+  document.getElementById('eyebrow').textContent = MODE==='us'?(VENUE==='eu'?'LQQ ＋ IB01':'QLD ＋ SGOV'):t('eb_full');
   document.getElementById('h1').textContent = MODE==='us'?t('h1_us'):t('h1_full');
   document.getElementById('subtitle').textContent = t('subtitle');
   document.getElementById('foot1').textContent = t('foot1');
@@ -697,8 +697,10 @@ let rz; window.addEventListener('resize',()=>{clearTimeout(rz); rz=setTimeout(()
 
 function staleCheck(){
   const st=document.getElementById('stale'); const age=(Date.now()-new Date(DATA.generated).getTime())/864e5;
-  const bad=Object.values(DATA.sources||{}).some(v=>v!=='ok');
-  if (age>3.5 || bad){ st.hidden=false; st.textContent=t('stale',{n:Math.floor(age)}); } else st.hidden=true;
+  // 只有會影響燈號的來源失敗才警示：VIX、指數價格、（台股）信用利差
+  const crit = k => /^(CBOE|FRED) VIX$/.test(k) || /QQQ/.test(k) || (MODE!=='us' && (/加權指數/.test(k) || /BAA/.test(k)));
+  const bad=Object.entries(DATA.sources||{}).some(([k,v])=>v!=='ok' && crit(k));
+  if (age>3.5 || bad){ st.hidden=false; st.textContent= bad ? t('stale_src',{s:Object.entries(DATA.sources).filter(([k,v])=>v!=='ok'&&crit(k)).map(([k])=>k).join('、')}) : t('stale',{n:Math.floor(age)}); } else st.hidden=true;
 }
 function sourcesRender(){
   const s=document.getElementById('sources'); s.textContent='';
