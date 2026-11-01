@@ -266,26 +266,91 @@ for tk, nm in PF_TICKERS.items():
     except Exception:
         pass
 prices_doc = {"date": px_date, "p": {k: [v["name"], v["close"]] for k, v in prices.items()}}
-# 朋友版：歐洲上市常見標的（Yahoo Finance），統一換算成歐元
-def yahoo_close(sym):
-    j = json.loads(get(f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=5d&interval=1d", tries=3))
+# 朋友版：歐洲上市標的（Yahoo Finance），統一換算成歐元。主要指數成分股＋常見 UCITS ETF
+EU_UNIVERSE = """
+LQQ.PA IB01.L XEON.DE EQQQ.DE SXRV.DE CNDX.L CSPX.L VUAA.DE ZPR1.DE ERNE.L
+VWCE.DE VWRL.AS VWRL.L VWRA.L VWRP.L IWDA.AS IWDA.L SWDA.L EUNL.DE SXR8.DE VUSA.AS VUSA.L VUSD.L VUAA.L IUSQ.DE ISAC.L SSAC.L
+EIMI.L IS3N.DE EMIM.AS VFEM.AS XDWD.DE EXSA.DE EXS1.DE EQQQ.L QDVE.DE IUIT.L XDWT.DE SXRT.DE MEUD.PA CW8.PA EWLD.PA PANX.PA
+PUST.PA ESE.PA PE500.PA CL2.PA WSML.L ZPRV.DE ZPRX.DE VHYL.AS VHYL.L TDIV.AS ISPA.DE 4GLD.DE SGLD.L EGLN.L IGLN.L CSH2.L
+IBTA.L IDTL.L DTLA.L AGGH.L EUNA.DE XDEM.DE IWVL.L IWMO.L IWQU.L SPPW.DE SPYI.DE IMAE.AS CSNDX.SW CSSPX.SW VEUR.AS VEVE.AS
+IUSA.DE QQQ3.L QQQS.L DBPG.DE VVSM.DE SMH.L SPYW.DE IQQH.DE IUSN.DE ZPRS.DE VGWL.DE VGWD.DE EXW1.DE SXRZ.DE EXX5.DE
+ADS.DE AIR.DE ALV.DE BAS.DE BAYN.DE BEI.DE BMW.DE BNR.DE CBK.DE CON.DE 1COV.DE DTG.DE DBK.DE DB1.DE DHL.DE DTE.DE EOAN.DE
+FRE.DE G1A.DE HEI.DE HEN3.DE HNR1.DE IFX.DE MBG.DE MRK.DE MTX.DE MUV2.DE P911.DE PAH3.DE QIA.DE RHM.DE RWE.DE SAP.DE SRT3.DE
+SIE.DE SHL.DE SY1.DE VNA.DE VOW3.DE ZAL.DE ENR.DE LHA.DE TUI1.DE PUM.DE BOSS.DE KGX.DE LEG.DE FRA.DE EVK.DE HLAG.DE TLX.DE
+AIXA.DE NEM.DE SDF.DE WCH.DE FME.DE TKA.DE HFG.DE JEN.DE AFX.DE NDA.DE KBX.DE EVT.DE G24.DE HOT.DE SAX.DE BC8.DE TMV.DE
+NDX1.DE RENK.DE 8TRA.DE DHER.DE AT1.DE LXS.DE KRN.DE FNTN.DE SZG.DE HAG.DE TEG.DE O2D.DE IOS.DE R3NK.DE
+AI.PA AIR.PA ALO.PA MT.AS CS.PA BNP.PA EN.PA CAP.PA CA.PA ACA.PA BN.PA DSY.PA EDEN.PA ENGI.PA EL.PA ERF.PA RMS.PA KER.PA
+OR.PA LR.PA MC.PA ML.PA ORA.PA RI.PA PUB.PA RNO.PA SAF.PA SGO.PA SAN.PA SU.PA GLE.PA STLAP.PA STMPA.PA TEP.PA HO.PA TTE.PA
+URW.PA VIE.PA DG.PA AC.PA AM.PA BOL.PA BVI.PA COV.PA DIM.PA ELIS.PA FGR.PA GET.PA RXL.PA SOP.PA SW.PA TFI.PA UBI.PA VK.PA
+VIV.PA AF.PA ATO.PA FDJ.PA NEX.PA RCO.PA SESG.PA SK.PA SPIE.PA TE.PA AMUN.PA AYV.PA EXENS.PA
+ABN.AS ADYEN.AS AGN.AS AD.AS AKZA.AS ASM.AS ASML.AS ASRNL.AS BESI.AS DSFIR.AS EXO.AS HEIA.AS IMCD.AS INGA.AS KPN.AS NN.AS
+PHIA.AS PRX.AS RAND.AS REN.AS SHELL.AS UMG.AS UNA.AS WKL.AS AALB.AS ARCAD.AS BAMNB.AS FUR.AS SBMO.AS VPK.AS JDEP.AS INPST.AS
+BFIT.AS CTPNV.AS FLOW.AS
+ABI.BR ACKB.BR AGS.BR ARGX.BR COFB.BR ELI.BR GBLB.BR KBC.BR LOTB.BR MELE.BR PROX.BR SOF.BR SOLB.BR SYENS.BR UCB.BR UMI.BR
+WDP.BR AED.BR DIE.BR VGP.BR
+A2A.MI AMP.MI AZM.MI BAMI.MI BGN.MI BMED.MI BMPS.MI BPE.MI BZU.MI CPR.MI DIA.MI ENEL.MI ENI.MI ERG.MI RACE.MI FBK.MI G.MI
+HER.MI IG.MI INW.MI ISP.MI IVG.MI LDO.MI MB.MI MONC.MI NEXI.MI PIRC.MI PST.MI PRY.MI REC.MI SPM.MI SRG.MI STLAM.MI STMMI.MI
+TEN.MI TIT.MI TRN.MI UCG.MI UNI.MI IP.MI
+ACS.MC ACX.MC AENA.MC ANA.MC ANE.MC BBVA.MC BKT.MC CABK.MC CLNX.MC COL.MC ELE.MC ENG.MC FDR.MC FER.MC GRF.MC IAG.MC IBE.MC
+IDR.MC ITX.MC LOG.MC MAP.MC MRL.MC MTS.MC NTGY.MC PUIG.MC RED.MC REP.MC ROVI.MC SAB.MC SAN.MC SCYR.MC SLR.MC TEF.MC UNI.MC
+EDP.LS EDPR.LS GALP.LS JMT.LS BCP.LS NOS.LS SON.LS CTT.LS RENE.LS
+NOKIA.HE NESTE.HE FORTUM.HE KNEBV.HE UPM.HE STERV.HE SAMPO.HE ELISA.HE WRT1V.HE KESKOB.HE ORNBV.HE OUT1V.HE METSO.HE
+NDA-FI.HE KCR.HE TYRES.HE VALMT.HE HUH1V.HE
+RYA.IR KRX.IR BIRG.IR A5G.IR GL9.IR
+EBS.VI OMV.VI VER.VI VOE.VI RBI.VI ANDR.VI WIE.VI BG.VI POST.VI CAI.VI UQA.VI VIG.VI
+NESN.SW NOVN.SW ROG.SW UBSG.SW ZURN.SW ABBN.SW CFR.SW LONN.SW SIKA.SW GIVN.SW ALC.SW HOLN.SW SREN.SW SCMN.SW PGHN.SW GEBN.SW
+PARG.SW SLHN.SW LOGN.SW SOON.SW STMN.SW KNIN.SW SGSN.SW UHR.SW TEMN.SW BALN.SW BAER.SW AMS.SW VACN.SW HELN.SW LISN.SW LISP.SW
+EMSN.SW BUCN.SW SCHP.SW SQN.SW BARN.SW FHZN.SW DKSH.SW ADEN.SW CLN.SW GALD.SW SDZ.SW SRAIL.SW
+ABB.ST ALFA.ST ASSA-B.ST ATCO-A.ST ATCO-B.ST AZN.ST BOL.ST ELUX-B.ST ERIC-B.ST ESSITY-B.ST EVO.ST GETI-B.ST HEXA-B.ST HM-B.ST
+INVE-B.ST KINV-B.ST NDA-SE.ST NIBE-B.ST SAND.ST SBB-B.ST SCA-B.ST SEB-A.ST SHB-A.ST SINCH.ST SKA-B.ST SKF-B.ST SWED-A.ST
+TEL2-B.ST TELIA.ST VOLV-B.ST SAAB-B.ST EQT.ST INDU-C.ST LIFCO-B.ST EPI-A.ST ADDT-B.ST AAK.ST HUSQ-B.ST SECU-B.ST TREL-B.ST
+SOBI.ST BALD-B.ST LATO-B.ST AXFO.ST HOLM-B.ST CAST.ST FABG.ST SAGA-B.ST BEIJ-B.ST THULE.ST
+NOVO-B.CO MAERSK-B.CO MAERSK-A.CO DSV.CO CARL-B.CO COLO-B.CO DANSKE.CO DEMANT.CO GMAB.CO GN.CO ISS.CO JYSK.CO NKT.CO NSIS-B.CO
+ORSTED.CO PNDORA.CO ROCK-B.CO RBREW.CO TRYG.CO VWS.CO ZEAL.CO BAVA.CO AMBU-B.CO NETC.CO FLS.CO SYDB.CO
+EQNR.OL DNB.OL MOWI.OL NHY.OL ORK.OL TEL.OL YAR.OL AKRBP.OL SALM.OL KOG.OL GJF.OL STB.OL SUBC.OL TOM.OL NOD.OL AKER.OL FRO.OL
+VAR.OL NAS.OL BAKKA.OL AUTO.OL SCHA.OL KAHOT.OL MPCC.OL HAFNI.OL BWLPG.OL AFG.OL
+AZN.L SHEL.L HSBA.L ULVR.L BP.L RIO.L GSK.L REL.L DGE.L LSEG.L BATS.L NG.L RR.L GLEN.L LLOY.L BARC.L CPG.L AAL.L PRU.L BA.L
+EXPN.L TSCO.L HLN.L NWG.L VOD.L IMB.L III.L SSE.L STAN.L ABF.L AHT.L ANTO.L AV.L BKG.L BNZL.L BT-A.L BRBY.L CNA.L CCH.L
+CRDA.L DCC.L ENT.L FRES.L HL.L HLMA.L HSX.L IAG.L IHG.L IMI.L INF.L ITRK.L JD.L KGF.L LAND.L LGEN.L MKS.L MNDI.L MNG.L NXT.L
+PSN.L PSON.L RKT.L RMV.L RTO.L SBRY.L SDR.L SGE.L SGRO.L SMIN.L SMT.L SN.L SPX.L SVT.L TW.L UU.L WEIR.L WPP.L WTB.L AUTO.L
+BEZ.L HWDN.L ICG.L PHNX.L UTG.L GAW.L DPLM.L BME.L EZJ.L FCIT.L
+"""
+# 舊代號（沒有交易所代碼）對應
+EU_ALIAS = {"LQQ": "LQQ.PA", "IB01": "IB01.L", "XEON": "XEON.DE", "EQQQ": "EQQQ.DE", "SXRV": "SXRV.DE", "CNDX": "CNDX.L",
+            "CSPX": "CSPX.L", "VUAA": "VUAA.DE", "ZPR1": "ZPR1.DE", "ERNE": "ERNE.L", "VWCE": "VWCE.DE", "IWDA": "IWDA.AS"}
+def yahoo_close(sym, tries=3):
+    j = json.loads(get(f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=5d&interval=1d", tries=tries))
     r = j["chart"]["result"][0]; cur = r["meta"].get("currency")
     closes = [c for c in r["indicators"]["quote"][0]["close"] if c]
     px_ = closes[-1] if closes else r["meta"].get("regularMarketPrice")
-    if cur == "GBp": px_, cur = px_ / 100, "GBP"
+    if cur in ("GBp", "GBX"): px_, cur = px_ / 100, "GBP"
     return float(px_), cur
 eprices = {}
+fx = {"EUR": 1.0}
 try:
-    fx = {"EUR": 1.0}
-    fx["USD"] = 1 / yahoo_close("EURUSD=X")[0]
-    fx["GBP"] = 1 / yahoo_close("EURGBP=X")[0]
-    for code, sym in [("LQQ", "LQQ.PA"), ("IB01", "IB01.L"), ("XEON", "XEON.DE"), ("EQQQ", "EQQQ.DE"), ("SXRV", "SXRV.DE"),
-                      ("CNDX", "CNDX.L"), ("CSPX", "CSPX.L"), ("VUAA", "VUAA.DE"), ("ZPR1", "ZPR1.DE"), ("ERNE", "ERNE.L")]:
-        try:
-            v, cur = yahoo_close(sym)
-            if cur in fx: eprices[code] = [code, round(v * fx[cur], 4), round(v, 4), cur]
-        except Exception:
-            pass
+    for c_ in ["USD", "GBP", "CHF", "SEK", "DKK", "NOK"]:
+        try: fx[c_] = 1 / yahoo_close(f"EUR{c_}=X")[0]
+        except Exception: pass
+    from concurrent.futures import ThreadPoolExecutor
+    syms = list(dict.fromkeys(EU_UNIVERSE.split()))
+    def one(sym):
+        try: return sym, yahoo_close(sym, tries=2)
+        except Exception: return sym, None
+    with ThreadPoolExecutor(6) as ex:
+        got = dict(ex.map(one, syms))
+    bad = [s for s in syms if not got[s] or got[s][1] not in fx]
+    print(f"Yahoo 歐洲：{len(syms) - len(bad)}/{len(syms)} 檔，抓不到：{' '.join(bad)}")
+    for sym in syms:
+        if sym in bad: continue
+        v, cur = got[sym]; eprices[sym] = [sym, round(v * fx[cur], 4), round(v, 4), cur]
+    # 沒打交易所代碼也能找到：只有一個上市地，或幾個上市地價格差不到 5%（同一檔）才對應
+    groups = {}
+    for sym in eprices: groups.setdefault(sym.rsplit(".", 1)[0], []).append(sym)
+    for b, ls in groups.items():
+        ps = [eprices[s][1] for s in ls]
+        if b not in eprices and max(ps) <= min(ps) * 1.05: eprices[b] = eprices[ls[0]]
+    for b, sym in EU_ALIAS.items():
+        if sym in eprices: eprices[b] = eprices[sym]
     src_status["Yahoo 歐洲 ETF"] = "ok" if eprices else "失敗: 無資料"
 except Exception as e:
     src_status["Yahoo 歐洲 ETF"] = f"失敗: {type(e).__name__}"
@@ -349,7 +414,7 @@ us_only = {k: v for k, v in out.items() if k not in ("tw", "prices")}
 us_only["uprices"] = uprices
 us_only["eprices"] = eprices
 try:
-    us_only["fx"] = {"EURUSD": round(1 / fx["USD"], 5), "EURGBP": round(1 / fx["GBP"], 5)}
+    us_only["fx"] = {"EUR" + k: round(1 / v, 5) for k, v in fx.items() if k != "EUR"}
 except Exception:
     pass
 us_only["sources"] = {k: v for k, v in src_status.items() if k not in ("FinMind 加權指數", "證交所收盤價", "櫃買中心收盤價", "FRED BAA 利差")}

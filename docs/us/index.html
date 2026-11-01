@@ -653,21 +653,12 @@ async function fetchQuote(code){
       const r=await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=USStockPrice&data_id=${code}&start_date=${d}`); const j=await r.json();
       if(j.data&&j.data.length){ const x=j.data[j.data.length-1]; res={p:+x.Close,cur:'USD',d:x.date}; } }catch(e){}
   }
-  if(!res){
-    const y=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(code)}?range=5d&interval=1d`;
-    for(const u of [`https://api.allorigins.win/raw?url=${encodeURIComponent(y)}`, `https://corsproxy.io/?url=${encodeURIComponent(y)}`]){
-      try{ const r=await fetch(u); if(!r.ok) continue; const j=await r.json(); const m=j.chart.result[0]; const cl=(m.indicators.quote[0].close||[]).filter(v=>v!=null);
-        let p=cl.length?cl[cl.length-1]:m.meta.regularMarketPrice, cur=m.meta.currency; if(cur==='GBp'){ p/=100; cur='GBP'; }
-        if(p){ res={p:+p,cur}; break; } }catch(e){}
-    }
-  }
   if(res){ res.t=Date.now(); store.set(k,JSON.stringify(res)); }
   return res;
 }
 function fxConv(p, from, to){
-  const F=(DATA&&DATA.fx)||{}; const eu=F.EURUSD||1.1, eg=F.EURGBP||0.85;
-  const toEUR={EUR:1,USD:1/eu,GBP:1/eg}[from]; if(toEUR==null) return null;
-  const e=p*toEUR; return to==='EUR'?e:to==='USD'?e*eu:null;
+  const F=(DATA&&DATA.fx)||{}; const r=c=>c==='EUR'?1:(F['EUR'+c]||{USD:1.1,GBP:0.85}[c]);
+  const a=r(from), b=r(to); return (a&&b)? p/a*b : null;
 }
 
 // ===================== 朋友版：我的庫存（美股）=====================
@@ -678,7 +669,7 @@ function renderPFUS(main, slot){
   const ROL={ul:L('正二','2x'),ub:L('子彈','Reserve'),up:L('待轉換（1 倍）','To convert (1x)'),uo:L('其他','Other')};
   const AU={QLD:'ul',LQQ:'ul',TQQQ:'ul',SGOV:'ub',IB01:'ub',BIL:'ub',SHV:'ub',XEON:'ub',ZPR1:'ub',ERNE:'ub',QQQ:'up',QQQM:'up',VOO:'up',SPY:'up',CSPX:'up',EQQQ:'up',CNDX:'up',SXRV:'up',VUAA:'up'};
   const auto=c=>AU[c]||'uo';
-  const UP=(EU?DATA.eprices:DATA.uprices)||{};
+  const UP=EU?(DATA.eprices||{}):Object.assign(Object.fromEntries(Object.entries(DATA.eprices||{}).filter(([k])=>k.includes('.')).map(([k,x])=>[k,[x[0],fxConv(x[1],'EUR','USD'),x[2],x[3]]])),DATA.uprices||{});
   const key='pfus-'+(EU?'eu':'us');
   let rows=[]; try{ rows=JSON.parse(store.get(key)||'null')||[]; }catch(e){} if(!rows.length) rows=[{c:'',n:'',p:'',r:''}];
   let cfg={sal:''}; try{ Object.assign(cfg, JSON.parse(store.get(key+'-cfg')||'{}')); }catch(e){}
@@ -690,8 +681,8 @@ function renderPFUS(main, slot){
   const grid=el('div',{class:'pf-grid'});
   const c1=el('section',{class:'card'});
   c1.append(el('h2',{},L('你的持股','Your holdings')), el('p',{class:'muted',style:'margin:2px 0 10px;font-size:.82rem'},
-    EU? L('輸入代號和股數，價格會自動帶入並換算成歐元，原幣價格顯示在下方。美股直接輸入代號（例如 NVDA）；歐股請加上交易所代碼（例如 SAP.DE、ASML.AS、IB01.L）。抓不到的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares; prices fill in automatically and are converted to EUR, with the original-currency price underneath. Type US tickers as is (e.g. NVDA); add the exchange suffix for European ones (e.g. SAP.DE, ASML.AS, IB01.L). If a price can’t be found, type it in. Saved only in this browser; nobody else can see it.')
-      : L('輸入代號和股數，價格會自動帶入。美股直接輸入代號（例如 NVDA、GOOG）；其他市場請加上交易所代碼（例如 SAP.DE），非美元計價的會換算成美元。抓不到的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares; prices fill in automatically. Type US tickers as is (e.g. NVDA, GOOG); add the exchange suffix for other markets (e.g. SAP.DE), converted to USD. If a price can’t be found, type it in. Saved only in this browser; nobody else can see it.')));
+    EU? L('輸入代號和股數，價格會自動帶入並換算成歐元，原幣價格顯示在下方。歐股直接輸入代號（例如 SAP、ASML），涵蓋歐洲主要指數成分股和常見 ETF；同一檔在不同交易所價格不同時，請加上交易所代碼（例如 SAP.DE、ASML.AS、IB01.L）。美股直接輸入代號（例如 NVDA）。歐洲價格每天更新一次；抓不到的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares; prices fill in automatically and are converted to EUR, with the original-currency price underneath. Type European tickers as is (e.g. SAP, ASML); the list covers the main European index members and common ETFs. Where a fund trades at different prices on different exchanges, add the exchange suffix (e.g. SAP.DE, ASML.AS, IB01.L). US tickers as is (e.g. NVDA). European prices update once a day; if a price can’t be found, type it in. Saved only in this browser; nobody else can see it.')
+      : L('輸入代號和股數，價格會自動帶入。美股直接輸入代號（例如 NVDA、GOOG）；歐股請加上交易所代碼（例如 SAP.DE、ASML.AS），涵蓋歐洲主要指數成分股和常見 ETF，會換算成美元。抓不到的可以自己填價格。資料只存在這台裝置的瀏覽器，別人看不到。','Enter ticker and shares; prices fill in automatically. Type US tickers as is (e.g. NVDA, GOOG); add the exchange suffix for European ones (e.g. SAP.DE, ASML.AS); main European index members and common ETFs are covered, converted to USD. If a price can’t be found, type it in. Saved only in this browser; nobody else can see it.')));
   const tb=el('table',{class:'pf-tbl'}); const head=el('tr'); [L('代號','Ticker'),L('股數','Shares'),L('價格','Price'),L('市值','Value'),L('分類','Type'),''].forEach((h,k)=>head.append(el('th',{style:k===4?'text-align:left':''},h))); tb.append(head);
   const body=el('tbody',{}); tb.append(body); const w=el('div',{class:'tbl'}); w.append(tb); c1.append(w);
   const addB=el('button',{class:'btn-ghost'},L('＋ 新增一列','+ Add row')); addB.onclick=()=>{ rows.push({c:'',n:'',p:'',r:''}); save(); draw(); upd(); };
