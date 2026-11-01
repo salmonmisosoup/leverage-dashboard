@@ -4,7 +4,8 @@ jobs:
   p:
     runs-on: ubuntu-latest
     steps:
-      - run: |
+      - shell: bash {0}
+        run: |
           Y='https://query1.finance.yahoo.com/v8/finance/chart/SAP.DE?range=5d&interval=1d'
           YE=$(python3 -c "import urllib.parse;print(urllib.parse.quote('$Y',safe=''))")
           for u in "$Y" "https://query2.finance.yahoo.com/v8/finance/chart/SAP.DE?range=5d&interval=1d" \
