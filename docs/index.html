@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>*{box-sizing:border-box}html,body{margin:0}</style>
+</head>
+<body>
+<title>雙市場加碼儀表板</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="dash-mode" content="full">
+<meta name="dash-trigger" content="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: a night trading desk — one verdict card up top, the ladder of rules beside it, charts and secondary gauges below. One typeface throughout. */
+:root{
+  --bg:#0a0b0d; --panel:#111317; --panel2:#16191e; --line:#24282f; --line2:#2f343c;
+  --fg:#ebe7df; --muted:#8d929b; --faint:#5d626b;
+  --brass:#c8a66a; --brass-dim:#7d6942;
+  --ok:#5bb78a; --warn:#e2a846; --bad:#e6625a; --info:#6fa8e6;
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Helvetica Neue",Arial,sans-serif;
+  color-scheme:dark;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .faint{color:var(--faint)}
+h1,h2,h3{margin:0;text-wrap:balance}
+h2{font-weight:700;font-size:1.12rem;letter-spacing:.02em}
+.eyebrow{font-size:.74rem;letter-spacing:.12em;color:var(--brass);font-weight:500}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand h1{font-weight:700;font-size:1.7rem;letter-spacing:.03em}
+.brand p{margin:2px 0 0;font-size:.85rem}
+.top-r{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.seg{display:flex;border:1px solid var(--line2);border-radius:999px;padding:3px;background:var(--panel)}
+.seg button{border:0;background:none;padding:5px 14px;border-radius:999px;color:var(--muted);font-weight:500;font-size:.88rem}
+.seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--fg);color:var(--bg)}
+.btn{border:1px solid var(--brass-dim);background:transparent;color:var(--brass);padding:7px 14px;border-radius:8px;font-size:.88rem}
+.btn:hover{background:rgba(200,166,106,.08)}
+.btn[disabled]{opacity:.5;cursor:default}
+.stamp{font-size:.78rem;color:var(--muted);text-align:right}
+
+#main{display:flex;flex-direction:column;gap:22px}
+#main>.note{margin-top:-12px}
+.grid-top{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px}
+@media (max-width:860px){.grid-top{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.verdict{position:relative;overflow:hidden}
+.verdict::after{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--state)}
+.vhead{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.pill{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:4px 12px 4px 10px;font-size:.82rem;font-weight:700;color:var(--state);background:color-mix(in srgb,var(--state) 14%,transparent);border:1px solid color-mix(in srgb,var(--state) 40%,transparent)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--state);box-shadow:0 0 0 4px color-mix(in srgb,var(--state) 22%,transparent)}
+.stale{border:1px solid color-mix(in srgb,var(--warn) 50%,transparent);background:color-mix(in srgb,var(--warn) 10%,transparent);color:var(--warn);border-radius:10px;padding:10px 14px;font-size:.88rem}
+.srcline{margin:10px 0 0;font-size:.8rem;color:var(--muted);line-height:1.55}
+.vtitle{font-size:clamp(1.5rem,3.2vw,2.15rem);font-weight:700;line-height:1.3;margin:12px 0 6px}
+.vsub{color:var(--muted);margin:0 0 16px}
+.why{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.chip{font-size:.8rem;border:1px solid var(--line2);border-radius:6px;padding:3px 9px;background:var(--panel2)}
+.chip.on{border-color:color-mix(in srgb,var(--state) 55%,transparent);color:var(--fg)}
+.alloc{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 12px;align-items:center;font-size:.86rem}
+.bar{height:12px;border-radius:3px;background:var(--panel2);display:flex;overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%}
+.bar .lev{background:var(--brass)} .bar .bul{background:#3b4a5c}
+.legend{display:flex;gap:16px;font-size:.78rem;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+
+.calc{margin-top:18px;border-top:1px dashed var(--line2);padding-top:16px}
+.calc-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)}
+label.f input{background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:9px 11px;color:var(--fg);font-family:var(--font);font-variant-numeric:tabular-nums;font-size:.95rem;width:100%;box-sizing:border-box}
+.action{margin-top:14px;padding:14px 16px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:.92rem}
+.action b{color:var(--brass);font-variant-numeric:tabular-nums}
+.note{font-size:.78rem;color:var(--faint);margin-top:8px}
+
+.ladder{display:flex;flex-direction:column}
+.rung{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:4px 12px;padding:11px 0;border-bottom:1px solid var(--line);align-items:start}
+.rung:last-child{border-bottom:0}
+.alloc [hidden]{display:none!important}
+@media (max-width:560px){.rung{grid-template-columns:22px minmax(0,1fr)}.rung .w{grid-column:2;text-align:left!important;font-size:.95rem!important;margin-top:2px}}
+.vbox{padding:2px 0 12px 34px;border-bottom:1px solid var(--line)}
+.vmeter{position:relative;height:6px;border-radius:3px;background:var(--line);margin:22px 0 12px}
+.vmeter .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--c);opacity:.85}
+.vmeter .tk{position:absolute;top:-4px;width:2px;height:14px;background:var(--line2)}
+.vmeter .tk.on{background:var(--c)}
+.vmeter .now{position:absolute;bottom:10px;transform:translateX(-50%);font-size:.72rem;color:var(--muted);white-space:nowrap}
+.vtiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px}
+.vtiers .vt{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:.86rem}
+.vtiers .vt b{font-size:1rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.vtiers .vt span{white-space:nowrap}
+@media (max-width:560px){.vbox{padding-left:0}}
+.vtiers .vt.on{border-color:var(--c)}
+.vtiers .vt.on b,.vtiers .vt.on span{color:var(--c)}
+.cred{margin-top:8px;font-size:.8rem;color:var(--muted)}
+.cred.on{color:var(--warn,#e2a846);font-weight:500}
+.next{margin-top:14px;display:grid;gap:6px}
+.next .nr{display:flex;justify-content:space-between;gap:10px;font-size:.84rem;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+.next .nr b{font-variant-numeric:tabular-nums;color:var(--fg);white-space:nowrap}
+.next .nr.on{border-color:color-mix(in srgb,var(--c) 55%,transparent)}
+.next .nr.on b{color:var(--c)}
+.ctabs{display:flex;gap:6px;margin-bottom:12px}
+.ctabs button{border:1px solid var(--line2);background:none;color:var(--muted);padding:5px 12px;border-radius:999px;font-size:.84rem}
+.ctabs button[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.sigtbl td:first-child,.sigtbl th:first-child{white-space:nowrap}
+.rung .mk{width:12px;height:12px;border-radius:50%;border:2px solid var(--line2);margin-top:5px}
+.rung.on .mk{background:var(--c);border-color:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 20%,transparent)}
+.rung .t{font-weight:500}
+.rung .d{font-size:.8rem;color:var(--muted)}
+.rung .w{white-space:nowrap;font-size:1.05rem;font-weight:500;text-align:right;font-variant-numeric:tabular-nums}
+.rung.on .w{color:var(--c)}
+.grp{font-size:.74rem;letter-spacing:.06em;color:var(--faint);padding-top:8px}
+.done{display:inline-flex;align-items:center;gap:5px;margin-left:10px;font-size:.76rem;font-weight:400;color:var(--muted);cursor:pointer;vertical-align:1px}
+.done input{accent-color:var(--brass);width:14px;height:14px;margin:0}
+.grp.major{font-size:.95rem;font-weight:700;color:var(--fg);letter-spacing:.04em;padding-top:16px;margin-top:4px;border-top:1px solid var(--line2)}
+.grp.major:first-child{border-top:0;padding-top:4px;margin-top:0}
+.grp.major+.rung{border-top:0}
+.rung:has(+ .grp){border-bottom:0}
+.rung:has(+ .vbox){border-bottom:0}
+
+.refs{margin-top:10px}
+.refs summary{cursor:pointer;color:var(--muted);font-size:.86rem;padding:8px 2px}
+.refs .stats{margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+@media (max-width:700px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stats>.stat:last-child:nth-child(odd){grid-column:1/-1}}
+.stat{background:var(--panel);padding:14px 16px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat .k{font-size:.76rem;color:var(--muted)}
+.stat .v{font-size:1.4rem;font-weight:500;font-variant-numeric:tabular-nums}
+.stat .s{font-size:.74rem;color:var(--faint)}
+.tag{font-size:.66rem;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:2px;border:1px solid var(--line2);color:var(--faint)}
+.tag.main{color:var(--brass);border-color:var(--brass-dim)}
+
+.charts{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+.chart-card h2{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.chart-card h2 small{font-size:.78rem;color:var(--muted);font-weight:400}
+.chart{width:100%;height:340px;margin-top:8px}
+.chart.sm{height:220px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+@media (max-width:860px){.two{grid-template-columns:minmax(0,1fr)}}
+
+details{border-top:1px solid var(--line);padding-top:4px}
+summary{cursor:pointer;padding:10px 0;font-weight:700}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;font-size:.88rem}
+.rules h3{font-size:.92rem;margin-bottom:6px;color:var(--brass);font-weight:500}
+.rules ul{margin:0;padding-left:1.1em;color:var(--muted)}
+.rules li{margin:3px 0}
+table.bt{width:100%;border-collapse:collapse;font-size:.84rem;font-variant-numeric:tabular-nums}
+table.bt th,table.bt td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+table.bt th:first-child,table.bt td:first-child{text-align:left}
+table.bt th{color:var(--muted);font-weight:500}
+table.bt.eu td,table.bt.eu th{text-align:left;white-space:normal}
+.eu-notes{margin:12px 0 0;padding-left:1.1em;color:var(--muted);font-size:.84rem}
+.eu-notes li{margin:4px 0}
+table.bt caption{caption-side:top;text-align:left;font-size:.82rem;color:var(--muted);padding-bottom:6px}
+.tbl{overflow-x:auto}
+footer{font-size:.76rem;color:var(--faint);display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:16px}
+.src{display:flex;flex-wrap:wrap;gap:6px 14px}
+.src span::before{content:"●";margin-right:5px;color:var(--ok)}
+.src span.bad::before{color:var(--bad)}
+.guide{position:fixed;inset:0;z-index:30;background:rgba(5,6,8,.72);overflow-y:auto;padding-block:max(24px,env(safe-area-inset-top,0px)) 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.guide-in{max-width:780px;margin:0 auto;background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:22px 22px 26px;display:flex;flex-direction:column;gap:6px}
+.guide-top{display:flex;justify-content:space-between;align-items:center;gap:12px;position:sticky;top:-22px;background:var(--panel);padding:6px 0 10px;border-bottom:1px solid var(--line);z-index:1}
+.gsec{padding-top:14px}
+.gsec h3{font-size:1rem;font-weight:700;margin-bottom:6px;color:var(--brass)}
+.gsec ul{margin:0;padding-left:1.15em;color:var(--fg);font-size:.9rem}
+.gsec li{margin:5px 0;line-height:1.65}
+.gintro{margin:0 0 8px;font-size:.88rem;color:var(--muted);line-height:1.65}
+table.bt.gt td,table.bt.gt th{text-align:left;white-space:normal;vertical-align:top}
+table.bt.gt td:first-child{white-space:nowrap;color:var(--muted)}
+.gsec .rules h3{font-size:.9rem;color:var(--fg)}
+.loading{padding:60px 0;text-align:center;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="eyebrow" id="eyebrow"></div>
+      <h1 id="h1"></h1>
+      <p class="muted" id="subtitle"></p>
+    </div>
+    <div class="top-r">
+      <div class="seg" role="tablist" id="tabs"></div>
+      <div class="seg" id="venue" hidden></div>
+      <div class="seg" id="lang" hidden></div>
+      <button class="btn" id="refresh" hidden></button>
+      <button class="btn" id="guideBtn"></button>
+      <div class="stamp" id="stamp"></div>
+    </div>
+  </header>
+  <div id="stale" class="stale" role="status" hidden></div>
+  <div id="refreshMsg" class="note" hidden></div>
+  <main id="main"><div class="loading">…</div></main>
+  <div id="guide" class="guide" hidden role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+    <div class="guide-in">
+      <div class="guide-top"><h2 id="guideTitle"></h2><button class="btn" id="guideClose" aria-label="close">✕</button></div>
+      <div id="guideBody"></div>
+    </div>
+  </div>
+  <footer>
+    <div class="src" id="sources"></div>
+    <div id="foot1"></div>
+    <div id="foot2"></div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+<script>
+(function(){
+const MODE = document.querySelector('meta[name="dash-mode"]').content;
+const TRIGGER = document.querySelector('meta[name="dash-trigger"]').content;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C = {fg:css('--fg'),muted:css('--muted'),faint:css('--faint'),line:css('--line'),line2:css('--line2'),brass:css('--brass'),ok:css('--ok'),warn:css('--warn'),bad:css('--bad'),info:css('--info')};
+const FONT = css('--font');
+const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let LANG = MODE==='us' ? (store.get('dash-lang') || 'zh') : 'zh';
+let VENUE = store.get('dash-venue') || 'us';
+
+/* ---------- text ---------- */
+const TX = {
+zh:{
+  h1_full:'雙市場加碼儀表板', h1_us:'納指加碼儀表板', eb_full:'台股 00685L ＋ 美股 QLD', eb_us:'QLD ＋ SGOV',
+  subtitle:'正二加子彈的加碼與調節訊號，依 1990–2026 年回測規則，每個交易日更新',
+  refresh:'立即更新數據', refreshing:'更新中…', loading:'讀取最新數據…', loadfail:'數據檔讀取失敗，請重新整理頁面。', nomarket:'這個市場的數據暫時沒有更新成功，請稍後再試。',
+  stamp:'更新於 {t}（台北時間）', tab_tw:'台股', tab_us:'美股',
+  st_normal:'維持現狀', st_dip:'中期回調', st_panic:'恐慌加碼', st_refill:'補子彈',
+  t_normal:'目前沒有觸發條件，照基準比例持有', t_dipX:'把子彈轉成 {lev}，正二比重拉到 {w}', t_sal:'這個月的薪資全部買 {lev}，子彈先不動', t_refillX:'把 {lev} 調回 {w}，其餘換回 {bul}',
+  s_normal:'每月薪資照基準比例買進即可，不需要額外動作。', s_dip:'價格在季線下方。這段期間每月薪資全部買正二，子彈留給 VIX 恐慌訊號。回到季線上方後恢復原本比例。', s_panic:'VIX 進入回測中勝率最高的區間，依階梯把子彈轉成正二。', s_refill:'週 RSI 過高，把超出基準的正二賣出，換回子彈，留給下一次回調。',
+  close_at:'{idx} 收盤 {d}', first:'（這波下跌於 {d} 首次觸發）', nosig:'沒有指標達標', rsi_hit:'✓ 週 RSI {v} > {th}',
+  base_mix:'基準組合', sug_mix:'建議組合', sal_mix:'本月薪資', cur_mix:'你目前的組合', lev_tag:'{x}（正二）', bul_tag:'{x}（子彈）',
+  calc_eb:'輸入你目前的持股市值，算出要轉多少', val:'{x} 市值（{c}）', eg:'例如 {n}',
+  calc_empty:'輸入兩個市值後，這裡會顯示具體要轉換的金額與調整後組合。', calc_now:'目前正二比重 {a}，建議 {b}',
+  sell_buy:'賣出 {amt} {c} 的 {from}，買進 {to}。', after:'調整後：{lev} {a}（{wa}）／{bul} {b}（{wb}）',
+  below_base:'正二低於基準，但目前沒有加碼訊號。可以用每月薪資優先買 {lev}，慢慢補回 {w}。', in_range:'比例已在建議範圍內（±3%），不需要調整。', calc_sal:'這次不需要動用子彈。本月薪資全部買 {lev}。', exec_note:'訊號以收盤價計算，下一個交易日執行即可，不用盯盤。', stale:'數據已經 {n} 天沒有更新，或有資料來源失敗。燈號可能不是最新的，請先不要依此操作。', last35:'上次 ≥ {th}：{d}', g_mid_sal:'中期回調（只用薪資，不動子彈）', r_sal:'收盤在季線下方', d_sal:'季線 {a}・半年線 {b}', w_sal:'薪資全買正二', d_lastep:'・上次出現 {d}', w_base:'正二 {w}', w_trim:'調節正二至 {w}', w_add:'加碼正二至 {w}', sal_out_dip:'本月全部買 {lev} {a} {c}', sal_note_dip:'價格在季線下方，這個月的薪資全部買正二；回到季線上方後，恢復 {a}／{b}。', above:'目前正二比重高於建議，不需要再加碼。規則只在週 RSI 超過 {th} 時才賣出，所以現在先不用動。',
+  privacy:'市值只存在你自己的瀏覽器裡，不會上傳。', once:' 如果這一波已經依同一級轉換過，就不用重複轉。',
+  wave_note:'「這波下跌」是指從 {d} 的最高點以來。同一波下跌中，每一級只在第一次觸發時調整一次；創新高後重新計算。', ladder:'加碼與調節階梯', lad_sub:'{idx} {c}　距高點 {dd}　週 RSI {rsi}　VIX {vix}（{vd}）',
+  g_heat:'過熱調節', g_base:'基準', g_add:'加碼調節', g_mid:'中期回調（最多用 1/3 子彈）', g_mid_us:'中期回調（選用，最多用 1/3 子彈）', g_panic:'恐慌加碼（保留給大訊號）',
+  r_refill:'週 RSI > {th}', r_refill_d:'目前 {v}，還差 {gap}', r_refill_d2:'目前 {v}，已超過門檻',
+  r_base:'平常狀態', r_base_d:'{lev} {a}／{bul} {b}',
+  ma60:'跌破季線', ma120:'跌破半年線', ma120_5:'低於半年線 5%', vix28:'VIX ≥ 28', vix32:'VIX ≥ 32', vix35:'VIX ≥ 35', vix36:'VIX ≥ 36', vix40:'VIX ≥ 40', dd30:'距高點 −30%', d_dd30:'目前距高點 {dd}・觸發價位 {p}', refill:'週 RSI > {th}（補子彈）',
+  ln_ma60:'季線', ln_ma120:'半年線', ln_ma120_5:'半年線 −5%',
+  d_mid:'{ln}位置 {p}，收盤{dir} {g}', d_hi:'還高', d_lo:'已低', d_vix:'目前 VIX {v}，門檻 {th}', d_first:'・這波下跌於 {d} 首次觸發',
+  k_vix:'VIX', s_vix:'{d}', k_dd:'距高點', s_dd:'高點 {p}（{d}）', k_rsi:'週 RSI', s_rsi:'> {th} 補子彈',
+  k_fg:'CNN 恐懼貪婪', k_vxn:'VXN（納指波動）', s_vxn:'通常比 VIX 高 4–8', k_term:'VIX / VIX3M', s_term:'> 1 代表短期恐慌',
+  k_hy:'高收益債利差', s_hy:'3 個月變化 {v}', k_fpe:'NDX 前瞻本益比', s_fpe:'{d}・約每季更新', tag_main:'主要', tag_ref:'參考',
+  fg0:'極度恐懼', fg1:'恐懼', fg2:'中性', fg3:'貪婪', fg4:'極度貪婪',
+  stats_note:'這些指標只顯示市場溫度，回測後對加碼或調節的時機沒有額外幫助，不會影響燈號。', refs_h:'其他參考指標（不影響規則）', k_cr:'信用利差 3 個月變化', s_cr:'超過 +{th} 暫停恐慌加碼', s_cr_on:'已超過 +{th}：恐慌加碼暫停中', s_cr_us:'美股規則不使用，只供參考',
+  ch_price:'{idx} 與支撐線', ch_price_s:'季線 60 日・半年線 120 日・年線 240 日；圓點是每一波第一次觸發。這是 {idx} 的價格，不是正二本身', ln_ma240:'年線',
+  ch_vix:'VIX', ch_vix_s:'{l} 分級加碼', ch_rsi:'週 RSI', ch_rsi_s:'{th} 以上補子彈', ch_fg:'CNN 恐懼貪婪', ch_fg_s:'只顯示：回測中極度恐懼並不是好買點', fgname:'恐懼貪婪',
+  sal:'每月薪資怎麼分', nx_h:'離下一個訊號還差多少', nx_vix:'VIX 還差 {x} 點到 {th}', nx_vix_on:'VIX {v} 已達 {th}', nx_dd:'{idx} 再跌 {x} 到深跌加碼', nx_dd_on:'已達深跌加碼', nx_sal:'{idx} 再跌 {x} 會跌破季線', nx_sal_on:'在季線下方', nx_rsi:'週 RSI 還差 {x} 到 {th}', nx_rsi_on:'週 RSI 已超過 {th}', nx_w:'→ {lev} {w}', nx_wsal:'→ 薪資全買正二', r_vix:'VIX 恐慌加碼', d_vixm:'目前 VIX {v}・上次 ≥ {th}：{d}', w_none:'未觸發', w_blk:'暫停中', cred_off:'信用利差 3 個月變化 {x}（超過 +{th} 時暫停恐慌加碼，最多 30 個交易日）', cred_on:'⏸ 信用利差 3 個月擴大 {x}，超過 +{th}：恐慌加碼暫停，等利差穩定再加（最多 30 個交易日）', chip_blk:'⏸ 信用利差急升，恐慌加碼暫停', tab_hold:'持股調整', tab_sal:'每月薪資', hist_h:'近期訊號紀錄', hist_s:'近 2.5 年每一波第一次觸發的訊號；報酬是之後 {idx} 的漲跌，不是正二', hc_d:'日期', hc_s:'訊號', hc_w:'建議正二', hc_3:'3 個月後', hc_12:'12 個月後', hc_na:'未滿', sal_in:'每月要投入的金額（{c}）', sal_out:'買 {lev} {a} {c}　＋　買 {bul} {b} {c}',
+  sal_note:'照基準 {a}／{b} 買進就好。回測顯示保留現金等回調、或拆成不同比例，長期差距都在 1% 以內；真正決定比例的是上面的階梯。',
+  rules:'規則', h_alloc:'配置', h_add:'加碼', h_trim:'調節',
+  us_alloc:['基準：QLD 60%／SGOV 40%','實際平均 QLD 約 80%，約等於 1.6 倍納指','約等於 2.5 倍 S&P 500 的風險，高於生命週期投資研究建議年輕人的 2 倍；適合長期不賣、能承受大幅回檔的人','歐洲券商可以用 LQQ／XEON 代替，比例相同'],
+  us_add:['收盤在季線下方：當月薪資全部買 QLD（LQQ），不動子彈','VIX ≥ 35 → 正二 85%；VIX ≥ 40 → 100%（動用子彈）','VIX 還在門檻以上、比重又低於目標時，可以再補'],
+  us_trim:['週 RSI > 75 → 調回 60%','過熱賣出不是在抓高點（賣出後一年平均還漲 22%），而是避免正二比重一路漂到 90% 以上，再碰上 2000 年型崩跌','門檻 75 比 70 少賣很多次；任選起點投資 15 年的回測中，95% 的情況勝過 70','不需要加入原型 QQQ：相同 beta 下報酬較低'],
+  tw_alloc:['基準：00685L 60%／00713 40%（調節時回到這裡）','00713 對 0050 的 beta 只有 0.41，崩跌時 1 元 00713 可換 1.4–1.8 倍的正二','長期實際平均正二比重約 90%（正二漲得快、加碼後也不會馬上賣，比重會往上漂），beta 約 1.8'],
+  tw_add:['收盤在季線下方：當月薪資全部買 00685L，不動子彈','VIX ≥ 28／32／36／40 → 正二 80／85／90／100%（動用子彈）','信用利差 3 個月擴大超過 0.8 個百分點時，恐慌加碼暫停（最多 30 個交易日）','VIX 還在門檻以上、比重又低於目標時，可以再補'],
+  tw_trim:['週 RSI > 80 → 調回 60%','過熱指標無法預測下跌，只用來補子彈','不要在創新高時就補，回測顯示成本很高'],
+  bt_cap:'年化報酬率（CAGR，含股息與 ETF 費用）與最大回檔',
+  bt_us:[['策略','年化報酬率 1990–2026','年化報酬率 2003–2026','最大回檔（1990 起）'],['一直持有 QQQ','15.1%','16.0%','−83%'],['一直持有 QLD','18.4%','24.4%','−99%'],['本頁規則','23.4%','24.9%','−87%']],
+  bt_tw:[['策略','年化報酬率 2003–2026','年化報酬率 2017–2026（00713）','最大回檔（2003 起）'],['一直持有 0050','15.0%','24.6%','−56%'],['一直持有正二','23.1%','42.4%','−84%'],['固定 70/30 每季再平衡','18.2%','35.9%','−69%'],['本頁規則','24.1%','41.5%','−77%']],
+  bt_note:'年化報酬率是指每年平均複利成長率，例如 15.1% 代表平均每年增加 15.1%。最大回檔是從最高點到最低點的最大跌幅。正二上市前以 0050 模擬，QLD 上市前以 NDX 模擬，和實際的日報酬相關係數 0.97–0.99。樣本中 VIX ≥ 40 只出現 9–13 次，規則方向可信，數字不要看得太精確。',
+  foot1:'資料：CBOE 與 FRED（VIX、VXN、VIX3M、高收益債利差）、FinMind（加權指數、QQQ）、CNN 恐懼貪婪（GitHub whit3rabbit/fear-greed-data）、Siblis Research（NDX 前瞻本益比）。每個交易日台北時間 20:50 自動更新。',
+  foot2:'本頁是依歷史回測整理的規則提示，不是投資建議。槓桿 ETF 在長期空頭中可能大幅虧損，請依自身資金與風險承受度決定。',
+  m_sent:'已送出更新要求，後台約需 2–5 分鐘抓資料與計算，完成後頁面會自動換成新數據。', m_conn:'無法啟動更新：請在 claude.ai 設定 → Connectors 確認「Claude Code Remote」已連線。', m_appr:'需要你允許這個頁面啟動排程更新，請在 claude.ai 中開啟本頁再按一次。', m_busy:'更新服務暫時沒有回應，可能已經在跑。請幾分鐘後重新整理，若數據沒變再按一次。', m_fail:'更新要求沒有送出（{c}）。',
+  usd:'USD', twd:'元',
+  src_line:'訊號依據 {idx} 計算，實際買賣的是 {lev}。{idx} 距高點 {dd}，{lev} 約 {ldd}（正二每天的漲跌約是兩倍）。', fx_note:'LQQ 以歐元計價，還會受到美元兌歐元匯率影響。',
+  us_cmp:['和一直持有 QQQ 相比：每年多約 8%，代價是最大回檔從 −83% 加深到 −87%。','和一直持有 QLD 相比：每年多約 5%，最大回檔從 −99% 改善到 −87%。2000 年後一直持有 QLD 的人幾乎歸零；這套規則靠 SGOV 子彈和 VIX 加碼撐過去。','差距主要來自兩件事：崩跌時用子彈在 VIX 高點加碼，以及過熱時把正二調回，避免在崩跌前滿倉。'],
+  tw_cmp:['和一直持有 0050 相比：2003 年起每年多約 9%，最大回檔從 −56% 加深到 −77%。','和一直持有正二相比：2003 年起每年多約 1%，最大回檔從 −84% 改善到 −77%；2017 年後的大多頭少約 0.9%（41.5% 對 42.4%）。','和固定 70／30 每季再平衡相比：每年多約 5%。差距來自崩跌時用 00713 在 VIX 高點加碼，以及只在過熱時才調回，而不是每季都賣出漲多的正二。'],
+  g8:'最大風險：請先接受這些',
+  g1:'這個儀表板在做什麼', g1_i:['用回測過的規則告訴你兩件事：什麼時候把子彈轉成正二（加碼），什麼時候把漲多的正二換回子彈（調節）。','它不預測漲跌。最上方的燈號和建議比例就是今天要做的事；沒有訊號時就什麼都不用做。','訊號以收盤價計算，每個交易日台北時間 20:50 自動更新，下一個交易日執行即可，不用盯盤。'],
+  g2:'開始之前', g2_i:['先準備 3–6 個月生活費的緊急預備金，放在銀行，不算在這個組合裡。子彈是用來在股災時加碼的，不是急用金；股災常伴隨景氣衰退和裁員，沒有預備金，最壞的情況是被迫在最低點賣出。','只投入 10 年以上不會動用的錢。','正二每天的漲跌約是原型的兩倍，帳面損益會比新聞報導的跌幅嚇人很多，這是正常的。'],
+  g3:'規則總覽', g3_p:'整套規則只有五條。前兩條是平常的做法，後三條由頂部燈號提醒。',
+  us_rules:[['項目','規則'],['基準配置','QLD 60%／SGOV 40%（歐洲：LQQ／XEON）'],['每月薪資','照 60／40 買進'],['中期回調','收盤在季線下方：當月薪資全部買 QLD，子彈不動'],['恐慌加碼','VIX ≥ 35：QLD 加到 85%；VIX ≥ 40：加到 100%（動用子彈）'],['過熱調節','週 RSI > 75：把 QLD 調回 60%']],
+  us_rules_n:['比例偏離時，優先用薪資慢慢調回：正二太多，當月薪資全買子彈；太少（且沒有加碼訊號），全買正二。','VIX 還在門檻以上、比重又跌回目標以下時，可以再補。','不想賣出的人（例如考慮資本利得稅），過熱時也可以只用薪資調回，比較慢但不用賣。台灣居民買美國 ETF 沒有資本利得稅，但股息會被預扣 30%。'],
+  tw_rules:[['項目','規則'],['基準配置','00685L 60%／00713 40%'],['每月薪資','照 60／40 買進（沒有薪資時略過）'],['中期回調','收盤在季線下方：當月薪資全部買 00685L，子彈不動'],['恐慌加碼','VIX ≥ 28：正二加到 80%；≥ 32：85%；≥ 36：90%；≥ 40：100%（動用子彈）'],['信用利差暫停','美國 BAA 公司債利差 3 個月內擴大超過 0.8 個百分點：恐慌加碼暫停，最多 30 個交易日'],['過熱調節','週 RSI > 80：把正二一次調回 60%']],
+  tw_rules_n:['比例偏離時，優先用薪資慢慢調回：正二太多，當月薪資全買 00713；太少（且沒有加碼訊號），全買 00685L。','VIX 還在門檻以上、比重又跌回目標以下時，可以再補。'],
+  g4:'為什麼這樣設計',
+  us_why:['恐慌加碼只看 VIX：VIX ≥ 35 之後 12 個月，納指平均 +30%、勝率 89%；在美台兩地、前後兩段期間都有效。門檻放在 35–45 結果都相近，不是剛好挑到的數字。VIX 20–30 之間沒有優勢，所以不用。','中期回調只用薪資：跌破季線、半年線後，4 年後價格高於買價的機率約 85%。但用子彈加碼的那一部分，會在下次過熱時被調節賣出，只賺到中間的反彈；而在 2000、2008 年那種熊市，子彈會太早用掉。只用薪資，長期結果和最好的做法打平，又保留子彈給 VIX。','過熱調節不是賣在高點：賣出後一年，價格平均還漲 22%。它的作用是不讓正二比重一路漂到 90% 以上，再碰上 2000 年型崩跌。門檻 75 比 70 少賣很多次，在 22 段 15 年情境中 95% 勝出。','60／40 的風險：實際平均 QLD 約 80%，約 1.6 倍納指，約等於 2.5 倍 S&P 500 的風險，高於生命週期投資研究建議年輕人的 2 倍。適合長期不賣、能承受大幅回檔的人。','子彈用短期國債（SGOV）：崩跌時幾乎不跌，能換到最多正二。'],
+  tw_why:['恐慌加碼看 VIX，而且分四級：VIX ≥ 35 之後 12 個月，台股平均 +26%、勝率 87%；VIX ≥ 40 是 +36%、勝率 100%。但台股的底部不一定等到 VIX ≥ 35（2026/3 VIX 只到 31），拆成 28／32／36／40 四級後，2009 年起每年多約 0.7%，2026/3 那次多賺約 8 個百分點。','信用利差急升時先暫停加碼：2008 年 9 月 VIX 衝上 40 時，信用危機還在惡化，太早滿倉又跌了一大段。加上「利差 3 個月擴大超過 0.8 個百分點就暫停恐慌加碼」後，2008 年那段從 −28% 改善到 −20%，1999 年起每年多約 0.6%，15 年最差從 1.69 倍升到 1.85 倍。門檻 0.6 到 1.2 都有效；最多暫停 30 個交易日，避免 2020 年那種利差先升、市場卻很快 V 轉時整段錯過。','中期回調只用薪資：跌破季線、半年線後，台股一年後高於買價的機率只有約 50%，4 年後約 80%。用子彈加碼的部分會在下次過熱時被調節，又會在 2000、2008 年那種熊市太早用掉子彈。','過熱調節：週 RSI > 80 之後一年，台股平均還漲 22%，所以這不是賣在高點，而是避免正二比重漂太高。在 13 段 15 年情境中，RSI > 80 一次調回在 11 段勝過不調節。','為什麼是 60／40：新的加碼規則目標固定在 80–100%，基準只決定「調節時回到哪裡、平常留多少子彈」。回測 50／50 到 100／0，60／40 和 50／50 在 1999 年起和最差情境都比 70／30 好（1999 年起 17.4% 對 16.4%，15 年最差 1.64 倍對 1.57 倍），只有 2009 年後的大多頭少約 0.5%。實際平均正二比重約 90%，beta 約 1.8。00713 對 0050 的 beta 只有 0.41，崩跌時 1 元 00713 可以換到 1.4–1.8 倍的正二。','00713 當子彈：比短債報酬高，崩跌時跌得比正二少很多；但流動性恐慌時也會跟著跌（2020 年 −25%）。'],
+  g5:'測過但不採用的做法', g5_p:'以下做法都用「任選起點投資 15 年」的方式測過。「勝出」是指在這些情境中贏過現行規則的比例。',
+  us_rej:[['做法','結果'],['跌破季線、半年線、年線時用子彈加碼','勝出最多 27%；2000 年型熊市最差少 17–31%'],['跌破 5 年線、10 年線，或綜合多條均線與 VIX 打分','觸發時 VIX 多半已經很高，效果重疊；最差少 21–33%'],['距高點 −10%、−20%、−30% 分段加碼','勝出 0%；最差少 36%'],['越跌越轉（跌越多轉越多）','2009 年後多賺約 5%；2000 年型熊市最差少 75%'],['週 RSI < 30、VIX ≥ 30、單日大跌時加碼','長期熊市中太早觸發，長期報酬較低'],['過熱門檻 70','在 95% 的情境輸給 75'],['分批調節、看比重調節、每年固定調回','都比現行差'],['完全不調節','近年較好；但長期最大回檔 −99%'],['CNN 恐懼貪婪、前瞻本益比','極度恐懼之後一年反而比平均差；本益比沒有足夠的歷史資料可以驗證']],
+  tw_rej:[['做法','結果'],['跌破季線、半年線、年線時用子彈加碼','勝出 0–15%；最差少 6–7%'],['距高點 −10%、−20% 也加碼（不只 −30%）','加太早：2025/4 少賺約 10%，2015、2024/8 也比較差；只在 2022 年和 2026 年這種淺跌強彈比較好'],['距高點 −10／15／20% 用子彈小量加 3–15%','2026 年兩次多買到一點，但整體幾乎沒差，最差情境變差'],['薪資在過熱時改買子彈（RSI > 70、高於年線 20%、接近高點）','差距都在 1–2% 內，不值得增加規則'],['調節改成 RSI > 85、分段賣、間隔 6 個月、回落 5–8% 才賣、跌破月線才賣、RSI 跌回 70／75 才賣','都沒有比 RSI > 80 一次調回好；台股跌得快，等確認時正二已經先跌一段'],['距高點 −30% 加到 100%','VIX 拆成四級後，2022/10 已由 VIX ≥ 32 接到，這一級幾乎沒有額外貢獻，卻增加 2000 年型熊市的風險；拿掉後各項指標持平或更好'],['融資餘額 20 日急降、加權指數實際波動率、年線趨勢濾網、CAPE 估值','有好有壞，沒有前後兩段都贏'],['RSI 門檻改成 70／75／78／82／85／90','80 附近最好；82 略好但 78、85 都變差，判斷是雜訊，不改'],['觸發後等 1–3 個月再賣，或先賣一半、3 個月後賣完','小幅勝出約 0.5%，但好處多半來自 2025–26 行情，而且等 2 個月反而變差；不採用'],['改看月 RSI、週＋月 RSI、高於年線 30／40%、頂背離、週 MACD 翻空','有的長期好、有的近年好，沒有一種前後兩段都贏'],['RSI > 80 且美國信用利差 3 個月內擴大才賣','前後兩段都小幅勝出，但門檻從 0 改成 0.2 就變差，美股用同樣規則也變差；先觀察，不採用'],['調節加條件「VIX < 15 才賣」','回測最好，但門檻改成 16 就失效，好處幾乎都來自 2025/10 那一次，判斷為過度擬合'],['越跌越轉（跌越多轉越多）','2009 年後多賺約 11%；但 2000 年型熊市最差少 16–60%'],['沒有薪資時，季線下方每月從 00713 轉 2%','勝出 46%，接近打平；但最差少 41%'],['分批調節（RSI > 75 調到 80%、> 80 調到 70%）','和現行打平；回檔小一點，但近年少賺約 2%'],['完全不調節','2009 年後多賺約 15%；但長期中位數少 15%'],['看比重調節、每年固定調回、VIX 過低時調節','都比現行差']],
+  g6:'回測結果', g6_p:'以下是從期初一次投入、不再加碼的年化報酬率。實際每月持續投入薪資時，各策略的排名相同。',
+  g7:'過去 VIX ≥ 35 的時間點',
+  gd_sal:'中期回調為什麼只用薪資', gd_sal_i:['跌破季線或半年線時，只把當月薪資全部買正二，子彈不動，留給 VIX ≥ 35／40。','回測顯示：用子彈在均線加碼，2009 年後沒有明顯加分，但在 2000 年、2022 年那種緩慢下跌的熊市會太早把子彈用完，長期每年少 1–2%、最大回檔更深。改成只用薪資，長期結果和只看 VIX 幾乎一樣。','代價：如果下跌很快就反彈（V 型），只用薪資會少賺一點。2009 年後的回測中，只用薪資比動用子彈的期末財富少約 3%。但 V 型的大跌（2020、2025）通常會讓 VIX 衝上 35，仍然會用到子彈。','2022 年就是例子：VIX 在 3 月跌 19% 時觸發，之後一路緩跌到 10 月的 −35%，VIX 沒有再到 35。這段期間持續用薪資買正二，就是在低檔累積部位。'],
+  gd_hist:'過去 VIX ≥ 35 的時間點', gd_hist_p:'1990 年以來共 19 次，平均約兩年一次。距高點是指當時納指（台股）距離前一個最高點的跌幅。', h_d:'首次觸發', h_ndd:'納指距高點', h_n12:'納指 12 個月後', h_tdd:'台股距高點', h_t12:'台股 12 個月後', gd_hist_note:'2001–2011 年的距高點是相對 2000 年泡沫的高點，所以數字很大。19 次中有 3 次之後 12 個月是負的（2001、2022 年等），這是規則的代價。',
+  guide:'使用說明', done_lbl:'我已執行', t_done:'這一級已經執行過，維持目前比例', s_done:'等下一級觸發，或 VIX 訊號出現時再調整。創新高後勾選會自動重設。', bt_h:'回測依據',
+  gd_what:'這個儀表板在做什麼', gd_what_i:['用回測過的規則告訴你：什麼時候把子彈轉成正二（加碼），什麼時候把漲多的正二換回子彈（調節）。','頁面不預測漲跌，只照規則提示。最上方的燈號和建議比例就是今天要做的事；沒有觸發時就什麼都不用做。','數據每個交易日台北時間 20:50 自動更新。'],
+  gd_ef:'開始之前：緊急預備金', gd_ef_i:['先準備 3–6 個月生活費的緊急預備金，放在銀行活存或定存，不算在這個組合裡。','子彈（SGOV、XEON 或 00713）是用來在股災時加碼的，不是急用金。股災常伴隨景氣衰退和裁員；沒有預備金，最壞情況是被迫在最低點賣出。','只投入 10 年以上不會動用的錢。'],
+  gd_month:'每月薪資與「用薪資調比例」',
+  gd_month_us:['每月薪資照基準比例買：QLD 60%、SGOV 40%（歐洲：LQQ／XEON）。','比例偏離時，優先用薪資調整：正二比重太高，當月薪資全部買子彈；太低（且沒有加碼訊號），全部買正二。','週 RSI > 75 時規則建議賣出正二調回 60%。賣出可能要繳資本利得稅（例如法國約 30%），不想賣的人可以只用薪資慢慢調回，比較慢但沒有稅負。','台灣居民買美國 ETF 沒有資本利得稅，但股息會被預扣 30%。'],
+  gd_month_tw:['每月薪資照基準比例買：00685L 60%、00713 40%。','比例偏離時，優先用薪資調整：正二比重太高，當月薪資全部買 00713；太低（且沒有加碼訊號），全部買 00685L。','週 RSI > 80 時規則建議賣出正二調回 60%，也可以只用薪資慢慢調回。'],
+  gd_once:'每一級只做一次', gd_once_i:['同一波下跌中，季線、半年線、半年線 −5% 這三級，每一級只在第一次觸發時，從當下比重調到該級目標。','執行後在階梯上勾選「我已執行」，計算器就不會再要求你補。勾選只存在你自己的瀏覽器，別人看不到，換裝置要重勾。','創新高後算新的一波，勾選自動重設。','VIX ≥ 35／40 不受此限：只要 VIX 還在門檻以上、比重又低於目標，就可以再補。'],
+  gd_risk:'風險：請先接受這些',
+  gd_risk_us:['最大風險是遇到 2000 年型的長期崩跌：這套規則的最大回檔是 −87%。一直持有 QLD 的人，從 2000 年高點要等 20.5 年才回本（最低跌了 98.8%）；這套規則能減輕，但無法消除。','目前估值是 2000 年以來最高的水準之一（S&P 500 席勒本益比約 41），請以未來會遇到一次 40–60% 回檔為前提來投資。','只投資納指 100，等於集中在美國大型科技股。歷史上有過十幾年不回本的市場，例如 2000 年的納指、1990 年的日本。','槓桿 ETF 每日重設，盤整震盪時會有耗損；費用率 QLD 0.95%、LQQ 0.60%。','年紀和資產增加後，槓桿應該逐步降低（之後會加入建議）。','規則來自有限的歷史樣本（VIX ≥ 40 只出現過 13 次），每年會用新資料重新檢查。'],
+  gd_risk_tw:['最大風險是遇到 2000 年型的長期崩跌：這套規則的最大回檔約 −85%（1999 年起）。2026/11 的版本把 VIX 拆成四級，代價是 2000 年型熊市會更早用完子彈；所以同時把基準降到 60／40、拿掉距高點 −30% 的深跌加碼，並在信用利差急升時暫停加碼。15 年情境的最差結果約 1.85 倍（期末資產 ÷ 總投入）。一直持有台股正二的人，從 2000 年高點要等 17.5 年才回本（最低跌了 89%）；2008 年要 7.5 年。','目前美股估值是 2000 年以來最高的水準之一，台股又集中在 AI 與半導體供應鏈；如果 AI 投資放緩，台股可能首當其衝。請以未來會遇到一次 40–60% 回檔為前提來投資。','台股高度集中在台積電與半導體，景氣循環明顯。','00713 在崩跌時也會跌（2020 年 −25%），只是跌得比正二少。','規則來自有限的歷史樣本，每年會用新資料重新檢查。'],
+  gd_disc:'免責聲明',
+  v_us:'美國券商', v_eu:'歐洲券商（UCITS）',
+  eu_h:'在歐洲怎麼買', eu_p:'歐盟的散戶通常買不到美國註冊的 ETF（像 QLD、SGOV），因為它們沒有歐盟要求的 KID 文件。可以改買在歐洲上市的 UCITS 版本，訊號和比例照用本頁。',
+  eu_rows:[['角色','美國','歐洲（UCITS）','說明'],['2 倍納指（正二）','QLD','LQQ（Amundi Nasdaq-100 Daily 2x，ISIN FR0010342592）','巴黎上市、以歐元交易，費用率 0.60%，不配息'],['子彈（歐元，建議）','SGOV','XEON（Xtrackers EUR Overnight Rate Swap，ISIN LU0290358497）','追蹤歐元隔夜利率，價格幾乎不會跌，沒有匯率風險；生活花費是歐元的人選這個'],['子彈（美元）','SGOV','IB01（iShares $ Treasury Bond 0-1yr）或 ZPR1（SPDR 1-3 Month T-Bill）','美國短期國債，有美元匯率風險']],
+  eu_notes:['子彈的任務是在崩跌時保持購買力。IB01 的美元利息較高，但對歐元投資人有匯率波動：2008 年美元大漲 14.5%（對子彈有利），2025 年卻跌了 4.6%（不利），不夠穩定。LQQ 本身已經有美元曝險，子彈用 XEON 比較單純','LQQ 是以歐元計價的 2 倍納指，報酬會同時受到美元兌歐元匯率影響；這和直接持有美股的匯率風險一樣，只是沒有額外避險','買賣前在券商的商品頁確認 ISIN，不同交易所的代號可能不同','有些券商可以申請成為專業投資人來買美國 ETF，但會失去部分散戶保護，一般不需要'],
+},
+en:{
+  h1_us:'Nasdaq Leverage Dashboard', eb_us:'QLD + SGOV',
+  subtitle:'When to add to or trim a 2x Nasdaq position, using rules backtested over 1990–2026. Updated every trading day.',
+  refresh:'Refresh data', refreshing:'Updating…', loading:'Loading the latest data…', loadfail:'Could not read the data file. Reload the page.', nomarket:'This market did not update. Try again later.',
+  stamp:'Updated {t} (Taipei time)',
+  st_normal:'Hold', st_dip:'Pullback', st_panic:'Panic buy', st_refill:'Rebuild reserve',
+  t_normal:'No signal right now. Hold the base mix.', t_dipX:'Move reserve into {lev}, up to {w} of the portfolio', t_sal:'Put all of this month\'s savings into {lev}; leave the reserve alone', t_refillX:'Trim {lev} back to {w} and put the rest in {bul}',
+  s_normal:'Keep buying at the base ratio with your monthly savings. Nothing else to do.', s_dip:'Price is below the 60-day MA. While it stays there, put all monthly savings into 2x and keep the reserve for VIX signals. Return to the normal split once price is back above the line.', s_panic:'VIX is in the zone with the best historical win rate. Move reserve into 2x by the ladder.', s_refill:'Weekly RSI is running hot. Sell the 2x above the base and rebuild the reserve for the next pullback.',
+  close_at:'{idx} close {d}', first:' (first hit {d} in this decline)', nosig:'No signal triggered', rsi_hit:'✓ Weekly RSI {v} > {th}',
+  base_mix:'Base mix', sug_mix:'Suggested', sal_mix:'This month\'s savings', cur_mix:'Your current mix', lev_tag:'{x} (2x)', bul_tag:'{x} (reserve)',
+  calc_eb:'Enter your current holdings to see how much to move', val:'{x} value ({c})', eg:'e.g. {n}',
+  calc_empty:'Enter both values to see the exact amount to move and the mix afterwards.', calc_now:'2x share now {a}, suggested {b}',
+  sell_buy:'Sell {amt} {c} of {from} and buy {to}.', after:'After: {lev} {a} ({wa}) / {bul} {b} ({wb})',
+  below_base:'Your 2x share is below the base, but there is no buy signal. Put monthly savings into {lev} first until you are back at {w}.', in_range:'Your mix is within ±3% of the target. No change needed.', calc_sal:'No need to touch the reserve. Put all of this month\'s savings into {lev}.', exec_note:'Signals use closing prices; acting on the next trading day is fine. No need to watch intraday.', stale:'The data has not updated for {n} days, or a data source failed. The light may be out of date; hold off acting on it.', last35:'last ≥ {th}: {d}', g_mid_sal:'Pullback (new money only, reserve untouched)', r_sal:'Close below the 60-day MA', d_sal:'60-day MA {a} · 120-day MA {b}', w_sal:'All savings to 2x', d_lastep:' · last seen {d}', w_base:'2x at {w}', w_trim:'Trim 2x to {w}', w_add:'Add 2x to {w}', sal_out_dip:'This month: all {a} {c} into {lev}', sal_note_dip:'Price is below the 60-day MA, so put this month\'s savings into 2x. Go back to {a} / {b} once it is above the line.', above:'Your 2x share is already above the suggestion, so there is nothing to add. The rules only sell when weekly RSI goes above {th}, so leave it for now.',
+  privacy:'Your values stay in your own browser and are never uploaded.', once:' If you already made this step during this decline, skip it.',
+  wave_note:'"This decline" means since the high on {d}. Each step is acted on once, the first time it triggers in a decline, and resets after a new high.', ladder:'Buy and trim ladder', lad_sub:'{idx} {c}   from high {dd}   weekly RSI {rsi}   VIX {vix} ({vd})',
+  g_heat:'Trim when hot', g_base:'Base', g_add:'Add when it falls', g_mid:'Pullback steps (up to 1/3 of reserve)', g_mid_us:'Pullback steps (optional, up to 1/3 of reserve)', g_panic:'Panic steps (keep reserve for these)',
+  r_refill:'Weekly RSI > {th}', r_refill_d:'Now {v}, {gap} to go', r_refill_d2:'Now {v}, above the line',
+  r_base:'Normal', r_base_d:'{lev} {a} / {bul} {b}',
+  ma60:'Below 60-day MA', ma120:'Below 120-day MA', ma120_5:'5% below 120-day MA', vix28:'VIX ≥ 28', vix32:'VIX ≥ 32', vix35:'VIX ≥ 35', vix36:'VIX ≥ 36', vix40:'VIX ≥ 40', dd30:'30% below high', d_dd30:'Now {dd} from high · trigger level {p}', refill:'Weekly RSI > {th} (rebuild reserve)',
+  ln_ma60:'60-day MA', ln_ma120:'120-day MA', ln_ma120_5:'120-day MA −5%',
+  d_mid:'{ln} at {p}, close is {g} {dir}', d_hi:'above', d_lo:'below', d_vix:'VIX now {v}, line at {th}', d_first:' · first hit {d} in this decline',
+  k_vix:'VIX', s_vix:'{d}', k_dd:'From high', s_dd:'High {p} ({d})', k_rsi:'Weekly RSI', s_rsi:'> {th} rebuild reserve',
+  k_fg:'CNN Fear & Greed', k_vxn:'VXN (Nasdaq vol)', s_vxn:'Usually 4–8 above VIX', k_term:'VIX / VIX3M', s_term:'> 1 means short-term panic',
+  k_hy:'High-yield spread', s_hy:'3-month change {v}', k_fpe:'NDX forward P/E', s_fpe:'{d} · about quarterly', tag_main:'Signal', tag_ref:'Info',
+  fg0:'Extreme fear', fg1:'Fear', fg2:'Neutral', fg3:'Greed', fg4:'Extreme greed',
+  stats_note:'These show market temperature only. They did not improve timing in the backtest and do not affect the signal.', refs_h:'Other indicators (info only)', k_cr:'Credit spread, 3-month change', s_cr:'Above +{th} pauses panic buying', s_cr_on:'Above +{th}: panic buying paused', s_cr_us:'Not used by the US rules; info only',
+  ch_price:'{idx} and support lines', ch_price_s:'60, 120 and 240-day moving averages; dots mark the first trigger of each decline. This is {idx}, not the 2x fund itself', ln_ma240:'240-day MA',
+  ch_vix:'VIX', ch_vix_s:'Staged buying at {l}', ch_rsi:'Weekly RSI', ch_rsi_s:'Rebuild reserve above {th}', ch_fg:'CNN Fear & Greed', ch_fg_s:'Info only: extreme fear was not a good entry in the backtest', fgname:'Fear & Greed',
+  sal:'Splitting your monthly savings', nx_h:'Distance to the next signal', nx_vix:'VIX needs +{x} to reach {th}', nx_vix_on:'VIX {v} is at or above {th}', nx_dd:'{idx} must fall another {x} for the deep-drop step', nx_dd_on:'Deep-drop step reached', nx_sal:'{idx} must fall another {x} to break the 60-day MA', nx_sal_on:'Below the 60-day MA', nx_rsi:'Weekly RSI needs +{x} to reach {th}', nx_rsi_on:'Weekly RSI is above {th}', nx_w:'→ {lev} {w}', nx_wsal:'→ savings into 2x', r_vix:'VIX panic buying', d_vixm:'VIX now {v} · last ≥ {th}: {d}', w_none:'Not triggered', w_blk:'Paused', cred_off:'Credit spread 3-month change {x} (panic buying pauses above +{th})', cred_on:'⏸ Credit spread widened {x} in 3 months, above +{th}: panic buying paused until spreads settle', chip_blk:'⏸ Credit spreads spiking, panic buying paused', tab_hold:'Rebalance', tab_sal:'Monthly savings', hist_h:'Recent signals', hist_s:'First trigger of each step per decline over the last 2.5 years; returns are for {idx}, not the 2x fund', hc_d:'Date', hc_s:'Signal', hc_w:'2x target', hc_3:'After 3 months', hc_12:'After 12 months', hc_na:'n/a', sal_in:'Amount to invest each month ({c})', sal_out:'Buy {lev} {a} {c}  +  buy {bul} {b} {c}',
+  sal_note:'Just buy at the base {a} / {b}. In the backtest, holding cash for pullbacks or using other splits changed long-run returns by under 1%. The ladder above is what sets the mix.',
+  rules:'Rules', h_alloc:'Mix', h_add:'Adding', h_trim:'Trimming',
+  us_alloc:['Base: QLD 60% / SGOV 40%','Average QLD weight is about 80%, roughly 1.6x the Nasdaq-100','That is about the risk of 2.5x the S&P 500, above the 2x that lifecycle-investing research suggests for young investors. It suits people who will hold through deep drawdowns','On a European broker use LQQ / XEON at the same ratio'],
+  us_add:['Close below the 60-day MA: all monthly savings into QLD (LQQ); reserve untouched','VIX ≥ 35 → 2x at 85%; VIX ≥ 40 → 100% (uses reserve)','While VIX stays above the line and your mix falls below target, top up again'],
+  us_trim:['Weekly RSI > 75 → back to 60%','Trimming is not about selling the top (a year later prices were up 22% on average); it stops the 2x share drifting above 90% before a 2000-style crash','A 75 line sells far less often than 70; across 15-year windows from any starting year it beat 70 in 95% of cases','No need to add plain QQQ: at the same beta it returned less'],
+  bt_cap:'Annualized return (CAGR, including dividends and ETF fees) and maximum drawdown',
+  bt_us:[['Strategy','Annual return 1990–2026','Annual return 2003–2026','Max drawdown (from 1990)'],['Hold QQQ','15.1%','16.0%','−83%'],['Hold QLD','18.4%','24.4%','−99%'],['This page','23.4%','24.9%','−87%']],
+  bt_note:'Annualized return is the average compound growth per year: 15.1% means the portfolio grew 15.1% a year on average. Max drawdown is the largest fall from a peak to a low. Before QLD launched it is simulated from the NDX; the simulation tracks the real fund with a 0.99 daily correlation. VIX ≥ 40 appeared only 13 times in the sample, so trust the direction more than the exact figures.',
+  foot1:'Data: CBOE and FRED (VIX, VXN, VIX3M, high-yield spread), FinMind (QQQ), CNN Fear & Greed (GitHub whit3rabbit/fear-greed-data), Siblis Research (NDX forward P/E). Updates automatically at 20:50 Taipei time every trading day.',
+  foot2:'This page summarizes rules from a historical backtest. It is not investment advice. Leveraged ETFs can lose most of their value in a long bear market; decide based on your own money and risk tolerance.',
+  m_sent:'Refresh requested. It takes about 2–5 minutes to fetch and compute; the page switches to the new data when done.', m_conn:'Could not start the refresh: check that "Claude Code Remote" is connected in claude.ai Settings → Connectors.', m_appr:'Allow this page to start the refresh, then open it in claude.ai and press the button again.', m_busy:'The refresh service did not answer and may already be running. Reload in a few minutes; press again if nothing changed.', m_fail:'The refresh was not sent ({c}).',
+  usd:'USD', twd:'TWD',
+  src_line:'Signals are calculated from {idx}; you trade {lev}. {idx} is {dd} from its high, so {lev} is roughly {ldd} (a 2x fund moves about twice as much each day).', fx_note:' LQQ is priced in euros, so the dollar-euro rate also moves it.',
+  us_cmp:['Versus holding QQQ: about 8% more per year, at the cost of a deeper worst drawdown (−87% vs −83%).','Versus holding QLD: about 5% more per year, and a −87% worst drawdown instead of −99%. Someone holding QLD from 2000 was nearly wiped out; these rules got through on the SGOV reserve and VIX buying.','The gap comes from two things: buying with the reserve when VIX spikes, and trimming 2x when running hot so you are not fully leveraged going into a crash.'],
+  g8:'Biggest risks: accept these first',
+  g1:'What this page does', g1_i:['It uses backtested rules to answer two questions: when to move reserve into 2x (add), and when to move gains in 2x back into reserve (trim).','It does not forecast the market. The light and suggested mix at the top are what to do today; with no signal, do nothing.','Signals use closing prices and update at 20:50 Taipei time each trading day. Acting on the next trading day is fine; no need to watch intraday.'],
+  g2:'Before you start', g2_i:['Keep 3–6 months of living costs in a bank account, outside this portfolio. The reserve is for buying in a crash, not for emergencies; crashes often come with recessions and layoffs, and without an emergency fund you may be forced to sell at the bottom.','Only invest money you will not need for 10+ years.','A 2x fund moves about twice as much as the index each day. Paper losses will look far scarier than the headlines; that is normal.'],
+  g3:'The rules', g3_p:'There are only five rules. The first two are routine; the light at the top tells you when the other three apply.',
+  us_rules:[['Item','Rule'],['Base mix','QLD 60% / SGOV 40% (Europe: LQQ / XEON)'],['Monthly savings','Buy at 60 / 40'],['Pullback','Close below the 60-day MA: put all of that month\'s savings into QLD; leave the reserve alone'],['Panic','VIX ≥ 35: raise QLD to 85%; VIX ≥ 40: to 100% (uses reserve)'],['Running hot','Weekly RSI > 75: trim QLD back to 60%']],
+  us_rules_n:['When the mix drifts, steer it with new money first: too much 2x, put the month into reserve; too little (and no buy signal), put it into 2x.','While VIX stays above the line and your mix falls below target, you can top up again.','If you prefer not to sell (for tax reasons, say), steer back with new money only when running hot; slower, but no sale. Taiwan residents pay no capital gains tax on US ETFs, but 30% is withheld from dividends.'],
+  g4:'Why these rules',
+  us_why:['Panic buying uses VIX only: 12 months after VIX ≥ 35 the Nasdaq-100 averaged +30% with an 89% win rate, in both markets and both halves of the sample. Thresholds from 35 to 45 give similar results, so the number is not cherry-picked. VIX 20–30 had no edge.','Pullbacks use new money only: after breaking the 60 or 120-day MA, price was higher 4 years later about 85% of the time. But reserve spent there gets trimmed at the next hot spell, so it only catches the bounce, and in bear markets like 2000 and 2008 it runs the reserve out too early. New money alone matched the best alternatives and keeps the reserve for VIX.','Trimming is not selling the top: a year after a trim, prices were up 22% on average. It stops the 2x share drifting above 90% before a 2000-style crash. A 75 line sells far less often than 70 and won in 95% of 22 fifteen-year windows.','Risk of 60 / 40: the average QLD weight is about 80%, roughly 1.6x the Nasdaq-100 or 2.5x the S&P 500, above the 2x that lifecycle-investing research suggests for young investors. It suits people who will hold through deep drawdowns.','The reserve is short Treasuries (SGOV): it barely falls in a crash, so it buys the most 2x when it matters.'],
+  g5:'Ideas tested and dropped', g5_p:'Each was tested from every starting year over 15-year windows. "Won" means the share of windows where it beat the current rules.',
+  us_rej:[['Idea','Result'],['Spending reserve below the 60, 120 or 240-day MA','Won at most 27%; up to 17–31% worse in a 2000-style bear'],['5- or 10-year MA, or a combined MA + VIX score','Usually fires when VIX is already high; up to 21–33% worse'],['Staged buys at −10%, −20%, −30% from the high','Won 0%; up to 36% worse'],['Buying more the further it falls','About 5% better after 2009; up to 75% worse in a 2000-style bear'],['Weekly RSI < 30, VIX ≥ 30, or a big one-day drop','Fires too early in long bear markets'],['Trimming at RSI 70','Lost to 75 in 95% of windows'],['Staged trims, weight bands, yearly rebalancing','All worse than the current rule'],['Never trimming','Better recently, but a −99% worst drawdown'],['CNN Fear & Greed, forward P/E','Extreme fear was followed by below-average years; not enough P/E history to test']],
+  g6:'Backtest', g6_p:'Annualized returns from a single starting investment with nothing added. With monthly savings added, the ranking of strategies stays the same.',
+  g7:'Past VIX ≥ 35 signals',
+  gd_sal:'Why pullbacks use new money only', gd_sal_i:['When price is below the 60 or 120-day MA, put that month\'s savings into 2x and leave the reserve for VIX ≥ 35 / 40.','In the backtest, spending reserve at moving averages added little after 2009, but in slow bear markets such as 2000 and 2022 it used the reserve up too early, costing 1–2% a year and deepening the worst drawdown. Using new money only matched the VIX-only results over the long run.','The cost: if a drop rebounds quickly (a V shape), new money alone catches less of it. After 2009 it ended about 3% behind spending reserve. Big V-shaped crashes (2020, 2025) usually push VIX above 35 anyway, so the reserve still gets used.','2022 is the example: VIX triggered in March at −19%, then the market slid to −35% by October without VIX reaching 35 again. Buying 2x with savings through that stretch built the position near the lows.'],
+  gd_hist:'Past VIX ≥ 35 signals', gd_hist_p:'19 times since 1990, about once every two years. "From high" is how far the Nasdaq-100 was below its previous peak at the time.', h_d:'First day', h_ndd:'NDX from high', h_n12:'NDX 12 months later', h_tdd:'Taiwan from high', h_t12:'Taiwan 12 months later', gd_hist_note:'For 2001–2011 the drop is measured from the 2000 bubble peak, hence the large numbers. 3 of the 19 were followed by a negative year (2001, 2022 and others); that is the cost of the rule.',
+  guide:'How to use', done_lbl:'Done', t_done:'You already made this step. Hold your current mix', s_done:'Wait for the next step or a VIX signal. Ticks reset after a new high.', bt_h:'Backtest',
+  gd_what:'What this page does', gd_what_i:['It applies backtested rules to tell you when to move reserve into 2x (add) and when to move gains in 2x back into reserve (trim).','It does not forecast the market. The light and suggested mix at the top are what to do today; with no signal, do nothing.','Data updates automatically at 20:50 Taipei time every trading day.'],
+  gd_ef:'Before you start: emergency fund', gd_ef_i:['Keep 3–6 months of living costs in a bank account, outside this portfolio.','The reserve (SGOV / XEON) is for buying in a crash, not for emergencies. Crashes often come with recessions and layoffs; without an emergency fund you may be forced to sell at the bottom.','Only invest money you will not need for 10+ years.'],
+  gd_month:'Monthly savings and rebalancing with new money',
+  gd_month_us:['Each month buy at the base mix: QLD 60%, SGOV 40% (Europe: LQQ / XEON).','When the mix drifts, steer it with new money first: if 2x is too heavy, put the whole month into reserve; if too light (and no buy signal), put it all into 2x.','When weekly RSI > 75 the rules suggest selling 2x back to 60%. Selling can trigger capital gains tax (about 30% in France, for example). If you prefer not to sell, steer back with new money only; slower, but no tax.','Taiwan residents pay no capital gains tax on US ETFs, but 30% is withheld from dividends.'],
+  gd_once:'Each step once per decline', gd_once_i:['In one decline, the 60-day MA, 120-day MA and 120-day MA −5% steps each run once, the first time they trigger, moving you from your current mix to that step\'s target.','After acting, tick "Done" on the ladder and the calculator stops asking you to top up. Ticks live only in your own browser; others cannot see them, and you need to tick again on another device.','A new high starts a new decline and clears the ticks.','The VIX ≥ 35 / 40 steps are different: while VIX stays above the line and your mix falls below target, you can top up again.'],
+  gd_risk:'Risks to accept first',
+  gd_risk_us:['The biggest risk is a long 2000-style crash: these rules fell as much as −87%. Someone holding QLD from the 2000 peak needed 20.5 years to break even (it fell 98.8% at the low). The rules soften this but cannot remove it.','Valuations are among the highest since 2000 (S&P 500 Shiller P/E around 41). Invest assuming you will live through at least one 40–60% decline.','The Nasdaq-100 is concentrated in large US tech. Markets have gone 10+ years without recovering, such as the Nasdaq after 2000 and Japan after 1990.','Leveraged ETFs reset daily and lose value in choppy markets; fees are QLD 0.95%, LQQ 0.60%.','As you get older and your savings grow, leverage should come down (guidance coming later).','The rules come from limited history (VIX ≥ 40 appeared only 13 times) and will be rechecked yearly with new data.'],
+  gd_disc:'Disclaimer',
+  v_us:'US broker', v_eu:'European broker (UCITS)',
+  eu_h:'Buying from Europe', eu_p:'EU retail investors usually cannot buy US-domiciled ETFs such as QLD and SGOV, because they lack the KID document EU rules require. Use the UCITS versions listed in Europe instead; the signals and ratios on this page still apply.',
+  eu_rows:[['Role','US','Europe (UCITS)','Notes'],['2x Nasdaq-100','QLD','LQQ (Amundi Nasdaq-100 Daily 2x, ISIN FR0010342592)','Listed in Paris, trades in EUR, 0.60% fee, accumulating'],['Reserve (EUR, suggested)','SGOV','XEON (Xtrackers EUR Overnight Rate Swap, ISIN LU0290358497)','Tracks the euro overnight rate, barely moves and has no currency risk; pick this if you spend in euros'],['Reserve (USD)','SGOV','IB01 (iShares $ Treasury Bond 0-1yr) or ZPR1 (SPDR 1-3 Month T-Bill)','Short US Treasuries, with USD exchange-rate risk']],
+  eu_notes:['The reserve exists to keep buying power in a crash. IB01 pays higher US rates, but a euro investor carries the exchange rate: the dollar rose 14.5% in 2008 (helpful) yet fell 4.6% in 2025 (not). LQQ already carries dollar exposure, so XEON keeps the reserve simple','LQQ gives 2x Nasdaq-100 in euro terms, so returns also move with the dollar-euro rate. That is the same currency risk as owning US stocks directly, with no extra hedge','Check the ISIN on your broker before trading; tickers differ between exchanges','Some brokers let you opt up to professional status to buy US ETFs, but you give up some retail protections. Most people do not need this'],
+}};
+const t = (k, v={}) => { let s = (TX[LANG][k] ?? TX.zh[k] ?? k); if (typeof s!=='string') return s; return s.replace(/\{(\w+)\}/g,(_,x)=> v[x]!=null ? v[x] : ''); };
+
+const D8 = d => d ? String(d).slice(0,10).replace(/-/g,'/') : '';
+const pct = (x,d=0) => x==null||isNaN(x) ? '—' : (x*100).toFixed(d)+'%';
+const sgn = (x,d=1) => x==null||isNaN(x) ? '—' : (x>0?'+':'')+(x*100).toFixed(d)+'%';
+const fmt = (x,d=0) => x==null||isNaN(x) ? '—' : Number(x).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const el = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='style') e.style.cssText=v; else e.setAttribute(k,v);} for(const k of kids){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(k)); } return e; };
+
+let DATA=null, charts=[], cur = MODE==='us' ? 'us' : (store.get('dash-tab') || 'tw');
+
+function chrome(){
+  document.documentElement.lang = LANG==='en' ? 'en' : 'zh-Hant';
+  document.getElementById('eyebrow').textContent = MODE==='us'?(VENUE==='eu'?'LQQ ＋ XEON':'QLD ＋ SGOV'):t('eb_full');
+  document.getElementById('h1').textContent = MODE==='us'?t('h1_us'):t('h1_full');
+  document.getElementById('subtitle').textContent = t('subtitle');
+  document.getElementById('foot1').textContent = t('foot1');
+  document.getElementById('foot2').textContent = t('foot2');
+  const rb=document.getElementById('refresh'); if(!rb.disabled) rb.textContent=t('refresh');
+  const gb=document.getElementById('guideBtn'); gb.textContent=t('guide'); gb.onclick=openGuide; document.getElementById('guideClose').onclick=closeGuide;
+  if (DATA) document.getElementById('stamp').textContent = t('stamp',{t:taipei(DATA.generated)});
+  // tabs
+  const tb=document.getElementById('tabs'); tb.textContent='';
+  if (MODE==='us') tb.hidden=true; else for(const k of ['tw','us']){ const b=el('button',{role:'tab','aria-selected':String(cur===k)},t('tab_'+k)); b.onclick=()=>{cur=k;store.set('dash-tab',k);chrome();render();}; tb.append(b); }
+  // language
+  const lg=document.getElementById('lang'); lg.textContent='';
+  if (MODE==='us'){ lg.hidden=false; for(const [k,n] of [['zh','中文'],['en','EN']]){ const b=el('button',{'aria-pressed':String(LANG===k)},n); b.onclick=()=>{LANG=k;store.set('dash-lang',k);chrome();render();sourcesRender();staleCheck();}; lg.append(b);} }
+  const vn=document.getElementById('venue'); vn.textContent='';
+  if (MODE==='us'){ vn.hidden=false; for(const [k,n] of [['us','QLD · SGOV'],['eu','LQQ · XEON']]){ const b=el('button',{'aria-pressed':String(VENUE===k),title:k==='us'?t('v_us'):t('v_eu')},n); b.onclick=()=>{VENUE=k;store.set('dash-venue',k);chrome();render();}; vn.append(b);} }
+}
+function taipei(iso){ try{ return new Date(iso).toLocaleString(LANG==='en'?'en-US':'zh-TW',{timeZone:'Asia/Taipei',hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return iso} }
+function fgLabel(v){ return t(v<25?'fg0':v<45?'fg1':v<=55?'fg2':v<75?'fg3':'fg4'); }
+const tierName = (id, m) => id==='refill' ? t('refill',{th:m.rsi_refill}) : t(id);
+
+function render(){
+  charts.forEach(c=>c.dispose()); charts=[];
+  const main=document.getElementById('main'); main.textContent='';
+  const m = DATA[cur];
+  if(!m){ main.append(el('div',{class:'loading'},t('nomarket'))); return; }
+  const isTW = cur==='tw'; const idxD = isTW?0:2;
+  const cur$ = isTW?t('twd'):(MODE==='us'&&VENUE==='eu'?'EUR':t('usd'));
+  let lev = m.lev, bul = m.bul;
+  const EU = MODE==='us' && VENUE==='eu';
+  if (EU){ lev='LQQ'; bul='XEON'; }
+  const idx = isTW ? '加權指數' : 'QQQ';
+  const color = {normal:C.ok,dip:C.warn,panic:C.bad,refill:C.info}[m.state];
+  document.documentElement.style.setProperty('--state', color);
+
+  // ===== verdict =====
+  const active = m.tiers.filter(x=>x.active);
+  const panicActive = active.filter(x=>x.group==='恐慌加碼');
+  const SAL = active.some(x=>x.group!=='恐慌加碼');
+  const TARGET = m.state==='refill' ? m.base : Math.max(m.base, ...panicActive.map(x=>x.target));
+  const vixT = m.tiers.filter(x=>x.group==='恐慌加碼' && x.id.startsWith('vix')).sort((a,b)=>a.line-b.line);
+  const ddT = m.tiers.find(x=>x.id==='dd30');
+  const lastEp = ((DATA.macro||{}).vix||{}).last_ep||{};
+  const verdict = el('section',{class:'card verdict'});
+  verdict.append(el('div',{class:'vhead'}, el('span',{class:'pill'}, el('span',{class:'dot'}), t('st_'+m.state)), el('span',{class:'muted',style:'font-size:.82rem'}, t('close_at',{idx, d:D8(m.asof)}))));
+  let title = t('t_normal');
+  if (m.state==='panic') title = t('t_dipX',{lev, w:pct(TARGET)});
+  if (m.state==='dip') title = t('t_sal',{lev});
+  if (m.state==='refill') title = t('t_refillX',{lev, w:pct(m.base), bul});
+  verdict.append(el('p',{class:'srcline'}, t('src_line',{idx, lev, dd:sgn(m.dd), ldd:sgn(m.lev_dd)}) + (lev==='LQQ'?t('fx_note'):'')));
+  verdict.append(el('div',{class:'vtitle'}, title), el('p',{class:'vsub'}, t('s_'+m.state)));
+  const why = el('div',{class:'why'});
+  if (active.length) active.forEach(x=>why.append(el('span',{class:'chip on'}, '✓ '+tierName(x.id,m)+(x.first_this_wave?t('first',{d:D8(x.first_this_wave)}):''))));
+  else if (m.refill) why.append(el('span',{class:'chip on'}, t('rsi_hit',{v:m.rsi_w, th:m.rsi_refill})));
+  else why.append(el('span',{class:'chip'}, t('nosig')));
+  if (m.credit&&m.credit.block&&m.tiers.some(x=>x.reached)) why.append(el('span',{class:'chip on'}, t('chip_blk')));
+  verdict.append(why);
+  const alloc = el('div',{class:'alloc'});
+  const row=(lab,w)=>{ const b=el('div',{class:'bar'}); b.append(el('i',{class:'lev',style:`width:${w*100}%`}), el('i',{class:'bul',style:`width:${(1-w)*100}%`})); alloc.append(el('span',{class:'muted'},lab), b, el('span',{class:'num'}, `${pct(w)} / ${pct(1-w)}`)); };
+  row(t('base_mix'), m.base);
+  if (m.state==='panic') row(t('sug_mix'), TARGET);
+  else if (SAL) row(t('sal_mix'), 1);
+  const curRow = {lab:el('span',{class:'muted'},t('cur_mix')), bar:el('div',{class:'bar'}), num:el('span',{class:'num'})};
+  const setCur = w => { const show = w!=null; [curRow.lab,curRow.bar,curRow.num].forEach(n=>n.hidden=!show); if(!show) return;
+    curRow.bar.textContent=''; curRow.bar.append(el('i',{class:'lev',style:`width:${w*100}%`}), el('i',{class:'bul',style:`width:${(1-w)*100}%`})); curRow.num.textContent=`${pct(w)} / ${pct(1-w)}`; };
+  alloc.append(curRow.lab, curRow.bar, curRow.num); setCur(null);
+  verdict.append(alloc, el('div',{class:'legend'}, el('span',{style:`--c:${C.brass}`}, t('lev_tag',{x:lev})), el('span',{style:'--c:#3b4a5c'}, t('bul_tag',{x:bul}))));
+
+  // calculator
+  const key='hold-'+cur; let saved={}; try{saved=JSON.parse(store.get(key)||'{}')}catch(e){}
+  const calc = el('div',{class:'calc'});
+  const tabs = el('div',{class:'ctabs',role:'tablist'}); const pH=el('div',{}), pS=el('div',{});
+  const ctab = store.get('ctab')||'hold';
+  const bH=el('button',{role:'tab','aria-selected':String(ctab==='hold')},t('tab_hold')), bS=el('button',{role:'tab','aria-selected':String(ctab==='sal')},t('tab_sal'));
+  const showT=k=>{ store.set('ctab',k); bH.setAttribute('aria-selected',String(k==='hold')); bS.setAttribute('aria-selected',String(k==='sal')); pH.hidden=k!=='hold'; pS.hidden=k!=='sal'; };
+  bH.onclick=()=>showT('hold'); bS.onclick=()=>showT('sal'); tabs.append(bH,bS); calc.append(tabs, pH, pS);
+  pH.append(el('div',{class:'eyebrow',style:'margin-bottom:10px'}, t('calc_eb')));
+  const fL = el('input',{id:'in-lev-'+cur,type:'number',inputmode:'decimal',min:'0',placeholder:t('eg',{n:isTW?'700000':'5000'})}); fL.value=saved.lev||'';
+  const fB = el('input',{id:'in-bul-'+cur,type:'number',inputmode:'decimal',min:'0',placeholder:t('eg',{n:isTW?'300000':'5000'})}); fB.value=saved.bul||'';
+  pH.append(el('div',{class:'calc-row'}, el('label',{class:'f',for:fL.id}, t('val',{x:lev,c:cur$}), fL), el('label',{class:'f',for:fB.id}, t('val',{x:bul,c:cur$}), fB)));
+  const out = el('div',{class:'action'}); pH.append(out);
+  const upd=()=>{
+    const L=+fL.value||0, B=+fB.value||0, T=L+B; store.set(key, JSON.stringify({lev:fL.value,bul:fB.value}));
+    out.textContent='';
+    if(!T){ setCur(null); out.append(t('calc_empty')); return; }
+    const w=L/T, tgt=TARGET; setCur(w);
+    const now = el('div',{}); const parts = t('calc_now',{a:'\u0001',b:'\u0002'}).split(/(\u0001|\u0002)/);
+    parts.forEach(p=> now.append(p==='\u0001'?el('b',{},pct(w,1)):p==='\u0002'?el('b',{},pct(tgt)):p)); out.append(now);
+    const line = el('div',{style:'margin-top:6px'});
+    const sb=(amt,from,to)=>{ const ps=t('sell_buy',{amt:'\u0001',c:cur$,from,to}).split('\u0001'); line.append(ps[0], el('b',{},fmt(amt)), ps[1]); };
+    if (m.state==='refill'){
+      if (w > m.base+0.03){ const x=L-m.base*T; sb(x, lev, bul); line.append(el('div',{class:'note'}, t('after',{lev,a:fmt(L-x),wa:pct(m.base),bul,b:fmt(B+x),wb:pct(1-m.base)}))); }
+      else line.append(t('in_range'));
+    } else if (m.state==='panic'){
+      if (tgt > w+0.03){ const x=Math.min(tgt*T-L,B); sb(x, bul, lev); const nw=(L+x)/T; line.append(el('div',{class:'note'}, t('after',{lev,a:fmt(L+x),wa:pct(nw),bul,b:fmt(B-x),wb:pct(1-nw)}))); }
+      else if (w > tgt+0.03) line.append(t('above',{th:m.rsi_refill}));
+      else line.append(t('in_range'));
+    } else if (m.state==='dip'){
+      line.append(t('calc_sal',{lev}));
+    } else {
+      if (w < m.base-0.03) line.append(t('below_base',{lev,w:pct(m.base)}));
+      else if (w > m.base+0.03) line.append(t('above',{th:m.rsi_refill}));
+      else line.append(t('in_range'));
+    }
+    out.append(line);
+  };
+  fL.oninput=fB.oninput=upd; upd();
+  // salary tab
+
+  const fs = el('input',{id:'in-sal-'+cur,type:'number',inputmode:'decimal',min:'0',placeholder:t('eg',{n:isTW?'30000':'1000'})}); fs.value=store.get('sal-'+cur)||'';
+  const so = el('div',{class:'action'});
+  const su=()=>{ store.set('sal-'+cur,fs.value); const v=+fs.value||0; so.textContent='';
+    if (SAL){ so.append(el('div',{class:'num'}, t('sal_out_dip',{lev,a:fmt(v),c:cur$}))); so.append(el('div',{class:'note'}, t('sal_note_dip',{a:pct(m.base),b:pct(1-m.base)}))); }
+    else { so.append(el('div',{class:'num'}, t('sal_out',{lev,a:fmt(v*m.base),bul,b:fmt(v*(1-m.base)),c:cur$}))); so.append(el('div',{class:'note'}, t('sal_note',{a:pct(m.base),b:pct(1-m.base)}))); } };
+  fs.oninput=su; su();
+  pS.append(el('div',{class:'calc-row'}, el('label',{class:'f',for:fs.id}, t('sal_in',{c:cur$}), fs)), so);
+  showT(ctab);
+  calc.append(el('div',{class:'note'}, t('privacy')+' '+t('exec_note')));
+  verdict.append(calc);
+
+  // ===== ladder =====
+  const lad = el('section',{class:'card'});
+  lad.append(el('h2',{}, t('ladder')), el('p',{class:'muted',style:'margin:2px 0 6px;font-size:.84rem'}, t('lad_sub',{idx, c:fmt(m.close,idxD), dd:sgn(m.dd), rsi:m.rsi_w, vix:m.vix??'—', vd:D8(m.vix_asof)})));
+  const L2 = el('div',{class:'ladder'});
+  const rung=(on,c,tt,d,w)=>{ const r=el('div',{class:'rung'+(on?' on':''),style:`--c:${c}`}); r.append(el('span',{class:'mk'}), el('div',{}, el('div',{class:'t'},tt), el('div',{class:'d'},d)), el('div',{class:'w'},w)); L2.append(r); };
+  L2.append(el('div',{class:'grp major'},t('g_base')));
+  rung(m.state==='normal', C.ok, t('r_base'), t('r_base_d',{lev,a:pct(m.base),bul,b:pct(1-m.base)}), t('w_base',{w:pct(m.base)}));
+  L2.append(el('div',{class:'grp major'},t('g_heat')));
+  const gap=m.rsi_refill-m.rsi_w;
+  rung(m.refill, C.info, t('r_refill',{th:m.rsi_refill}), gap>0?t('r_refill_d',{v:m.rsi_w,gap:gap.toFixed(1)}):t('r_refill_d2',{v:m.rsi_w}), t('w_trim',{w:pct(m.base)}));
+  L2.append(el('div',{class:'grp major'},t('g_add')));
+  const t60=m.tiers.find(x=>x.id==='ma60'), t120=m.tiers.find(x=>x.id==='ma120');
+  const pos=x=>`${fmt(x.line,idxD)}（${x.gap>=0?t('d_hi'):t('d_lo')} ${pct(Math.abs(x.gap),1)}）`;
+  L2.append(el('div',{class:'grp'}, t('g_mid_sal')));
+  rung(SAL, C.warn, t('r_sal'), t('d_sal',{a:pos(t60), b:pos(t120)}) + (t60.first_this_wave?t('d_first',{d:D8(t60.first_this_wave)}):''), t('w_sal'));
+  L2.append(el('div',{class:'grp'}, t('g_panic')));
+  { const act=vixT.filter(x=>x.active); const top=act[act.length-1]; const lo=vixT[0].line;
+    const le=lastEp[String(lo)]; const blk=m.credit&&m.credit.block;
+    rung(act.length>0&&!blk, C.bad, t('r_vix'), t('d_vixm',{v:m.vix??'—', th:lo, d:le?D8(le):'—'}), blk?t('w_blk'):top?t('w_add',{w:pct(top.target)}):t('w_none'));
+    const box=el('div',{class:'vbox',style:`--c:${C.bad}`});
+    const mx=Math.max(50, vixT[vixT.length-1].line+10), mn=10; const posn=v=>Math.min(100,Math.max(0,(v-mn)/(mx-mn)*100));
+    const mtr=el('div',{class:'vmeter'}); mtr.append(el('div',{class:'fill',style:`width:${posn(m.vix??mn)}%`}), el('div',{class:'now',style:`left:${posn(m.vix??mn)}%`}, String(m.vix??'—')));
+    vixT.forEach(x=>mtr.append(el('div',{class:'tk'+((x.active||x.reached)?' on':''),style:`left:${posn(x.line)}%`})));
+    const tg=el('div',{class:'vtiers'}); vixT.forEach(x=>tg.append(el('div',{class:'vt'+((x.active||x.reached)?' on':'')}, el('span',{},'VIX ≥ '+x.line), el('b',{},pct(x.target)))));
+    box.append(mtr, tg);
+    if (m.credit) box.append(el('div',{class:'cred'+(blk?' on':'')}, t(blk?'cred_on':'cred_off',{x:(m.credit.chg>0?'+':'')+m.credit.chg.toFixed(2), th:m.credit.th})));
+    L2.append(box); }
+  for(const x of m.tiers.filter(x=>x.id==='dd30')){
+    const dd30=true; const le=x.last_seen;
+    rung(x.active, C.bad, tierName(x.id,m), (dd30?t('d_dd30',{dd:sgn(m.dd), p:fmt(x.line,idxD)}):t('d_vix',{v:m.vix??'—', th:x.line})) + (le?t('d_lastep',{d:D8(le)}):'') + (x.first_this_wave?t('d_first',{d:D8(x.first_this_wave)}):''), t('w_add',{w:pct(x.target)}));
+  }
+  lad.append(L2);
+  const top = el('div',{class:'grid-top'}); top.append(verdict, lad); main.append(top);
+
+  // ===== stats =====
+  const mac = DATA.macro||{};
+  const stats = el('section',{class:'stats'});
+  const stat=(k,v,s,main_)=>stats.append(el('div',{class:'stat'}, el('div',{class:'k'},k, el('span',{class:'tag'+(main_?' main':'')}, main_?t('tag_main'):t('tag_ref'))), el('div',{class:'v'},v), el('div',{class:'s'},s)));
+  stat(t('k_vix'), mac.vix?fmt(mac.vix.last,2):'—', mac.vix?t('s_vix',{d:D8(mac.vix.asof)})+(lastEp[String(vixT[0].line)]?' · '+t('last35',{th:vixT[0].line,d:D8(lastEp[String(vixT[0].line)])}):''):'', true);
+  stat(t('k_dd'), sgn(m.dd), t('s_dd',{p:fmt(m.ath,idxD), d:D8(m.ath_date)}), true);
+  stat(t('k_rsi'), m.rsi_w, t('s_rsi',{th:m.rsi_refill}), true);
+  const cr=m.credit||((mac.baa)?{chg:mac.baa.chg63,th:null,block:false}:null);
+  const crStat=(main_)=>stat(t('k_cr'), cr?((cr.chg>0?'+':'')+cr.chg.toFixed(2)):'—', cr?(cr.th!=null?(cr.block?t('s_cr_on',{th:cr.th}):t('s_cr',{th:cr.th})):t('s_cr_us')):'', main_);
+  if (m.credit) crStat(true);
+  main.append(stats);
+  const refs=el('details',{class:'refs'}); refs.append(el('summary',{},t('refs_h')));
+  const stats2=el('section',{class:'stats'}); const statsMain=stats;
+  { const stat2=(k,v,s_)=>stats2.append(el('div',{class:'stat'}, el('div',{class:'k'},k, el('span',{class:'tag'},t('tag_ref'))), el('div',{class:'v'},v), el('div',{class:'s'},s_)));
+    if (!m.credit && cr) stat2(t('k_cr'), (cr.chg>0?'+':'')+cr.chg.toFixed(2), t('s_cr_us'));
+    stat2(t('k_fg'), mac.fg?fmt(mac.fg.last,0):'—', mac.fg?fgLabel(mac.fg.last)+' · '+D8(mac.fg.asof):'');
+    stat2(t('k_vxn'), mac.vxn?fmt(mac.vxn.last,2):'—', t('s_vxn'));
+    stat2(t('k_term'), mac.term?mac.term.last.toFixed(3):'—', t('s_term'));
+    stat2(t('k_hy'), mac.hy?mac.hy.last.toFixed(2)+'%':'—', mac.hy&&mac.hy.chg63!=null?t('s_hy',{v:(mac.hy.chg63>0?'+':'')+mac.hy.chg63}):'');
+    stat2(t('k_fpe'), mac.fpe?String(mac.fpe.last)+'x':'—', mac.fpe?t('s_fpe',{d:D8(mac.fpe.asof)}):''); }
+  refs.append(stats2, el('p',{class:'note'}, t('stats_note'))); main.append(refs);
+
+  // ===== charts =====
+  const ch = el('div',{class:'charts'});
+  const c1 = el('section',{class:'card chart-card'}); c1.append(el('h2',{}, t('ch_price',{idx}), el('small',{}, t('ch_price_s',{idx}))), el('div',{class:'chart',id:'c-price'}));
+  const two = el('div',{class:'two'});
+  const c2 = el('section',{class:'card chart-card'}); c2.append(el('h2',{}, t('ch_vix'), el('small',{}, t('ch_vix_s',{l:vixT.map(x=>x.line).join('／')}))), el('div',{class:'chart sm',id:'c-vix'}));
+  const c3 = el('section',{class:'card chart-card'}); c3.append(el('h2',{}, t('ch_rsi'), el('small',{}, t('ch_rsi_s',{th:m.rsi_refill}))), el('div',{class:'chart sm',id:'c-rsi'}));
+  two.append(c2,c3); ch.append(c1,two);
+  main.append(ch);
+  // ===== signal history =====
+  { const H=m.hist; const ev=m.marks.slice().reverse().slice(0,12);
+    if (ev.length){ const hs=el('section',{class:'card'}); hs.append(el('h2',{},t('hist_h')), el('p',{class:'muted',style:'margin:2px 0 8px;font-size:.82rem'},t('hist_s',{idx})));
+      const w=el('div',{class:'tbl'}); const tb=el('table',{class:'bt sigtbl'});
+      const hr=el('tr'); [t('hc_d'),t('hc_s'),t('hc_w'),t('hc_3'),t('hc_12')].forEach(x=>hr.append(el('th',{},x))); tb.append(hr);
+      const fwd=(d,n)=>{ const i=H.date.indexOf(d); if(i<0) return '—'; const j=i+n; if(j>=H.date.length) return t('hc_na'); const r=H.close[j]/H.close[i]-1; return (r>=0?'+':'−')+pct(Math.abs(r)); };
+      ev.forEach(x=>{ const tr=el('tr'); [D8(x.date), tierName(x.id||'',m), x.kind==='dip'?t('w_sal'):pct(x.target), fwd(x.date,63), fwd(x.date,252)].forEach(c=>tr.append(el('td',{},c))); tb.append(tr); });
+      w.append(tb); hs.append(w); main.append(hs); } }
+
+
+  requestAnimationFrame(()=>drawCharts(m, idxD, idx));
+}
+
+function euroBlock(){
+  const c = el('section',{class:'gsec'});
+  c.append(el('h3',{},t('eu_h')), el('p',{class:'muted',style:'margin:4px 0 12px;font-size:.88rem'},t('eu_p')));
+  const w = el('div',{class:'tbl'}); const tb = el('table',{class:'bt eu'});
+  t('eu_rows').forEach((r,i)=>{ const tr=el('tr'); r.forEach(x=>tr.append(el(i?'td':'th',{},x))); tb.append(tr); });
+  w.append(tb); c.append(w);
+  const u = el('ul',{class:'eu-notes'}); t('eu_notes').forEach(x=>u.append(el('li',{},x))); c.append(u);
+  return c;
+}
+
+function openGuide(){
+  const isTW = cur==='tw'; const P = isTW?'tw_':'us_'; const body=document.getElementById('guideBody'); body.textContent='';
+  document.getElementById('guideTitle').textContent = t('guide') + (MODE==='us'?'':'・'+t('tab_'+cur));
+  const sec=(h,items,intro)=>{ const s=el('section',{class:'gsec'}); s.append(el('h3',{},h)); if(intro) s.append(el('p',{class:'gintro'},intro)); if(items){ const u=el('ul',{}); items.forEach(i=>u.append(el('li',{},i))); s.append(u);} body.append(s); return s; };
+  const tbl=(rows,cap)=>{ const w=el('div',{class:'tbl'}); const tb=el('table',{class:'bt gt'}); if(cap) tb.append(el('caption',{},cap)); rows.forEach((r,i)=>{ const tr=el('tr'); r.forEach(c=>tr.append(el(i?'td':'th',{},c))); tb.append(tr); }); w.append(tb); return w; };
+  sec(t('g1'), t('g1_i'));
+  sec(t('g8'), t(isTW?'gd_risk_tw':'gd_risk_us'));
+  sec(t('gd_disc'), [t('foot2')]);
+  sec(t('g2'), t('g2_i'));
+  const s3=sec(t('g3'), null, t('g3_p')); s3.append(tbl(t(P+'rules'))); const u3=el('ul',{}); t(P+'rules_n').forEach(i=>u3.append(el('li',{},i))); s3.append(u3);
+  sec(t('g4'), t(P+'why'));
+  const s5=sec(t('g5'), null, t('g5_p')); s5.append(tbl(t(P+'rej')));
+  const s6=sec(t('g6'), null, t('g6_p')); s6.append(tbl(t(isTW?'bt_tw':'bt_us'), t('bt_cap'))); const uc=el('ul',{}); t(P+'cmp').forEach(i=>uc.append(el('li',{},i))); s6.append(uc); s6.append(el('p',{class:'note'}, t('bt_note')));
+  body.append(histBlock());
+  if (MODE==='us') body.append(euroBlock());
+  const g=document.getElementById('guide'); g.hidden=false; document.body.style.overflow='hidden'; document.getElementById('guideClose').focus();
+}
+function closeGuide(){ document.getElementById('guide').hidden=true; document.body.style.overflow=''; document.getElementById('guideBtn').focus(); }
+
+function histBlock(){
+  const d=el('section',{class:'gsec'}); d.append(el('h3',{},t('g7')), el('p',{class:'note',style:'margin:0 0 8px'},t('gd_hist_p')));
+  const w=el('div',{class:'tbl'}); const tb=el('table',{class:'bt'});
+  const rows=[[t('h_d'),t('h_ndd'),t('h_n12'),t('h_tdd'),t('h_t12')],
+    ['1990/08/06','−18%','+36%','',''],['1991/01/14','−21%','+81%','',''],['1997/10/30','−13%','+41%','',''],['1998/08/27','−10%','+85%','',''],
+    ['2001/09/17','−73%','−28%','−61%','+15%'],['2002/07/15','−78%','+27%','−43%','−3%'],['2008/09/17','−63%','+6%','−35%','+22%'],
+    ['2010/05/07','−57%','+30%','−21%','+25%'],['2011/08/08','−52%','+33%','−15%','+2%'],['2011/11/09','−46%','+13%','−14%','+1%'],
+    ['2015/08/24','−14%','+20%','−21%','+25%'],['2018/02/05','−7%','+9%','−3%','−4%'],['2018/12/24','−23%','+49%','−15%','+35%'],
+    ['2020/02/27','−13%','+54%','−7%','+56%'],['2020/10/28','−10%','+43%','−2%','+36%'],['2021/01/27','−3%','+9%','−5%','+11%'],
+    ['2022/03/07','−19%','−8%','−10%','−8%'],['2024/08/05','−13%','+32%','−21%','+37%'],['2025/04/04','−21%','+44%','−13%','+96%']];
+  const cols = MODE==='us' ? [0,1,2] : [0,1,2,3,4];
+  rows.forEach((r,i)=>{ const tr=el('tr'); cols.forEach(j=>tr.append(el(i?'td':'th',{},r[j]))); tb.append(tr); });
+  w.append(tb); d.append(w, el('p',{class:'note'},t('gd_hist_note')));
+  return d;
+}
+
+function btBlock(isTW){
+  const d=el('section',{class:'gsec'}); d.append(el('h3',{},t('bt_h')));
+  const tw_ = el('div',{class:'tbl'}); const tb=el('table',{class:'bt'});
+  tb.append(el('caption',{},t('bt_cap')));
+  t(isTW?'bt_tw':'bt_us').forEach((r,i)=>{ const tr=el('tr'); r.forEach(c=>tr.append(el(i?'td':'th',{},c))); tb.append(tr); });
+  tw_.append(tb); d.append(tw_, el('p',{class:'note'}, t('bt_note')));
+  return d;
+}
+
+function rulesBlock(isTW){
+  const d = el('section',{class:'gsec'});
+  d.append(el('h3',{}, t('rules')));
+  const g = el('div',{class:'rules'});
+  const blk=(h,items)=>{ const b=el('div',{}); b.append(el('h3',{},h)); const u=el('ul',{}); items.forEach(i=>u.append(el('li',{},i))); b.append(u); g.append(b); };
+  const p = isTW?'tw_':'us_';
+  blk(t('h_alloc'), t(p+'alloc')); blk(t('h_add'), t(p+'add')); blk(t('h_trim'), t(p+'trim'));
+  d.append(g);
+  return d;
+}
+
+function baseOpt(){ return {backgroundColor:'transparent',animation:false,textStyle:{fontFamily:FONT,color:C.muted},
+  grid:{left:8,right:12,top:18,bottom:26,containLabel:true},
+  tooltip:{trigger:'axis',backgroundColor:'#0f1115',borderColor:C.line2,textStyle:{color:C.fg,fontSize:12,fontFamily:FONT},confine:true,axisPointer:{lineStyle:{color:C.line2}}},
+  xAxis:{type:'category',boundaryGap:false,axisLine:{lineStyle:{color:C.line2}},axisTick:{show:false},axisLabel:{color:C.faint,fontSize:10,hideOverlap:true,formatter:v=>v.slice(2,7).replace('-','/')}},
+  yAxis:{type:'value',scale:true,splitLine:{lineStyle:{color:C.line,type:[3,4]}},axisLabel:{color:C.faint,fontSize:10}} }; }
+
+function drawCharts(m, idxD, idx){
+  if(!window.echarts) return;
+  const H=m.hist;
+  const mk = (id,opt)=>{ const n=document.getElementById(id); if(!n) return; const c=echarts.init(n,null,{renderer:'canvas'}); c.setOption(opt); charts.push(c); };
+  const colorFor = k => k==='panic'?C.bad:k==='refill'?C.info:C.warn;
+  const marks = m.marks.filter(x=>H.date.includes(x.date)).map(x=>({coord:[x.date, H.close[H.date.indexOf(x.date)]], itemStyle:{color:colorFor(x.kind)}, label:{show:false}, tooltip:{formatter:`${D8(x.date)}<br>${tierName(x.id||'',m)} → ${(x.target*100).toFixed(0)}%`}}));
+  const o1 = baseOpt(); o1.xAxis.data=H.date;
+  o1.legend={top:0,right:0,textStyle:{color:C.muted,fontSize:11,fontFamily:FONT},icon:'roundRect',itemWidth:12,itemHeight:3};
+  o1.grid.top=30;
+  o1.tooltip.valueFormatter=v=>v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:idxD});
+  o1.dataZoom=[{type:'inside',start:55,end:100}];
+  const line=(name,data,color,w,dash)=>({name,type:'line',data,showSymbol:false,lineStyle:{color,width:w,type:dash||'solid'},itemStyle:{color}});
+  const p = line(idx,H.close,C.fg,1.6); p.areaStyle={color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(235,231,223,.10)'},{offset:1,color:'rgba(235,231,223,0)'}])};
+  p.markPoint={symbol:'circle',symbolSize:8,data:marks,tooltip:{trigger:'item'}};
+  o1.series=[p, line(t('ln_ma60'),H.ma60,C.warn,1.1), line(t('ln_ma120'),H.ma120,C.brass,1.3), line(t('ln_ma240'),H.ma240,C.info,1,'dashed')];
+  mk('c-price',o1);
+
+  const o2 = baseOpt(); o2.xAxis.data=H.date; o2.dataZoom=[{type:'inside',start:55,end:100}];
+  o2.series=[{name:'VIX',type:'line',data:H.vix,showSymbol:false,lineStyle:{color:C.fg,width:1.3},itemStyle:{color:C.fg},
+    markArea:{silent:true,data:(()=>{const L=m.tiers.filter(x=>x.id.startsWith('vix')).map(x=>x.line).sort((a,b)=>a-b); return [[{yAxis:L[0],itemStyle:{color:'rgba(230,98,90,.09)'}},{yAxis:L[L.length-1]}],[{yAxis:L[L.length-1],itemStyle:{color:'rgba(230,98,90,.20)'}},{yAxis:90}]];})()},
+    markLine:{silent:true,symbol:'none',label:{color:C.faint,fontSize:10,formatter:'{c}'},lineStyle:{type:[4,4],width:1},data:m.tiers.filter(x=>x.id.startsWith('vix')).map(x=>({yAxis:x.line,lineStyle:{color:C.bad}}))}}];
+  o2.yAxis.max=v=>Math.max(45,Math.ceil(v.max/5)*5); o2.yAxis.min=8;
+  mk('c-vix',o2);
+
+  const R=m.hist_rsi; const o3=baseOpt(); o3.xAxis.data=R.date; o3.yAxis.min=10; o3.yAxis.max=95; o3.yAxis.scale=false;
+  o3.series=[{name:t('ch_rsi'),type:'line',data:R.rsi,showSymbol:false,lineStyle:{color:C.brass,width:1.4},itemStyle:{color:C.brass},
+    markLine:{silent:true,symbol:'none',label:{color:C.faint,fontSize:10},lineStyle:{type:[4,4],width:1},data:[{yAxis:m.rsi_refill,lineStyle:{color:C.info}},{yAxis:30,lineStyle:{color:C.faint}}]}}];
+  mk('c-rsi',o3);
+
+  const F=(DATA.macro||{}).fg; if(F && document.getElementById('c-fg')){ const o4=baseOpt(); o4.xAxis.data=F.series.date; o4.yAxis.min=0; o4.yAxis.max=100; o4.yAxis.scale=false; o4.dataZoom=[{type:'inside',start:40,end:100}];
+    o4.series=[{name:t('fgname'),type:'line',data:F.series.v,showSymbol:false,lineStyle:{color:C.fg,width:1.2},itemStyle:{color:C.fg},
+      markArea:{silent:true,data:[[{yAxis:0,itemStyle:{color:'rgba(230,98,90,.10)'}},{yAxis:25}],[{yAxis:75,itemStyle:{color:'rgba(91,183,138,.08)'}},{yAxis:100}]]}}];
+    mk('c-fg',o4); }
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && !document.getElementById('guide').hidden) closeGuide(); });
+document.getElementById('guide').addEventListener('click',e=>{ if(e.target.id==='guide') closeGuide(); });
+let rz; window.addEventListener('resize',()=>{clearTimeout(rz); rz=setTimeout(()=>charts.forEach(c=>c.resize()),120);});
+
+function staleCheck(){
+  const st=document.getElementById('stale'); const age=(Date.now()-new Date(DATA.generated).getTime())/864e5;
+  const bad=Object.values(DATA.sources||{}).some(v=>v!=='ok');
+  if (age>3.5 || bad){ st.hidden=false; st.textContent=t('stale',{n:Math.floor(age)}); } else st.hidden=true;
+}
+function sourcesRender(){
+  const s=document.getElementById('sources'); s.textContent='';
+  const en = s => LANG!=='en' ? s : s.replace('CNN 恐懼貪婪','CNN Fear & Greed').replace('前瞻本益比','forward P/E').replace('加權指數','TAIEX').replace('失敗','failed');
+  for(const [k,v] of Object.entries(DATA.sources||{})) s.append(el('span',{class:v==='ok'?'':'bad',title:v},en(k)+(v==='ok'?'':' ('+en(v)+')')));
+}
+
+chrome();
+document.getElementById('main').firstChild.textContent = t('loading');
+(async function load(){
+  try{
+    const r = await fetch('data.json',{cache:'no-store'}); DATA = await r.json();
+    chrome(); sourcesRender(); render(); staleCheck();
+  }catch(e){ const mn=document.getElementById('main'); mn.textContent=''; mn.append(el('div',{class:'loading'},t('loadfail'))); }
+})();
+
+// ===== 立即更新：只有頁面擁有者看得到 =====
+(async ()=>{
+  if (!TRIGGER || !window.claude || !window.claude.use) return;
+  if (MODE==='us') return;
+  const mcp = await window.claude.use('mcp'); if(!mcp) return;
+  const b=document.getElementById('refresh'), msg=document.getElementById('refreshMsg'); b.hidden=false; b.textContent=t('refresh');
+  b.onclick = async ()=>{
+    b.disabled=true; b.textContent=t('refreshing'); msg.hidden=false; msg.textContent=t('m_sent');
+    try{ await mcp.callTool('Claude Code Remote','fire_trigger',{trigger_id:TRIGGER}); }
+    catch(e){
+      b.disabled=false; b.textContent=t('refresh');
+      const c=e&&e.code;
+      msg.textContent = (c==='server_not_connected'||c==='needs_reauth') ? t('m_conn')
+        : (c==='approval_required'||c==='not_in_manifest'||c==='consent_required') ? t('m_appr')
+        : (c==='server_unavailable'||c==='upstream_error') ? t('m_busy') : t('m_fail',{c:c||'?'});
+    }
+  };
+})();
+})();
+</script>
+
+</body>
+</html>

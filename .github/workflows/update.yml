@@ -1,0 +1,97 @@
+name: 每日更新儀表板數據
+
+on:
+  schedule:
+    - cron: "50 12 * * 1-5"   # 台北時間週一到週五 20:50（UTC 12:50）
+  workflow_dispatch:          # 可在 Actions 頁面手動執行
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      HAS_MAIL: ${{ secrets.MAIL_USERNAME != '' }}
+      HAS_WA: ${{ secrets.WA_APIKEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安裝套件
+        run: pip install pandas numpy
+
+      - name: 抓資料、計算燈號
+        id: build
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          cp docs/data.json /tmp/prev.json || true
+          python scripts/build_data.py out /tmp/prev.json | tee build.log
+          test -f out/full/data.json && test -f out/friends/data.json
+          cp out/full/data.json docs/data.json
+          cp out/friends/data.json docs/us/data.json
+          CHANGES=$(grep '^CHANGES:' build.log | sed 's/^CHANGES: //')
+          echo "changes=${CHANGES}" >> "$GITHUB_OUTPUT"
+
+      - name: 提交新數據
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data.json docs/us/data.json
+          git diff --cached --quiet || git commit -m "data: $(date -u +%Y-%m-%d)"
+          git push
+
+      # ---------- 通知（燈號改變時）----------
+      - name: 通知：GitHub Issue（會寄 Email 到你的 GitHub 帳號信箱）
+        if: steps.build.outputs.changes != 'none' && steps.build.outputs.changes != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGES: ${{ steps.build.outputs.changes }}
+          PAGE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+        run: |
+          gh issue create --title "加碼儀表板：燈號改變 $(date -u +%Y-%m-%d)" --body "${CHANGES}
+
+          儀表板：${PAGE}"
+
+      - name: 通知：Email（選用，需設定 MAIL_USERNAME / MAIL_PASSWORD / MAIL_TO）
+        if: steps.build.outputs.changes != 'none' && steps.build.outputs.changes != '' && env.HAS_MAIL == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_TO }}
+          from: 加碼儀表板 <${{ secrets.MAIL_USERNAME }}>
+          subject: "加碼儀表板：燈號改變"
+          body: |
+            ${{ steps.build.outputs.changes }}
+
+            儀表板：https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+
+      - name: 通知：WhatsApp（選用，需設定 WA_PHONE / WA_APIKEY，使用 CallMeBot）
+        if: steps.build.outputs.changes != 'none' && steps.build.outputs.changes != '' && env.HAS_WA == 'true'
+        env:
+          WA_APIKEY: ${{ secrets.WA_APIKEY }}
+          WA_PHONE: ${{ secrets.WA_PHONE }}
+          CHANGES: ${{ steps.build.outputs.changes }}
+        run: |
+          MSG=$(python -c "import urllib.parse,os;print(urllib.parse.quote('加碼儀表板：'+os.environ['CHANGES']))")
+          curl -fsS "https://api.callmebot.com/whatsapp.php?phone=${WA_PHONE}&apikey=${WA_APIKEY}&text=${MSG}" > /dev/null
+
+      - name: 失敗時開 Issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "加碼儀表板：每日更新失敗 $(date -u +%Y-%m-%d)" --body "請到 Actions 頁面查看紀錄：${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
