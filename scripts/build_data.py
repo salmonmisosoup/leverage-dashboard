@@ -3,28 +3,53 @@
 用法: python3 build_data.py <輸出資料夾>
 規則來源：2026/10 回測（台股 1999-2026、美股 1990-2026）
 """
-import sys, json, io, urllib.request, datetime as dt
+import sys, os, json, io, urllib.request, datetime as dt
 import pandas as pd, numpy as np
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 
 import time
-def get(url, tries=5):
+def get(url, tries=5, timeout=90):
     last = None
     for i in range(tries):
         if i: time.sleep(5 * i)
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; leverage-dashboard/1.0)", "Accept": "*/*"})
-            with urllib.request.urlopen(req, timeout=90) as r:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read().decode("utf-8")
         except Exception as e:
             last = e
     raise last
 
+def _deadline(fn, sec):
+    """在背景執行，超過 sec 秒就放棄（避免對方網站拖住整個排程）"""
+    import threading
+    box = {}
+    def run():
+        try: box["v"] = fn()
+        except Exception as e: box["e"] = e
+    th = threading.Thread(target=run, daemon=True); th.start(); th.join(sec)
+    if th.is_alive(): raise TimeoutError(f"超過 {sec} 秒")
+    if "e" in box: raise box["e"]
+    return box["v"]
+FRED_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 def fred(sid, start="2014-01-01"):
-    df = pd.read_csv(io.StringIO(get(f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}&cosd={start}")), na_values=".")
-    df.columns = ["date", "v"]; df["date"] = pd.to_datetime(df["date"])
-    return df.set_index("date")["v"].astype(float).dropna()
+    """FRED 偶爾很慢：最多等 60 秒；失敗時用 data/ 裡的快取（仍標示為失敗）"""
+    cp = os.path.join(FRED_CACHE, f"fred_{sid}.csv")
+    try:
+        txt = _deadline(lambda: get(f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}&cosd=2012-01-01", tries=2, timeout=25), 60)
+        df = pd.read_csv(io.StringIO(txt), na_values=".")
+        df.columns = ["date", "v"]; df["date"] = pd.to_datetime(df["date"])
+        s_ = df.set_index("date")["v"].astype(float).dropna()
+        if len(s_) > 100 and sid in ("BAA10Y", "DGS2", "BAMLH0A0HYM2"): s_.to_csv(cp, header=["v"])
+        return s_.loc[start:]
+    except Exception:
+        if sid in ("BAA10Y", "DGS2", "BAMLH0A0HYM2") and os.path.exists(cp):
+            c = pd.read_csv(cp, index_col=0, parse_dates=True)["v"].astype(float)
+            fred_stale.append(f"{sid} 用快取到 {c.index[-1].date()}")
+            return c.loc[start:]
+        raise
+fred_stale = []
 
 import os
 FM_TOKEN = os.environ.get("FINMIND_TOKEN", "").strip()
@@ -43,8 +68,10 @@ def cboe(name):
 
 def vol(name, fred_id):
     """CBOE 收盤當天更新；抓不到時用 FRED（通常晚一天）"""
-    f = safe(f"FRED {name}", lambda: fred(fred_id))
     c = safe(f"CBOE {name}", lambda: cboe(name))
+    if c is not None:
+        return c
+    f = safe(f"FRED {name}", lambda: fred(fred_id))
     if c is None:
         if f is not None:   # 只用 FRED，不算失敗，但標示可能晚一天
             src_status.pop(f"CBOE {name}", None); src_status[f"FRED {name}"] = "ok"
@@ -83,6 +110,7 @@ vxn = vol("VXN", "VXNCLS")
 vix3m = vol("VIX3M", "VXVCLS")
 hy = safe("FRED HY OAS", lambda: fred("BAMLH0A0HYM2", "2020-01-01"))
 baa = safe("FRED BAA 利差", lambda: fred("BAA10Y", "2012-01-01"))
+if fred_stale and any("BAA10Y" in x for x in fred_stale): src_status["FRED BAA 利差"] = "失敗: " + [x for x in fred_stale if "BAA10Y" in x][0]
 taiex = safe("FinMind 加權指數", lambda: finmind("TaiwanStockPrice", "TAIEX", "2014-01-01"))
 qqq = safe("FinMind QQQ", lambda: finmind("USStockPrice", "QQQ", "2014-01-01"))
 fg = safe("CNN 恐懼貪婪 (GitHub)", lambda: pd.read_csv(io.StringIO(get("https://raw.githubusercontent.com/whit3rabbit/fear-greed-data/main/fear-greed.csv")), parse_dates=["Date"]).set_index("Date")["Fear Greed"])
@@ -91,17 +119,6 @@ fpe = safe("Siblis 前瞻本益比", lambda: json.loads(get("https://siblisresea
 # ---------------- 融資資料（快取在 data/，每次只補最新的）----------------
 import rules as RU
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-def _deadline(fn, sec):
-    """在背景執行，超過 sec 秒就放棄（避免對方網站拖住整個排程）"""
-    import threading
-    box = {}
-    def run():
-        try: box["v"] = fn()
-        except Exception as e: box["e"] = e
-    th = threading.Thread(target=run, daemon=True); th.start(); th.join(sec)
-    if th.is_alive(): raise TimeoutError(f"超過 {sec} 秒")
-    if "e" in box: raise box["e"]
-    return box["v"]
 def tw_margin():
     p = os.path.join(ROOT, "data", "margin_tw.csv"); c = pd.read_csv(p)
     st = (pd.Timestamp(c["date"].iloc[-1]) - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
@@ -141,6 +158,7 @@ def us_margin():
 log("start: mg_tw = tw_margin(); mg_us = u")
 mg_tw = tw_margin(); mg_us = us_margin()
 dgs2 = safe("FRED 2 年期殖利率", lambda: fred("DGS2", "2012-01-01"))
+if any("DGS2" in x for x in fred_stale): src_status["FRED 2 年期殖利率"] = "失敗: " + [x for x in fred_stale if "DGS2" in x][0]
 taiex_tr = safe("FinMind 加權報酬指數", lambda: finmind("TaiwanStockTotalReturnIndex", "TAIEX", "2012-01-01"))
 qqq_long = safe("FinMind QQQ 長期", lambda: finmind("USStockPrice", "QQQ", "2012-01-01"))
 
