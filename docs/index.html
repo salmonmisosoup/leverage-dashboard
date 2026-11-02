@@ -63,7 +63,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid
 .why{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
 .chip{font-size:.8rem;border:1px solid var(--line2);border-radius:6px;padding:3px 9px;background:var(--panel2)}
 .chip.on{border-color:color-mix(in srgb,var(--state) 55%,transparent);color:var(--fg)}
-.alloc{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 12px;align-items:center;font-size:.86rem}
+.alloc{display:grid;grid-template-columns:auto minmax(60px,1fr) auto;gap:6px 12px;align-items:center;font-size:.86rem}
 .bar{height:12px;border-radius:3px;background:var(--panel2);display:flex;overflow:hidden;border:1px solid var(--line)}
 .bar i{display:block;height:100%}
 .bar .lev{background:var(--brass)} .bar .bul{background:#3b4a5c}
@@ -136,7 +136,7 @@ label.f input{background:var(--bg);border:1px solid var(--line2);border-radius:8
 .pf-tbl td.role{color:var(--muted);text-align:left;font-size:.8rem}
 .pf-tbl input{width:84px;padding:5px 7px;font-size:.88rem;text-align:right}
 .pf-tbl tr.grp td{color:var(--brass);font-weight:500;border-bottom:1px solid var(--line2);padding-top:14px;text-align:left}
-.pf-bar{display:grid;grid-template-columns:110px minmax(0,1fr) 120px;gap:10px;align-items:center;margin:8px 0;font-size:.86rem}
+.pf-bar{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:10px;align-items:center;margin:8px 0;font-size:.86rem}
 .pf-bar .bar{height:10px}
 .pf-acts{display:grid;gap:10px;margin-top:6px}
 .pf-act{border:1px solid var(--line);border-left:3px solid var(--c);border-radius:10px;padding:12px 14px;background:var(--panel2);font-size:.9rem}
@@ -203,6 +203,33 @@ table.bt.gt td,table.bt.gt th{text-align:left;white-space:normal;vertical-align:
 table.bt.gt td:first-child{white-space:nowrap;color:var(--muted)}
 .gsec .rules h3{font-size:.9rem;color:var(--fg)}
 .loading{padding:60px 0;text-align:center;color:var(--muted)}
+.bar .one{background:#8fb3a0}
+.bang{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--bad);color:#fff;font-weight:700;font-size:.8rem;margin-right:6px;line-height:1;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(230,98,90,.25)}}
+.rung .t{display:flex;align-items:center}
+.rung .d b{color:var(--fg)}
+.bt-ctl{display:flex;flex-direction:column;gap:10px}
+.rngs{display:flex;flex-wrap:wrap;gap:6px}
+.rngs button{border:1px solid var(--line2);background:none;color:var(--muted);padding:4px 10px;border-radius:999px;font-size:.8rem}
+.rngs button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.bt-ctl .seg{align-self:flex-start}
+.bt-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;color:var(--muted);margin:8px 0 2px}
+.bt-legend span{display:inline-flex;align-items:center;gap:6px}
+.bt-sw{display:inline-block;width:10px;height:10px;background:var(--c)}
+.bt-sw.tri{width:0;height:0;background:none;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid var(--c)}
+.bt-sw.tri.down{border-bottom:0;border-top:10px solid var(--c)}
+.bt-sw.tri.hollow{border-bottom-color:transparent;width:12px;height:10px;border:0;background:none;position:relative}
+.bt-sw.tri.hollow::before{content:"△";position:absolute;left:0;top:-5px;color:var(--fg);font-size:12px}
+.bt-sw.dia{transform:rotate(45deg);width:9px;height:9px}
+.bt-sw.dot{border-radius:50%}
+.bt-sw.band{width:14px;opacity:.35}
+.bt-chart{position:relative;margin-top:8px;min-height:200px}
+.bt-chart svg{display:block;overflow:visible}
+.bt-tip{position:absolute;pointer-events:none;background:#0f1115;border:1px solid var(--line2);border-radius:8px;padding:6px 10px;font-size:.76rem;line-height:1.5;white-space:nowrap;z-index:2;color:var(--fg)}
+.bt-tip .d{color:var(--muted)}
+table.bt tr.on td{color:var(--fg);font-weight:700}
+table.bt tr:not(.on) td{color:var(--muted)}
+table.bt.sigtbl tr td,table.bt.gt tr td,table.bt.eu tr td{color:var(--fg);font-weight:400}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -239,187 +266,135 @@ table.bt.gt td:first-child{white-space:nowrap;color:var(--muted)}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
 (function(){
 const MODE = document.querySelector('meta[name="dash-mode"]').content;
 const TRIGGER = document.querySelector('meta[name="dash-trigger"]').content;
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const C = {fg:css('--fg'),muted:css('--muted'),faint:css('--faint'),line:css('--line'),line2:css('--line2'),brass:css('--brass'),ok:css('--ok'),warn:css('--warn'),bad:css('--bad'),info:css('--info')};
+const C = {fg:css('--fg'),muted:css('--muted'),faint:css('--faint'),line:css('--line'),line2:css('--line2'),brass:css('--brass'),ok:css('--ok'),warn:css('--warn'),bad:css('--bad'),info:css('--info'),panel:css('--panel')};
 const FONT = css('--font');
 const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 let LANG = MODE==='us' ? (store.get('dash-lang') || 'zh') : 'zh';
 let VENUE = store.get('dash-venue') || 'us';
+const EN = () => LANG==='en';
+const L = (zh,en) => EN()?en:zh;
 
 /* ---------- text ---------- */
 const TX = {
 zh:{
-  h1_full:'雙市場加碼儀表板', h1_us:'納指加碼儀表板', eb_full:'台股 00685L ＋ 美股 00830', eb_us:'QLD ＋ SGOV',
-  subtitle:'正二加子彈的加碼與調節訊號，依 1990–2026 年回測規則，每個交易日更新',
+  h1_full:'雙市場加碼儀表板', h1_us:'納指加碼儀表板', eb_full:'台股 00685L ＋ 美股二倍槓桿',
+  subtitle:'二倍槓桿、一倍原型與子彈的調整訊號，依 1990–2026 年回測的現有規則，每個交易日更新',
   refresh:'立即更新數據', refreshing:'更新中…', loading:'讀取最新數據…', loadfail:'數據檔讀取失敗，請重新整理頁面。', nomarket:'這個市場的數據暫時沒有更新成功，請稍後再試。',
-  stamp:'更新於 {t}（台北時間）', tab_tw:'台股', tab_us:'美股', tab_pf:'我的庫存', tab_sig:'訊號',
-  st_normal:'維持現狀', st_dip:'中期回調', st_panic:'恐慌加碼', st_refill:'補子彈',
-  t_normal:'目前沒有觸發條件，照基準比例持有', t_dipX:'把子彈轉成 {lev}，正二比重拉到 {w}', t_sal:'這個月的薪資全部買 {lev}，子彈先不動', t_refillX:'把 {lev} 調回 {w}，其餘換回 {bul}',
-  s_normal:'每月薪資照基準比例買進即可，不需要額外動作。', s_dip:'價格在季線下方。這段期間每月薪資全部買正二，子彈留給 VIX 恐慌訊號。回到季線上方後恢復原本比例。', s_panic:'VIX 進入回測中勝率最高的區間，依階梯把子彈轉成正二。', s_refill:'週 RSI 過高，把超出基準的正二賣出，換回子彈，留給下一次回調。',
-  close_at:'{idx} 收盤 {d}', first:'（這波下跌於 {d} 首次觸發）', nosig:'沒有指標達標', rsi_hit:'✓ 週 RSI {v} > {th}',
-  base_mix:'基準組合', sug_mix:'建議組合', sal_mix:'本月薪資', cur_mix:'你目前的組合', lev_tag:'{x}（正二）', bul_tag:'{x}（子彈）',
-  calc_eb:'輸入你目前的持股市值，算出要轉多少', val:'{x} 市值（{c}）', eg:'例如 {n}',
-  calc_empty:'輸入兩個市值後，這裡會顯示具體要轉換的金額與調整後組合。', calc_now:'目前正二比重 {a}，建議 {b}',
-  sell_buy:'賣出 {amt} {c} 的 {from}，買進 {to}。', after:'調整後：{lev} {a}（{wa}）／{bul} {b}（{wb}）',
-  below_base:'正二低於基準，但目前沒有加碼訊號。可以用每月薪資優先買 {lev}，慢慢補回 {w}。', in_range:'比例已在建議範圍內（±3%），不需要調整。', calc_sal:'這次不需要動用子彈。本月薪資全部買 {lev}。', exec_note:'訊號以收盤價計算，下一個交易日執行即可，不用盯盤。', stale:'數據已經 {n} 天沒有更新，燈號可能不是最新的，請先不要依此操作。', stale_src:'今天的資料有來源抓取失敗（{s}），燈號可能不準確，請先不要依此操作。下一次自動更新通常會恢復。', last35:'上次 ≥ {th}：{d}', g_mid_sal:'中期回調（只用薪資，不動子彈）', r_sal:'收盤在季線下方', d_sal:'季線 {a}・半年線 {b}', w_sal:'薪資全買正二', d_lastep:'・上次出現 {d}', w_base:'正二 {w}', w_trim:'調節正二至 {w}', w_add:'加碼正二至 {w}', sal_out_dip:'本月全部買 {lev} {a} {c}', sal_note_dip:'價格在季線下方，這個月的薪資全部買正二；回到季線上方後，恢復 {a}／{b}。', above:'目前正二比重高於建議，不需要再加碼。規則只在週 RSI 超過 {th} 時才賣出，所以現在先不用動。',
-  privacy:'市值只存在你自己的瀏覽器裡，不會上傳。', once:' 如果這一波已經依同一級轉換過，就不用重複轉。',
-  wave_note:'「這波下跌」是指從 {d} 的最高點以來。同一波下跌中，每一級只在第一次觸發時調整一次；創新高後重新計算。', ladder:'加碼與調節階梯', lad_sub:'{idx} {c}　距高點 {dd}　週 RSI {rsi}　VIX {vix}（{vd}）',
-  g_heat:'過熱調節', g_base:'基準', g_add:'加碼調節', g_mid:'中期回調（最多用 1/3 子彈）', g_mid_us:'中期回調（選用，最多用 1/3 子彈）', g_panic:'恐慌加碼（保留給大訊號）',
-  r_refill:'週 RSI > {th}', r_refill_d:'目前 {v}，還差 {gap}', r_refill_d2:'目前 {v}，已超過門檻',
-  r_base:'平常狀態', r_base_d:'{lev} {a}／{bul} {b}',
-  ma60:'跌破季線', ma120:'跌破半年線', ma120_5:'低於半年線 5%', vix28:'VIX ≥ 28', vix32:'VIX ≥ 32', vix35:'VIX ≥ 35', vix36:'VIX ≥ 36', vix40:'VIX ≥ 40', dd30:'距高點 −30%', d_dd30:'目前距高點 {dd}・觸發價位 {p}', refill:'週 RSI > {th}（補子彈）',
-  ln_ma60:'季線', ln_ma120:'半年線', ln_ma120_5:'半年線 −5%',
-  d_mid:'{ln}位置 {p}，收盤{dir} {g}', d_hi:'還高', d_lo:'已低', d_vix:'目前 VIX {v}，門檻 {th}', d_first:'・這波下跌於 {d} 首次觸發',
-  k_vix:'VIX', s_vix:'{d}', s_vix_live:'盤中 {t}（美東，約延遲 15 分鐘）', k_dd:'距高點', s_dd:'高點 {p}（{d}）', k_rsi:'週 RSI', s_rsi:'> {th} 補子彈',
+  stamp:'更新於 {t}（台北時間）', tab_tw:'台股', tab_us:'美股', tab_pf:'我的庫存', tab_sig:'訊號', tab_bt:'回測',
+  st_normal:'維持現狀', st_panic:'恐慌加碼', st_refill:'過熱調節', st_convert:'融資過熱', st_mgpause:'融資過熱（暫緩）', st_wait1x:'融資退燒中', st_reentry:'換回二倍槓桿',
+  stale:'數據已經 {n} 天沒有更新，燈號可能不是最新的，請先不要依此操作。', stale_src:'今天的資料有來源抓取失敗（{s}），燈號可能不準確，請先不要依此操作。下一次自動更新通常會恢復。',
+  usd:'USD', twd:'元',
+  k_vix:'VIX', s_vix_live:'盤中 {t}（美東，約延遲 15 分鐘）', k_dd:'距高點', s_dd:'高點 {p}（{d}）', k_rsi:'週 RSI', s_rsi:'> {th} 調節',
+  k_mg:'融資年增', k_cr:'信用利差 3 個月變化', k_y2:'2 年期殖利率 3 個月變化',
   k_fg:'CNN 恐懼貪婪', k_vxn:'VXN（納指波動）', s_vxn:'通常比 VIX 高 4–8', k_term:'VIX / VIX3M', s_term:'> 1 代表短期恐慌',
-  k_hy:'高收益債利差', s_hy:'3 個月變化 {v}', k_fpe:'NDX 前瞻本益比', s_fpe:'{d}・約每季更新', tag_main:'主要', tag_ref:'參考',
+  k_hy:'高收益債利差', s_hy:'3 個月變化 {v}', k_fpe:'NDX 前瞻本益比', s_fpe:'{d}・約每季更新', tag_main:'規則', tag_ref:'參考',
   fg0:'極度恐懼', fg1:'恐懼', fg2:'中性', fg3:'貪婪', fg4:'極度貪婪',
-  stats_note:'這些指標只顯示市場溫度，回測後對加碼或調節的時機沒有額外幫助，不會影響燈號。', refs_h:'其他參考指標（不影響規則）', k_cr:'信用利差 3 個月變化', s_cr:'超過 +{th} 暫停恐慌加碼', s_cr_on:'已超過 +{th}：恐慌加碼暫停中', s_cr_us:'美股規則不使用，只供參考',
-  ch_price:'{idx} 與支撐線', ch_price_s:'季線 60 日・半年線 120 日・年線 240 日；圓點是每一波第一次觸發。這是 {idx} 的價格，不是正二本身', ln_ma240:'年線',
-  ch_vix:'VIX', ch_vix_s:'{l} 分級加碼', ch_rsi:'週 RSI', ch_rsi_s:'{th} 以上補子彈', ch_fg:'CNN 恐懼貪婪', ch_fg_s:'只顯示：回測中極度恐懼並不是好買點', fgname:'恐懼貪婪',
-  sal:'每月薪資怎麼分', nx_h:'離下一個訊號還差多少', nx_vix:'VIX 還差 {x} 點到 {th}', nx_vix_on:'VIX {v} 已達 {th}', nx_dd:'{idx} 再跌 {x} 到深跌加碼', nx_dd_on:'已達深跌加碼', nx_sal:'{idx} 再跌 {x} 會跌破季線', nx_sal_on:'在季線下方', nx_rsi:'週 RSI 還差 {x} 到 {th}', nx_rsi_on:'週 RSI 已超過 {th}', nx_w:'→ {lev} {w}', nx_wsal:'→ 薪資全買正二', r_vix:'VIX 恐慌加碼', d_vixm:'目前 VIX {v}・上次 ≥ {th}：{d}', w_none:'未觸發', w_blk:'暫停中', cred_off:'信用利差 3 個月變化 {x}（超過 +{th} 時暫停恐慌加碼，最多 30 個交易日）', cred_on:'⏸ 信用利差 3 個月擴大 {x}，超過 +{th}：恐慌加碼暫停，等利差穩定再加（最多 30 個交易日）', chip_blk:'⏸ 信用利差急升，恐慌加碼暫停', tab_hold:'持股調整', tab_sal:'每月薪資', hist_h:'近期訊號紀錄', hist_s:'近 2.5 年每一波第一次觸發的訊號；報酬是之後 {idx} 的漲跌，不是正二', hc_d:'日期', hc_s:'訊號', hc_w:'建議正二', hc_3:'3 個月後', hc_12:'12 個月後', hc_na:'未滿', sal_in:'每月要投入的金額（{c}）', sal_out:'買 {lev} {a} {c}　＋　買 {bul} {b} {c}',
-  sal_note:'照基準 {a}／{b} 買進就好。回測顯示保留現金等回調、或拆成不同比例，長期差距都在 1% 以內；真正決定比例的是上面的階梯。',
-  rules:'規則', h_alloc:'配置', h_add:'加碼', h_trim:'調節',
-  us_alloc:['基準：QLD 60%／SGOV 40%','實際平均 QLD 約 80%，約等於 1.6 倍納指','約等於 2.5 倍 S&P 500 的風險，高於生命週期投資研究建議年輕人的 2 倍；適合長期不賣、能承受大幅回檔的人','歐洲券商可以用 LQQ／IB01 代替，比例相同'],
-  us_add:['收盤在季線下方：當月薪資全部買 QLD（LQQ），不動子彈','VIX ≥ 35 → 正二 85%；VIX ≥ 40 → 100%（動用子彈）','VIX 還在門檻以上、比重又低於目標時，可以再補'],
-  us_trim:['週 RSI > 75 → 調回 60%','過熱賣出不是在抓高點（賣出後一年平均還漲 22%），而是避免正二比重一路漂到 90% 以上，再碰上 2000 年型崩跌','門檻 75 比 70 少賣很多次；任選起點投資 15 年的回測中，95% 的情況勝過 70','不需要加入原型 QQQ：相同 beta 下報酬較低'],
-  tw_alloc:['基準：00685L 60%／00713 40%（調節時回到這裡）','00713 對 0050 的 beta 只有 0.41，崩跌時 1 元 00713 可換 1.4–1.8 倍的正二','長期實際平均正二比重約 90%（正二漲得快、加碼後也不會馬上賣，比重會往上漂），beta 約 1.8'],
-  tw_add:['收盤在季線下方：當月薪資全部買 00685L，不動子彈','VIX ≥ 28／32／36／40 → 正二 80／85／90／100%（動用子彈）','信用利差 3 個月擴大超過 0.8 個百分點時，恐慌加碼暫停（最多 30 個交易日）','VIX 還在門檻以上、比重又低於目標時，可以再補'],
-  tw_trim:['週 RSI > 80 → 調回 60%','過熱指標無法預測下跌，只用來補子彈','不要在創新高時就補，回測顯示成本很高'],
-  bt_cap:'年化報酬率（CAGR，含股息與 ETF 費用）與最大回檔',
-  bt_us:[['策略','年化報酬率 1990–2026','年化報酬率 2003–2026','最大回檔（1990 起）'],['一直持有 QQQ','15.1%','16.0%','−83%'],['一直持有 QLD','18.4%','24.4%','−99%'],['本頁規則','23.4%','24.9%','−87%']],
-  bt_tw:[['策略','年化報酬率 2003–2026','年化報酬率 2017–2026（00713）','最大回檔（2003 起）'],['一直持有 0050','15.0%','24.6%','−56%'],['一直持有正二','23.1%','42.4%','−84%'],['固定 70/30 每季再平衡','18.2%','35.9%','−69%'],['本頁規則','24.1%','41.5%','−77%']],
-  bt_note:'年化報酬率是指每年平均複利成長率，例如 15.1% 代表平均每年增加 15.1%。最大回檔是從最高點到最低點的最大跌幅。正二上市前以 0050 模擬，QLD 上市前以 NDX 模擬，和實際的日報酬相關係數 0.97–0.99。樣本中 VIX ≥ 40 只出現 9–13 次，規則方向可信，數字不要看得太精確。',
-  foot1:'資料：CBOE 與 FRED（VIX、VXN、VIX3M、高收益債利差）、FinMind（加權指數、QQQ）、CNN 恐懼貪婪（GitHub whit3rabbit/fear-greed-data）、Siblis Research（NDX 前瞻本益比）。每個交易日台北時間 20:50 自動更新。',
+  stats_note:'這些指標只顯示市場溫度，回測後對時機沒有額外幫助，不會影響燈號。', refs_h:'其他參考指標（不影響規則）',
+  ch_price:'{idx} 與均線', ch_price_s:'季線 60 日・半年線 120 日・年線 240 日；標記是規則的每一次動作', ln_ma60:'季線', ln_ma120:'半年線', ln_ma240:'年線',
+  ch_vix:'VIX', ch_vix_s:'35 加到 85%・40 加到 100%', ch_rsi:'週 RSI', ch_rsi_s:'{th} 以上調節',
+  hist_h:'近期規則動作', hist_s:'近 2.5 年規則的每一次動作；報酬是之後 {idx} 的漲跌', hc_d:'日期', hc_s:'動作', hc_3:'3 個月後', hc_12:'12 個月後', hc_na:'未滿',
+  foot1:'資料：CBOE 與 FRED（VIX、利差、殖利率）、FinMind（加權指數、台股融資、QQQ）、FINRA（美股融資）、CNN 恐懼貪婪（GitHub whit3rabbit/fear-greed-data）、Siblis Research（NDX 前瞻本益比）。每個交易日台北時間 20:50 自動更新。',
   foot2:'本頁是依歷史回測整理的規則提示，不是投資建議。槓桿 ETF 在長期空頭中可能大幅虧損，請依自身資金與風險承受度決定。',
   m_sent:'已送出更新要求，後台約需 2–5 分鐘抓資料與計算，完成後頁面會自動換成新數據。', m_conn:'無法啟動更新：請在 claude.ai 設定 → Connectors 確認「Claude Code Remote」已連線。', m_appr:'需要你允許這個頁面啟動排程更新，請在 claude.ai 中開啟本頁再按一次。', m_busy:'更新服務暫時沒有回應，可能已經在跑。請幾分鐘後重新整理，若數據沒變再按一次。', m_fail:'更新要求沒有送出（{c}）。',
-  usd:'USD', twd:'元',
-  src_line:'訊號依據 {idx} 計算，實際買賣的是 {lev}。{idx} 距高點 {dd}，{lev} 約 {ldd}（正二每天的漲跌約是兩倍）。', fx_note:'LQQ 以歐元計價，還會受到美元兌歐元匯率影響。',
-  us_cmp:['和一直持有 QQQ 相比：每年多約 8%，代價是最大回檔從 −83% 加深到 −87%。','和一直持有 QLD 相比：每年多約 5%，最大回檔從 −99% 改善到 −87%。2000 年後一直持有 QLD 的人幾乎歸零；這套規則靠 SGOV 子彈和 VIX 加碼撐過去。','差距主要來自兩件事：崩跌時用子彈在 VIX 高點加碼，以及過熱時把正二調回，避免在崩跌前滿倉。'],
-  tw_cmp:['和一直持有 0050 相比：2003 年起每年多約 9%，最大回檔從 −56% 加深到 −77%。','和一直持有正二相比：2003 年起每年多約 1%，最大回檔從 −84% 改善到 −77%；2017 年後的大多頭少約 0.9%（41.5% 對 42.4%）。','和固定 70／30 每季再平衡相比：每年多約 5%。差距來自崩跌時用 00713 在 VIX 高點加碼，以及只在過熱時才調回，而不是每季都賣出漲多的正二。'],
-  g8:'最大風險：請先接受這些',
-  g1:'這個儀表板在做什麼', g1_i:['用回測過的規則告訴你兩件事：什麼時候把子彈轉成正二（加碼），什麼時候把漲多的正二換回子彈（調節）。','它不預測漲跌。最上方的燈號和建議比例就是今天要做的事；沒有訊號時就什麼都不用做。','訊號以收盤價計算，每個交易日台北時間 20:50 自動更新，下一個交易日執行即可，不用盯盤。'],
-  g2:'開始之前', g2_i:['先準備 3–6 個月生活費的緊急預備金，放在銀行，不算在這個組合裡。子彈是用來在股災時加碼的，不是急用金；股災常伴隨景氣衰退和裁員，沒有預備金，最壞的情況是被迫在最低點賣出。','只投入 10 年以上不會動用的錢。','正二每天的漲跌約是原型的兩倍，帳面損益會比新聞報導的跌幅嚇人很多，這是正常的。'],
-  g3:'規則總覽', g3_p:'整套規則只有五條。前兩條是平常的做法，後三條由頂部燈號提醒。',
-  us_rules:[['項目','規則'],['基準配置','QLD 60%／SGOV 40%（歐洲：LQQ／IB01）'],['每月薪資','照 60／40 買進'],['中期回調','收盤在季線下方：當月薪資全部買 QLD，子彈不動'],['恐慌加碼','VIX ≥ 35：QLD 加到 85%；VIX ≥ 40：加到 100%（動用子彈）'],['過熱調節','週 RSI > 75：把 QLD 調回 60%']],
-  us_rules_n:['比例偏離時，優先用薪資慢慢調回：正二太多，當月薪資全買子彈；太少（且沒有加碼訊號），全買正二。','VIX 還在門檻以上、比重又跌回目標以下時，可以再補。','不想賣出的人（例如考慮資本利得稅），過熱時也可以只用薪資調回，比較慢但不用賣。台灣居民買美國 ETF 沒有資本利得稅，但股息會被預扣 30%。'],
-  tw_rules:[['項目','規則'],['基準配置','00685L 60%／00713 40%'],['每月薪資','照 60／40 買進（沒有薪資時略過）'],['中期回調','收盤在季線下方：當月薪資全部買 00685L，子彈不動'],['恐慌加碼','VIX ≥ 28：正二加到 80%；≥ 32：85%；≥ 36：90%；≥ 40：100%（動用子彈）'],['信用利差暫停','美國 BAA 公司債利差 3 個月內擴大超過 0.8 個百分點：恐慌加碼暫停，最多 30 個交易日'],['過熱調節','週 RSI > 80：把正二一次調回 60%']],
-  tw_rules_n:['比例偏離時，優先用薪資慢慢調回：正二太多，當月薪資全買 00713；太少（且沒有加碼訊號），全買 00685L。','VIX 還在門檻以上、比重又跌回目標以下時，可以再補。'],
-  g4:'為什麼這樣設計',
-  us_why:['恐慌加碼只看 VIX：VIX ≥ 35 之後 12 個月，納指平均 +30%、勝率 89%；在美台兩地、前後兩段期間都有效。門檻放在 35–45 結果都相近，不是剛好挑到的數字。VIX 20–30 之間沒有優勢，所以不用。','中期回調只用薪資：跌破季線、半年線後，4 年後價格高於買價的機率約 85%。但用子彈加碼的那一部分，會在下次過熱時被調節賣出，只賺到中間的反彈；而在 2000、2008 年那種熊市，子彈會太早用掉。只用薪資，長期結果和最好的做法打平，又保留子彈給 VIX。','過熱調節不是賣在高點：賣出後一年，價格平均還漲 22%。它的作用是不讓正二比重一路漂到 90% 以上，再碰上 2000 年型崩跌。門檻 75 比 70 少賣很多次，在 22 段 15 年情境中 95% 勝出。','60／40 的風險：實際平均 QLD 約 80%，約 1.6 倍納指，約等於 2.5 倍 S&P 500 的風險，高於生命週期投資研究建議年輕人的 2 倍。適合長期不賣、能承受大幅回檔的人。','子彈用短期國債（SGOV）：崩跌時幾乎不跌，能換到最多正二。'],
-  tw_why:['恐慌加碼看 VIX，而且分四級：VIX ≥ 35 之後 12 個月，台股平均 +26%、勝率 87%；VIX ≥ 40 是 +36%、勝率 100%。但台股的底部不一定等到 VIX ≥ 35（2026/3 VIX 只到 31），拆成 28／32／36／40 四級後，2009 年起每年多約 0.7%，2026/3 那次多賺約 8 個百分點。','信用利差急升時先暫停加碼：2008 年 9 月 VIX 衝上 40 時，信用危機還在惡化，太早滿倉又跌了一大段。加上「利差 3 個月擴大超過 0.8 個百分點就暫停恐慌加碼」後，2008 年那段從 −28% 改善到 −20%，1999 年起每年多約 0.6%，15 年最差從 1.69 倍升到 1.85 倍。門檻 0.6 到 1.2 都有效；最多暫停 30 個交易日，避免 2020 年那種利差先升、市場卻很快 V 轉時整段錯過。','中期回調只用薪資：跌破季線、半年線後，台股一年後高於買價的機率只有約 50%，4 年後約 80%。用子彈加碼的部分會在下次過熱時被調節，又會在 2000、2008 年那種熊市太早用掉子彈。','過熱調節：週 RSI > 80 之後一年，台股平均還漲 22%，所以這不是賣在高點，而是避免正二比重漂太高。在 13 段 15 年情境中，RSI > 80 一次調回在 11 段勝過不調節。','為什麼是 60／40：新的加碼規則目標固定在 80–100%，基準只決定「調節時回到哪裡、平常留多少子彈」。回測 50／50 到 100／0，60／40 和 50／50 在 1999 年起和最差情境都比 70／30 好（1999 年起 17.4% 對 16.4%，15 年最差 1.64 倍對 1.57 倍），只有 2009 年後的大多頭少約 0.5%。實際平均正二比重約 90%，beta 約 1.8。00713 對 0050 的 beta 只有 0.41，崩跌時 1 元 00713 可以換到 1.4–1.8 倍的正二。','00713 當子彈：比短債報酬高，崩跌時跌得比正二少很多；但流動性恐慌時也會跟著跌（2020 年 −25%）。'],
-  g5:'測過但不採用的做法', g5_p:'以下做法都用「任選起點投資 15 年」的方式測過。「勝出」是指在這些情境中贏過現行規則的比例。',
-  us_rej:[['做法','結果'],['跌破季線、半年線、年線時用子彈加碼','勝出最多 27%；2000 年型熊市最差少 17–31%'],['跌破 5 年線、10 年線，或綜合多條均線與 VIX 打分','觸發時 VIX 多半已經很高，效果重疊；最差少 21–33%'],['距高點 −10%、−20%、−30% 分段加碼','勝出 0%；最差少 36%'],['越跌越轉（跌越多轉越多）','2009 年後多賺約 5%；2000 年型熊市最差少 75%'],['週 RSI < 30、VIX ≥ 30、單日大跌時加碼','長期熊市中太早觸發，長期報酬較低'],['過熱門檻 70','在 95% 的情境輸給 75'],['分批調節、看比重調節、每年固定調回','都比現行差'],['完全不調節','近年較好；但長期最大回檔 −99%'],['CNN 恐懼貪婪、前瞻本益比','極度恐懼之後一年反而比平均差；本益比沒有足夠的歷史資料可以驗證']],
-  tw_rej:[['做法','結果'],['跌破季線、半年線、年線時用子彈加碼','勝出 0–15%；最差少 6–7%'],['距高點 −10%、−20% 也加碼（不只 −30%）','加太早：2025/4 少賺約 10%，2015、2024/8 也比較差；只在 2022 年和 2026 年這種淺跌強彈比較好'],['距高點 −10／15／20% 用子彈小量加 3–15%','2026 年兩次多買到一點，但整體幾乎沒差，最差情境變差'],['薪資在過熱時改買子彈（RSI > 70、高於年線 20%、接近高點）','差距都在 1–2% 內，不值得增加規則'],['調節改成 RSI > 85、分段賣、間隔 6 個月、回落 5–8% 才賣、跌破月線才賣、RSI 跌回 70／75 才賣','都沒有比 RSI > 80 一次調回好；台股跌得快，等確認時正二已經先跌一段'],['距高點 −30% 加到 100%','VIX 拆成四級後，2022/10 已由 VIX ≥ 32 接到，這一級幾乎沒有額外貢獻，卻增加 2000 年型熊市的風險；拿掉後各項指標持平或更好'],['融資餘額 20 日急降、加權指數實際波動率、年線趨勢濾網、CAPE 估值','有好有壞，沒有前後兩段都贏'],['RSI 門檻改成 70／75／78／82／85／90','80 附近最好；82 略好但 78、85 都變差，判斷是雜訊，不改'],['觸發後等 1–3 個月再賣，或先賣一半、3 個月後賣完','小幅勝出約 0.5%，但好處多半來自 2025–26 行情，而且等 2 個月反而變差；不採用'],['改看月 RSI、週＋月 RSI、高於年線 30／40%、頂背離、週 MACD 翻空','有的長期好、有的近年好，沒有一種前後兩段都贏'],['RSI > 80 且美國信用利差 3 個月內擴大才賣','前後兩段都小幅勝出，但門檻從 0 改成 0.2 就變差，美股用同樣規則也變差；先觀察，不採用'],['調節加條件「VIX < 15 才賣」','回測最好，但門檻改成 16 就失效，好處幾乎都來自 2025/10 那一次，判斷為過度擬合'],['越跌越轉（跌越多轉越多）','2009 年後多賺約 11%；但 2000 年型熊市最差少 16–60%'],['沒有薪資時，季線下方每月從 00713 轉 2%','勝出 46%，接近打平；但最差少 41%'],['分批調節（RSI > 75 調到 80%、> 80 調到 70%）','和現行打平；回檔小一點，但近年少賺約 2%'],['完全不調節','2009 年後多賺約 15%；但長期中位數少 15%'],['看比重調節、每年固定調回、VIX 過低時調節','都比現行差']],
-  g6:'回測結果', g6_p:'以下是從期初一次投入、不再加碼的年化報酬率。實際每月持續投入薪資時，各策略的排名相同。',
-  g7:'過去 VIX ≥ 35 的時間點',
-  gd_sal:'中期回調為什麼只用薪資', gd_sal_i:['跌破季線或半年線時，只把當月薪資全部買正二，子彈不動，留給 VIX ≥ 35／40。','回測顯示：用子彈在均線加碼，2009 年後沒有明顯加分，但在 2000 年、2022 年那種緩慢下跌的熊市會太早把子彈用完，長期每年少 1–2%、最大回檔更深。改成只用薪資，長期結果和只看 VIX 幾乎一樣。','代價：如果下跌很快就反彈（V 型），只用薪資會少賺一點。2009 年後的回測中，只用薪資比動用子彈的期末財富少約 3%。但 V 型的大跌（2020、2025）通常會讓 VIX 衝上 35，仍然會用到子彈。','2022 年就是例子：VIX 在 3 月跌 19% 時觸發，之後一路緩跌到 10 月的 −35%，VIX 沒有再到 35。這段期間持續用薪資買正二，就是在低檔累積部位。'],
-  gd_hist:'過去 VIX ≥ 35 的時間點', gd_hist_p:'1990 年以來共 19 次，平均約兩年一次。距高點是指當時納指（台股）距離前一個最高點的跌幅。', h_d:'首次觸發', h_ndd:'納指距高點', h_n12:'納指 12 個月後', h_tdd:'台股距高點', h_t12:'台股 12 個月後', gd_hist_note:'2001–2011 年的距高點是相對 2000 年泡沫的高點，所以數字很大。19 次中有 3 次之後 12 個月是負的（2001、2022 年等），這是規則的代價。',
-  guide:'使用說明', done_lbl:'我已執行', t_done:'這一級已經執行過，維持目前比例', s_done:'等下一級觸發，或 VIX 訊號出現時再調整。創新高後勾選會自動重設。', bt_h:'回測依據',
-  gd_what:'這個儀表板在做什麼', gd_what_i:['用回測過的規則告訴你：什麼時候把子彈轉成正二（加碼），什麼時候把漲多的正二換回子彈（調節）。','頁面不預測漲跌，只照規則提示。最上方的燈號和建議比例就是今天要做的事；沒有觸發時就什麼都不用做。','數據每個交易日台北時間 20:50 自動更新。'],
-  gd_ef:'開始之前：緊急預備金', gd_ef_i:['先準備 3–6 個月生活費的緊急預備金，放在銀行活存或定存，不算在這個組合裡。','子彈（SGOV、IB01 或 00713）是用來在股災時加碼的，不是急用金。股災常伴隨景氣衰退和裁員；沒有預備金，最壞情況是被迫在最低點賣出。','只投入 10 年以上不會動用的錢。'],
-  gd_month:'每月薪資與「用薪資調比例」',
-  gd_month_us:['每月薪資照基準比例買：QLD 60%、SGOV 40%（歐洲：LQQ／IB01）。','比例偏離時，優先用薪資調整：正二比重太高，當月薪資全部買子彈；太低（且沒有加碼訊號），全部買正二。','週 RSI > 75 時規則建議賣出正二調回 60%。賣出可能要繳資本利得稅（例如法國約 30%），不想賣的人可以只用薪資慢慢調回，比較慢但沒有稅負。','台灣居民買美國 ETF 沒有資本利得稅，但股息會被預扣 30%。'],
-  gd_month_tw:['每月薪資照基準比例買：00685L 60%、00713 40%。','比例偏離時，優先用薪資調整：正二比重太高，當月薪資全部買 00713；太低（且沒有加碼訊號），全部買 00685L。','週 RSI > 80 時規則建議賣出正二調回 60%，也可以只用薪資慢慢調回。'],
-  gd_once:'每一級只做一次', gd_once_i:['同一波下跌中，季線、半年線、半年線 −5% 這三級，每一級只在第一次觸發時，從當下比重調到該級目標。','執行後在階梯上勾選「我已執行」，計算器就不會再要求你補。勾選只存在你自己的瀏覽器，別人看不到，換裝置要重勾。','創新高後算新的一波，勾選自動重設。','VIX ≥ 35／40 不受此限：只要 VIX 還在門檻以上、比重又低於目標，就可以再補。'],
-  gd_risk:'風險：請先接受這些',
-  gd_risk_us:['最大風險是遇到 2000 年型的長期崩跌：這套規則的最大回檔是 −87%。一直持有 QLD 的人，從 2000 年高點要等 20.5 年才回本（最低跌了 98.8%）；這套規則能減輕，但無法消除。','目前估值是 2000 年以來最高的水準之一（S&P 500 席勒本益比約 41），請以未來會遇到一次 40–60% 回檔為前提來投資。','只投資納指 100，等於集中在美國大型科技股。歷史上有過十幾年不回本的市場，例如 2000 年的納指、1990 年的日本。','槓桿 ETF 每日重設，盤整震盪時會有耗損；費用率 QLD 0.95%、LQQ 0.60%。','年紀和資產增加後，槓桿應該逐步降低（之後會加入建議）。','規則來自有限的歷史樣本（VIX ≥ 40 只出現過 13 次），每年會用新資料重新檢查。'],
-  gd_risk_tw:['最大風險是遇到 2000 年型的長期崩跌：這套規則的最大回檔約 −85%（1999 年起）。2026/11 的版本把 VIX 拆成四級，代價是 2000 年型熊市會更早用完子彈；所以同時把基準降到 60／40、拿掉距高點 −30% 的深跌加碼，並在信用利差急升時暫停加碼。15 年情境的最差結果約 1.85 倍（期末資產 ÷ 總投入）。一直持有台股正二的人，從 2000 年高點要等 17.5 年才回本（最低跌了 89%）；2008 年要 7.5 年。','目前美股估值是 2000 年以來最高的水準之一，台股又集中在 AI 與半導體供應鏈；如果 AI 投資放緩，台股可能首當其衝。請以未來會遇到一次 40–60% 回檔為前提來投資。','台股高度集中在台積電與半導體，景氣循環明顯。','00713 在崩跌時也會跌（2020 年 −25%），只是跌得比正二少。','規則來自有限的歷史樣本，每年會用新資料重新檢查。'],
-  gd_disc:'免責聲明',
-  v_us:'美國券商', v_eu:'歐洲券商（UCITS）',
-  eu_h:'在歐洲怎麼買', eu_p:'歐盟的散戶通常買不到美國註冊的 ETF（像 QLD、SGOV），因為它們沒有歐盟要求的 KID 文件。可以改買在歐洲上市的 UCITS 版本，訊號和比例照用本頁。',
-  eu_rows:[['角色','美國','歐洲（UCITS）','說明'],['2 倍納指（正二）','QLD','LQQ（Amundi Nasdaq-100 Daily 2x，ISIN FR0010342592）','巴黎上市、以歐元交易，費用率 0.60%，不配息'],['子彈（美元，建議）','SGOV','IB01（iShares $ Treasury Bond 0-1yr，ISIN IE00BGSF1X88）','美國短期國債，和 SGOV 最接近，利息較高；有美元兌歐元的匯率波動'],['子彈（歐元，替代）','SGOV','XEON（Xtrackers EUR Overnight Rate Swap，ISIN LU0290358497）','追蹤歐元隔夜利率，沒有匯率風險，但利息較低；負利率時期會小跌']],
-  eu_notes:['子彈用 IB01：它和美國版的 SGOV 一樣是美國短期國債，利息比歐元高。崩跌時資金常會流向美元，2008 年美元兌歐元大漲 14.5%，子彈反而變多；代價是平常有匯率波動，例如 2025 年美元跌了 4.6%。不想承擔匯率波動的人可以改用 XEON','LQQ 是以歐元計價的 2 倍納指，報酬會同時受到美元兌歐元匯率影響；這和直接持有美股的匯率風險一樣，只是沒有額外避險','買賣前在券商的商品頁確認 ISIN，不同交易所的代號可能不同','有些券商可以申請成為專業投資人來買美國 ETF，但會失去部分散戶保護，一般不需要'],
+  guide:'使用說明', v_us:'美國券商', v_eu:'歐洲券商（UCITS）',
 },
 en:{
-  h1_us:'Nasdaq Leverage Dashboard', eb_us:'QLD + SGOV',
-  subtitle:'When to add to or trim a 2x Nasdaq position, using rules backtested over 1990–2026. Updated every trading day.',
+  h1_us:'Nasdaq Leverage Dashboard',
+  subtitle:'When to move between 2x, 1x and reserve, using rules backtested over 1990–2026. Updated every trading day.',
   refresh:'Refresh data', refreshing:'Updating…', loading:'Loading the latest data…', loadfail:'Could not read the data file. Reload the page.', nomarket:'This market did not update. Try again later.',
-  tab_pf:'My holdings', tab_sig:'Signals', stamp:'Updated {t} (Taipei time)',
-  st_normal:'Hold', st_dip:'Pullback', st_panic:'Panic buy', st_refill:'Rebuild reserve',
-  t_normal:'No signal right now. Hold the base mix.', t_dipX:'Move reserve into {lev}, up to {w} of the portfolio', t_sal:'Put all of this month\'s savings into {lev}; leave the reserve alone', t_refillX:'Trim {lev} back to {w} and put the rest in {bul}',
-  s_normal:'Keep buying at the base ratio with your monthly savings. Nothing else to do.', s_dip:'Price is below the 60-day MA. While it stays there, put all monthly savings into 2x and keep the reserve for VIX signals. Return to the normal split once price is back above the line.', s_panic:'VIX is in the zone with the best historical win rate. Move reserve into 2x by the ladder.', s_refill:'Weekly RSI is running hot. Sell the 2x above the base and rebuild the reserve for the next pullback.',
-  close_at:'{idx} close {d}', first:' (first hit {d} in this decline)', nosig:'No signal triggered', rsi_hit:'✓ Weekly RSI {v} > {th}',
-  base_mix:'Base mix', sug_mix:'Suggested', sal_mix:'This month\'s savings', cur_mix:'Your current mix', lev_tag:'{x} (2x)', bul_tag:'{x} (reserve)',
-  calc_eb:'Enter your current holdings to see how much to move', val:'{x} value ({c})', eg:'e.g. {n}',
-  calc_empty:'Enter both values to see the exact amount to move and the mix afterwards.', calc_now:'2x share now {a}, suggested {b}',
-  sell_buy:'Sell {amt} {c} of {from} and buy {to}.', after:'After: {lev} {a} ({wa}) / {bul} {b} ({wb})',
-  below_base:'Your 2x share is below the base, but there is no buy signal. Put monthly savings into {lev} first until you are back at {w}.', in_range:'Your mix is within ±3% of the target. No change needed.', calc_sal:'No need to touch the reserve. Put all of this month\'s savings into {lev}.', exec_note:'Signals use closing prices; acting on the next trading day is fine. No need to watch intraday.', stale:'The data has not updated for {n} days. The light may be out of date; hold off acting on it.', stale_src:'A data source failed today ({s}), so the light may be wrong. Hold off acting on it; the next update usually fixes this.', last35:'last ≥ {th}: {d}', g_mid_sal:'Pullback (new money only, reserve untouched)', r_sal:'Close below the 60-day MA', d_sal:'60-day MA {a} · 120-day MA {b}', w_sal:'All savings to 2x', d_lastep:' · last seen {d}', w_base:'2x at {w}', w_trim:'Trim 2x to {w}', w_add:'Add 2x to {w}', sal_out_dip:'This month: all {a} {c} into {lev}', sal_note_dip:'Price is below the 60-day MA, so put this month\'s savings into 2x. Go back to {a} / {b} once it is above the line.', above:'Your 2x share is already above the suggestion, so there is nothing to add. The rules only sell when weekly RSI goes above {th}, so leave it for now.',
-  privacy:'Your values stay in your own browser and are never uploaded.', once:' If you already made this step during this decline, skip it.',
-  wave_note:'"This decline" means since the high on {d}. Each step is acted on once, the first time it triggers in a decline, and resets after a new high.', ladder:'Buy and trim ladder', lad_sub:'{idx} {c}   from high {dd}   weekly RSI {rsi}   VIX {vix} ({vd})',
-  g_heat:'Trim when hot', g_base:'Base', g_add:'Add when it falls', g_mid:'Pullback steps (up to 1/3 of reserve)', g_mid_us:'Pullback steps (optional, up to 1/3 of reserve)', g_panic:'Panic steps (keep reserve for these)',
-  r_refill:'Weekly RSI > {th}', r_refill_d:'Now {v}, {gap} to go', r_refill_d2:'Now {v}, above the line',
-  r_base:'Normal', r_base_d:'{lev} {a} / {bul} {b}',
-  ma60:'Below 60-day MA', ma120:'Below 120-day MA', ma120_5:'5% below 120-day MA', vix28:'VIX ≥ 28', vix32:'VIX ≥ 32', vix35:'VIX ≥ 35', vix36:'VIX ≥ 36', vix40:'VIX ≥ 40', dd30:'30% below high', d_dd30:'Now {dd} from high · trigger level {p}', refill:'Weekly RSI > {th} (rebuild reserve)',
-  ln_ma60:'60-day MA', ln_ma120:'120-day MA', ln_ma120_5:'120-day MA −5%',
-  d_mid:'{ln} at {p}, close is {g} {dir}', d_hi:'above', d_lo:'below', d_vix:'VIX now {v}, line at {th}', d_first:' · first hit {d} in this decline',
-  k_vix:'VIX', s_vix:'{d}', s_vix_live:'Intraday {t} ET (about 15 min delayed)', k_dd:'From high', s_dd:'High {p} ({d})', k_rsi:'Weekly RSI', s_rsi:'> {th} rebuild reserve',
-  k_fg:'CNN Fear & Greed', k_vxn:'VXN (Nasdaq vol)', s_vxn:'Usually 4–8 above VIX', k_term:'VIX / VIX3M', s_term:'> 1 means short-term panic',
-  k_hy:'High-yield spread', s_hy:'3-month change {v}', k_fpe:'NDX forward P/E', s_fpe:'{d} · about quarterly', tag_main:'Signal', tag_ref:'Info',
-  fg0:'Extreme fear', fg1:'Fear', fg2:'Neutral', fg3:'Greed', fg4:'Extreme greed',
-  stats_note:'These show market temperature only. They did not improve timing in the backtest and do not affect the signal.', refs_h:'Other indicators (info only)', k_cr:'Credit spread, 3-month change', s_cr:'Above +{th} pauses panic buying', s_cr_on:'Above +{th}: panic buying paused', s_cr_us:'Not used by the US rules; info only',
-  ch_price:'{idx} and support lines', ch_price_s:'60, 120 and 240-day moving averages; dots mark the first trigger of each decline. This is {idx}, not the 2x fund itself', ln_ma240:'240-day MA',
-  ch_vix:'VIX', ch_vix_s:'Staged buying at {l}', ch_rsi:'Weekly RSI', ch_rsi_s:'Rebuild reserve above {th}', ch_fg:'CNN Fear & Greed', ch_fg_s:'Info only: extreme fear was not a good entry in the backtest', fgname:'Fear & Greed',
-  sal:'Splitting your monthly savings', nx_h:'Distance to the next signal', nx_vix:'VIX needs +{x} to reach {th}', nx_vix_on:'VIX {v} is at or above {th}', nx_dd:'{idx} must fall another {x} for the deep-drop step', nx_dd_on:'Deep-drop step reached', nx_sal:'{idx} must fall another {x} to break the 60-day MA', nx_sal_on:'Below the 60-day MA', nx_rsi:'Weekly RSI needs +{x} to reach {th}', nx_rsi_on:'Weekly RSI is above {th}', nx_w:'→ {lev} {w}', nx_wsal:'→ savings into 2x', r_vix:'VIX panic buying', d_vixm:'VIX now {v} · last ≥ {th}: {d}', w_none:'Not triggered', w_blk:'Paused', cred_off:'Credit spread 3-month change {x} (panic buying pauses above +{th})', cred_on:'⏸ Credit spread widened {x} in 3 months, above +{th}: panic buying paused until spreads settle', chip_blk:'⏸ Credit spreads spiking, panic buying paused', tab_hold:'Rebalance', tab_sal:'Monthly savings', hist_h:'Recent signals', hist_s:'First trigger of each step per decline over the last 2.5 years; returns are for {idx}, not the 2x fund', hc_d:'Date', hc_s:'Signal', hc_w:'2x target', hc_3:'After 3 months', hc_12:'After 12 months', hc_na:'n/a', sal_in:'Amount to invest each month ({c})', sal_out:'Buy {lev} {a} {c}  +  buy {bul} {b} {c}',
-  sal_note:'Just buy at the base {a} / {b}. In the backtest, holding cash for pullbacks or using other splits changed long-run returns by under 1%. The ladder above is what sets the mix.',
-  rules:'Rules', h_alloc:'Mix', h_add:'Adding', h_trim:'Trimming',
-  us_alloc:['Base: QLD 60% / SGOV 40%','Average QLD weight is about 80%, roughly 1.6x the Nasdaq-100','That is about the risk of 2.5x the S&P 500, above the 2x that lifecycle-investing research suggests for young investors. It suits people who will hold through deep drawdowns','On a European broker use LQQ / IB01 at the same ratio'],
-  us_add:['Close below the 60-day MA: all monthly savings into QLD (LQQ); reserve untouched','VIX ≥ 35 → 2x at 85%; VIX ≥ 40 → 100% (uses reserve)','While VIX stays above the line and your mix falls below target, top up again'],
-  us_trim:['Weekly RSI > 75 → back to 60%','Trimming is not about selling the top (a year later prices were up 22% on average); it stops the 2x share drifting above 90% before a 2000-style crash','A 75 line sells far less often than 70; across 15-year windows from any starting year it beat 70 in 95% of cases','No need to add plain QQQ: at the same beta it returned less'],
-  bt_cap:'Annualized return (CAGR, including dividends and ETF fees) and maximum drawdown',
-  bt_us:[['Strategy','Annual return 1990–2026','Annual return 2003–2026','Max drawdown (from 1990)'],['Hold QQQ','15.1%','16.0%','−83%'],['Hold QLD','18.4%','24.4%','−99%'],['This page','23.4%','24.9%','−87%']],
-  bt_note:'Annualized return is the average compound growth per year: 15.1% means the portfolio grew 15.1% a year on average. Max drawdown is the largest fall from a peak to a low. Before QLD launched it is simulated from the NDX; the simulation tracks the real fund with a 0.99 daily correlation. VIX ≥ 40 appeared only 13 times in the sample, so trust the direction more than the exact figures.',
-  foot1:'Data: CBOE and FRED (VIX, VXN, VIX3M, high-yield spread), FinMind (QQQ), CNN Fear & Greed (GitHub whit3rabbit/fear-greed-data), Siblis Research (NDX forward P/E). Updates automatically at 20:50 Taipei time every trading day.',
-  foot2:'This page summarizes rules from a historical backtest. It is not investment advice. Leveraged ETFs can lose most of their value in a long bear market; decide based on your own money and risk tolerance.',
-  m_sent:'Refresh requested. It takes about 2–5 minutes to fetch and compute; the page switches to the new data when done.', m_conn:'Could not start the refresh: check that "Claude Code Remote" is connected in claude.ai Settings → Connectors.', m_appr:'Allow this page to start the refresh, then open it in claude.ai and press the button again.', m_busy:'The refresh service did not answer and may already be running. Reload in a few minutes; press again if nothing changed.', m_fail:'The refresh was not sent ({c}).',
+  stamp:'Updated {t} (Taipei time)', tab_sig:'Signals', tab_bt:'Backtest', tab_pf:'My holdings',
+  st_normal:'Hold', st_panic:'Panic buy', st_refill:'Trim', st_convert:'Margin overheating', st_mgpause:'Margin overheating (on hold)', st_wait1x:'Margin cooling', st_reentry:'Back to 2x',
+  stale:'The data has not updated for {n} days. The light may be out of date; hold off acting on it.', stale_src:'A data source failed today ({s}), so the light may be wrong. Hold off acting on it; the next update usually fixes this.',
   usd:'USD', twd:'TWD',
-  src_line:'Signals are calculated from {idx}; you trade {lev}. {idx} is {dd} from its high, so {lev} is roughly {ldd} (a 2x fund moves about twice as much each day).', fx_note:' LQQ is priced in euros, so the dollar-euro rate also moves it.',
-  us_cmp:['Versus holding QQQ: about 8% more per year, at the cost of a deeper worst drawdown (−87% vs −83%).','Versus holding QLD: about 5% more per year, and a −87% worst drawdown instead of −99%. Someone holding QLD from 2000 was nearly wiped out; these rules got through on the SGOV reserve and VIX buying.','The gap comes from two things: buying with the reserve when VIX spikes, and trimming 2x when running hot so you are not fully leveraged going into a crash.'],
-  g8:'Biggest risks: accept these first',
-  g1:'What this page does', g1_i:['It uses backtested rules to answer two questions: when to move reserve into 2x (add), and when to move gains in 2x back into reserve (trim).','It does not forecast the market. The light and suggested mix at the top are what to do today; with no signal, do nothing.','Signals use closing prices and update at 20:50 Taipei time each trading day. Acting on the next trading day is fine; no need to watch intraday.'],
-  g2:'Before you start', g2_i:['Keep 3–6 months of living costs in a bank account, outside this portfolio. The reserve is for buying in a crash, not for emergencies; crashes often come with recessions and layoffs, and without an emergency fund you may be forced to sell at the bottom.','Only invest money you will not need for 10+ years.','A 2x fund moves about twice as much as the index each day. Paper losses will look far scarier than the headlines; that is normal.'],
-  g3:'The rules', g3_p:'There are only five rules. The first two are routine; the light at the top tells you when the other three apply.',
-  us_rules:[['Item','Rule'],['Base mix','QLD 60% / SGOV 40% (Europe: LQQ / IB01)'],['Monthly savings','Buy at 60 / 40'],['Pullback','Close below the 60-day MA: put all of that month\'s savings into QLD; leave the reserve alone'],['Panic','VIX ≥ 35: raise QLD to 85%; VIX ≥ 40: to 100% (uses reserve)'],['Running hot','Weekly RSI > 75: trim QLD back to 60%']],
-  us_rules_n:['When the mix drifts, steer it with new money first: too much 2x, put the month into reserve; too little (and no buy signal), put it into 2x.','While VIX stays above the line and your mix falls below target, you can top up again.','If you prefer not to sell (for tax reasons, say), steer back with new money only when running hot; slower, but no sale. Taiwan residents pay no capital gains tax on US ETFs, but 30% is withheld from dividends.'],
-  g4:'Why these rules',
-  us_why:['Panic buying uses VIX only: 12 months after VIX ≥ 35 the Nasdaq-100 averaged +30% with an 89% win rate, in both markets and both halves of the sample. Thresholds from 35 to 45 give similar results, so the number is not cherry-picked. VIX 20–30 had no edge.','Pullbacks use new money only: after breaking the 60 or 120-day MA, price was higher 4 years later about 85% of the time. But reserve spent there gets trimmed at the next hot spell, so it only catches the bounce, and in bear markets like 2000 and 2008 it runs the reserve out too early. New money alone matched the best alternatives and keeps the reserve for VIX.','Trimming is not selling the top: a year after a trim, prices were up 22% on average. It stops the 2x share drifting above 90% before a 2000-style crash. A 75 line sells far less often than 70 and won in 95% of 22 fifteen-year windows.','Risk of 60 / 40: the average QLD weight is about 80%, roughly 1.6x the Nasdaq-100 or 2.5x the S&P 500, above the 2x that lifecycle-investing research suggests for young investors. It suits people who will hold through deep drawdowns.','The reserve is short Treasuries (SGOV): it barely falls in a crash, so it buys the most 2x when it matters.'],
-  g5:'Ideas tested and dropped', g5_p:'Each was tested from every starting year over 15-year windows. "Won" means the share of windows where it beat the current rules.',
-  us_rej:[['Idea','Result'],['Spending reserve below the 60, 120 or 240-day MA','Won at most 27%; up to 17–31% worse in a 2000-style bear'],['5- or 10-year MA, or a combined MA + VIX score','Usually fires when VIX is already high; up to 21–33% worse'],['Staged buys at −10%, −20%, −30% from the high','Won 0%; up to 36% worse'],['Buying more the further it falls','About 5% better after 2009; up to 75% worse in a 2000-style bear'],['Weekly RSI < 30, VIX ≥ 30, or a big one-day drop','Fires too early in long bear markets'],['Trimming at RSI 70','Lost to 75 in 95% of windows'],['Staged trims, weight bands, yearly rebalancing','All worse than the current rule'],['Never trimming','Better recently, but a −99% worst drawdown'],['CNN Fear & Greed, forward P/E','Extreme fear was followed by below-average years; not enough P/E history to test']],
-  g6:'Backtest', g6_p:'Annualized returns from a single starting investment with nothing added. With monthly savings added, the ranking of strategies stays the same.',
-  g7:'Past VIX ≥ 35 signals',
-  gd_sal:'Why pullbacks use new money only', gd_sal_i:['When price is below the 60 or 120-day MA, put that month\'s savings into 2x and leave the reserve for VIX ≥ 35 / 40.','In the backtest, spending reserve at moving averages added little after 2009, but in slow bear markets such as 2000 and 2022 it used the reserve up too early, costing 1–2% a year and deepening the worst drawdown. Using new money only matched the VIX-only results over the long run.','The cost: if a drop rebounds quickly (a V shape), new money alone catches less of it. After 2009 it ended about 3% behind spending reserve. Big V-shaped crashes (2020, 2025) usually push VIX above 35 anyway, so the reserve still gets used.','2022 is the example: VIX triggered in March at −19%, then the market slid to −35% by October without VIX reaching 35 again. Buying 2x with savings through that stretch built the position near the lows.'],
-  gd_hist:'Past VIX ≥ 35 signals', gd_hist_p:'19 times since 1990, about once every two years. "From high" is how far the Nasdaq-100 was below its previous peak at the time.', h_d:'First day', h_ndd:'NDX from high', h_n12:'NDX 12 months later', h_tdd:'Taiwan from high', h_t12:'Taiwan 12 months later', gd_hist_note:'For 2001–2011 the drop is measured from the 2000 bubble peak, hence the large numbers. 3 of the 19 were followed by a negative year (2001, 2022 and others); that is the cost of the rule.',
-  guide:'How to use', done_lbl:'Done', t_done:'You already made this step. Hold your current mix', s_done:'Wait for the next step or a VIX signal. Ticks reset after a new high.', bt_h:'Backtest',
-  gd_what:'What this page does', gd_what_i:['It applies backtested rules to tell you when to move reserve into 2x (add) and when to move gains in 2x back into reserve (trim).','It does not forecast the market. The light and suggested mix at the top are what to do today; with no signal, do nothing.','Data updates automatically at 20:50 Taipei time every trading day.'],
-  gd_ef:'Before you start: emergency fund', gd_ef_i:['Keep 3–6 months of living costs in a bank account, outside this portfolio.','The reserve (SGOV / IB01) is for buying in a crash, not for emergencies. Crashes often come with recessions and layoffs; without an emergency fund you may be forced to sell at the bottom.','Only invest money you will not need for 10+ years.'],
-  gd_month:'Monthly savings and rebalancing with new money',
-  gd_month_us:['Each month buy at the base mix: QLD 60%, SGOV 40% (Europe: LQQ / IB01).','When the mix drifts, steer it with new money first: if 2x is too heavy, put the whole month into reserve; if too light (and no buy signal), put it all into 2x.','When weekly RSI > 75 the rules suggest selling 2x back to 60%. Selling can trigger capital gains tax (about 30% in France, for example). If you prefer not to sell, steer back with new money only; slower, but no tax.','Taiwan residents pay no capital gains tax on US ETFs, but 30% is withheld from dividends.'],
-  gd_once:'Each step once per decline', gd_once_i:['In one decline, the 60-day MA, 120-day MA and 120-day MA −5% steps each run once, the first time they trigger, moving you from your current mix to that step\'s target.','After acting, tick "Done" on the ladder and the calculator stops asking you to top up. Ticks live only in your own browser; others cannot see them, and you need to tick again on another device.','A new high starts a new decline and clears the ticks.','The VIX ≥ 35 / 40 steps are different: while VIX stays above the line and your mix falls below target, you can top up again.'],
-  gd_risk:'Risks to accept first',
-  gd_risk_us:['The biggest risk is a long 2000-style crash: these rules fell as much as −87%. Someone holding QLD from the 2000 peak needed 20.5 years to break even (it fell 98.8% at the low). The rules soften this but cannot remove it.','Valuations are among the highest since 2000 (S&P 500 Shiller P/E around 41). Invest assuming you will live through at least one 40–60% decline.','The Nasdaq-100 is concentrated in large US tech. Markets have gone 10+ years without recovering, such as the Nasdaq after 2000 and Japan after 1990.','Leveraged ETFs reset daily and lose value in choppy markets; fees are QLD 0.95%, LQQ 0.60%.','As you get older and your savings grow, leverage should come down (guidance coming later).','The rules come from limited history (VIX ≥ 40 appeared only 13 times) and will be rechecked yearly with new data.'],
-  gd_disc:'Disclaimer',
-  v_us:'US broker', v_eu:'European broker (UCITS)',
-  eu_h:'Buying from Europe', eu_p:'EU retail investors usually cannot buy US-domiciled ETFs such as QLD and SGOV, because they lack the KID document EU rules require. Use the UCITS versions listed in Europe instead; the signals and ratios on this page still apply.',
-  eu_rows:[['Role','US','Europe (UCITS)','Notes'],['2x Nasdaq-100','QLD','LQQ (Amundi Nasdaq-100 Daily 2x, ISIN FR0010342592)','Listed in Paris, trades in EUR, 0.60% fee, accumulating'],['Reserve (USD, suggested)','SGOV','IB01 (iShares $ Treasury Bond 0-1yr, ISIN IE00BGSF1X88)','Short US Treasuries, the closest match to SGOV with higher interest; carries USD/EUR exchange-rate swings'],['Reserve (EUR, alternative)','SGOV','XEON (Xtrackers EUR Overnight Rate Swap, ISIN LU0290358497)','Tracks the euro overnight rate with no currency risk, but pays less and drifts down when rates are negative']],
-  eu_notes:['Use IB01 for the reserve: like SGOV it holds short US Treasuries and pays more than euro cash. Money tends to flow into the dollar in a crash; in 2008 the dollar rose 14.5% against the euro, so the reserve grew. The cost is everyday currency swings, such as the dollar falling 4.6% in 2025. If you would rather avoid currency risk, use XEON instead','LQQ gives 2x Nasdaq-100 in euro terms, so returns also move with the dollar-euro rate. That is the same currency risk as owning US stocks directly, with no extra hedge','Check the ISIN on your broker before trading; tickers differ between exchanges','Some brokers let you opt up to professional status to buy US ETFs, but you give up some retail protections. Most people do not need this'],
+  k_vix:'VIX', s_vix_live:'Intraday {t} ET (about 15 min delayed)', k_dd:'From high', s_dd:'High {p} ({d})', k_rsi:'Weekly RSI', s_rsi:'> {th} trims',
+  k_mg:'Margin debt YoY', k_cr:'Credit spread, 3-month change', k_y2:'2-year yield, 3-month change',
+  k_fg:'CNN Fear & Greed', k_vxn:'VXN (Nasdaq vol)', s_vxn:'Usually 4–8 above VIX', k_term:'VIX / VIX3M', s_term:'> 1 means short-term panic',
+  k_hy:'High-yield spread', s_hy:'3-month change {v}', k_fpe:'NDX forward P/E', s_fpe:'{d} · about quarterly', tag_main:'Rule', tag_ref:'Info',
+  fg0:'Extreme fear', fg1:'Fear', fg2:'Neutral', fg3:'Greed', fg4:'Extreme greed',
+  stats_note:'These show market temperature only. They did not improve timing in the backtest and do not affect the signal.', refs_h:'Other indicators (info only)',
+  ch_price:'{idx} and moving averages', ch_price_s:'60, 120 and 240-day moving averages; markers are each rule action', ln_ma60:'60-day MA', ln_ma120:'120-day MA', ln_ma240:'240-day MA',
+  ch_vix:'VIX', ch_vix_s:'35 → 85% · 40 → 100%', ch_rsi:'Weekly RSI', ch_rsi_s:'Trim above {th}',
+  hist_h:'Recent rule actions', hist_s:'Every rule action over the last 2.5 years; returns are for {idx}', hc_d:'Date', hc_s:'Action', hc_3:'After 3 months', hc_12:'After 12 months', hc_na:'n/a',
+  foot1:'Data: CBOE and FRED (VIX, credit spreads, yields), FinMind (QQQ), FINRA (US margin debt), CNN Fear & Greed (GitHub whit3rabbit/fear-greed-data), Siblis Research (NDX forward P/E). Updates automatically at 20:50 Taipei time every trading day.',
+  foot2:'This page summarizes rules from a historical backtest. It is not investment advice. Leveraged ETFs can lose most of their value in a long bear market; decide based on your own money and risk tolerance.',
+  m_sent:'Refresh requested. It takes about 2–5 minutes; the page switches to the new data when done.', m_conn:'Could not start the refresh: check that "Claude Code Remote" is connected in claude.ai Settings → Connectors.', m_appr:'Allow this page to start the refresh, then open it in claude.ai and press the button again.', m_busy:'The refresh service did not answer and may already be running. Reload in a few minutes.', m_fail:'The refresh was not sent ({c}).',
+  guide:'How to use', v_us:'US broker', v_eu:'European broker (UCITS)',
 }};
 const t = (k, v={}) => { let s = (TX[LANG][k] ?? TX.zh[k] ?? k); if (typeof s!=='string') return s; return s.replace(/\{(\w+)\}/g,(_,x)=> v[x]!=null ? v[x] : ''); };
 
 const D8 = d => d ? String(d).slice(0,10).replace(/-/g,'/') : '';
 const pct = (x,d=0) => x==null||isNaN(x) ? '—' : (x*100).toFixed(d)+'%';
 const sgn = (x,d=1) => x==null||isNaN(x) ? '—' : (x>0?'+':'')+(x*100).toFixed(d)+'%';
+const pp = x => x==null||isNaN(x) ? '—' : (x>0?'+':'')+Number(x).toFixed(2);
 const fmt = (x,d=0) => x==null||isNaN(x) ? '—' : Number(x).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
-const el = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='style') e.style.cssText=v; else e.setAttribute(k,v);} for(const k of kids){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(k)); } return e; };
+const N = n => Math.round(n).toLocaleString('en-US');
+const b_ = x => `<b>${x}</b>`;
+const el = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='style') e.style.cssText=v; else if(k==='html') e.innerHTML=v; else e.setAttribute(k,v);} for(const k of kids){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(k)); } return e; };
 
-let DATA=null, charts=[], cur = MODE==='us' ? 'us' : (store.get('dash-tab') || 'tw');
+let DATA=null, charts=[];
+let cur = MODE==='us' ? (store.get('dash-tab-us') || 'us') : (store.get('dash-tab') || 'tw');
+if (MODE==='us' && !['us','bt'].includes(cur)) cur='us';
+
+const STATE_C = () => ({normal:C.ok, panic:C.bad, refill:C.info, convert:C.warn, mgpause:C.warn, wait1x:C.brass, reentry:C.ok});
+const KIND_C = k => ({panic1:C.bad, panic2:C.fg, deep:C.fg, rsi:C.info, mg:C.warn, re:C.ok}[k] || C.muted);
+
+/* 每個市場買賣的標的 */
+function names(key){
+  if (key==='tw') return {lev:'00685L', one:'0050', bul:'00713', idx:'加權指數', cur:t('twd')};
+  if (MODE==='full'){ let ul='00830'; try{ ul=(JSON.parse(store.get('pf-cfg')||'{}').ul)||'00830'; }catch(e){}
+    return {lev: ul==='mix'?'00670L／00830':ul, one:'00662', bul:'00865B', idx:'QQQ', cur:t('twd')}; }
+  return VENUE==='eu' ? {lev:'LQQ', one:'EQQQ', bul:'IB01', idx:'QQQ', cur:'EUR'} : {lev:'QLD', one:'QQQM', bul:'SGOV', idx:'QQQ', cur:t('usd')};
+}
+
+/* 規則狀態的文字 */
+function lastMg(m){ const e=(m.rule.events||[]).filter(x=>x[1]==='mg'); return e.length?e[e.length-1][0]:null; }
+function mgDesc(m){ const g=m.rule.margin;
+  if (m.rule.margin.tw_yoy==null) return L(`美國 FINRA 融資餘額年增 ${sgn(g.us_yoy,0)}（> 50% 為過熱）`,`US FINRA margin debt ${sgn(g.us_yoy,0)} year on year (above 50% is overheated)`);
+  return `台股融資年增 ${sgn(g.tw_yoy,0)}（> 35%）、兩年 ${sgn(g.tw_2y,0)}（> 20%），美股融資年增 ${sgn(g.us_yoy,0)}（> 50%）`;
+}
+function pauseWhy(m){ const r=m.rule;
+  if (r.panic_zone) return L('VIX 還在 35 以上','VIX is still at or above 35');
+  if (r.deep_zone) return L('還在深跌區（距一年高點跌超過 30%）','the market is still more than 30% below its 1-year high');
+  if (r.cool.active) return L(`恐慌加碼後還在 60 個交易日的冷卻期（已過 ${r.cool.days_since_add} 天）`,`it is within 60 trading days of a panic buy (${r.cool.days_since_add} so far)`);
+  return '';
+}
+function verdictText(m, nm){
+  const r=m.rule, st=m.state, w=pct(r.panic.target), base=pct(m.base);
+  const why = {panic1:L(`VIX ${r.vix} ≥ 35`,`VIX ${r.vix} ≥ 35`), panic2:L(`VIX ${r.vix} ≥ 40`,`VIX ${r.vix} ≥ 40`), deep:L(`距一年高點 ${sgn(r.panic.deep.dd)}，一年內 VIX 曾到 ${r.panic.deep.vix_max252}`,`${sgn(r.panic.deep.dd)} from the 1-year high, and VIX reached ${r.panic.deep.vix_max252} within the year`)}[r.panic.why]||'';
+  const left = Math.max(0, r.reoff_days - r.margin.off_days);
+  const T = {
+    panic:[L(`二倍槓桿加到 ${w}：先賣一倍原型，不夠再用子彈`,`Raise 2x to ${w}: sell 1x first, then use reserve`),
+           L(`${why}。把一倍原型換成 ${nm.lev}，不夠再用子彈，直到二倍槓桿佔總資產 ${w}。VIX 還在門檻以上、比重又掉回目標以下時，可以再補。`,`${why}. Swap 1x into ${nm.lev}, then use reserve, until 2x is ${w} of the total. While the signal holds and your share slips below target, top up again.`)],
+    reentry:[L(`一倍原型全部換回 ${nm.lev}`,`Move all 1x back into ${nm.lev}`),
+           L(`融資訊號已關閉 ${r.margin.off_days} 個交易日（滿 ${r.reoff_days}），收盤在季線上方。`,`The margin signal has been off for ${r.margin.off_days} trading days (${r.reoff_days} needed) and price is above the 60-day MA.`)],
+    refill:[L(`${nm.lev} 調回 ${base}，賣出的錢買 ${nm.bul}`,`Trim ${nm.lev} back to ${base}; put the rest in ${nm.bul}`),
+           L(`週 RSI ${r.rsi} 超過 ${r.rsi_th}。把超過 ${base} 的二倍槓桿賣掉換成子彈，留給下一次恐慌。`,`Weekly RSI ${r.rsi} is above ${r.rsi_th}. Sell the 2x above ${base} into reserve for the next panic.`)],
+    convert:[L(`二倍槓桿全部換成一倍原型（${nm.one}）`,`Switch all 2x into 1x (${nm.one})`),
+           L(`${mgDesc(m)}。融資過熱時二倍槓桿全部換成一倍原型，子彈不動；之後 VIX 衝上 35 時，先用一倍原型加碼。`,`${mgDesc(m)}. While margin is overheated, hold 1x instead of 2x and leave the reserve alone; if VIX later jumps above 35, the 1x is used first to buy 2x.`)],
+    mgpause:[L(`融資過熱，但${pauseWhy(m)}，二倍槓桿先不換`,`Margin is overheated, but ${pauseWhy(m)}, so keep the 2x for now`),
+           L(`${mgDesc(m)}。恐慌期間或剛加碼完不換，避免剛買進就賣出；條件解除後再換成一倍原型。`,`${mgDesc(m)}. The switch waits during a panic or right after a panic buy, so you don't sell what you just bought.`)],
+    wait1x:[L(`融資已退燒，一倍原型繼續持有`,`Margin has cooled; keep holding 1x`),
+           L(`規則在 ${D8(lastMg(m))} 把二倍槓桿換成一倍原型。融資訊號關閉滿 ${r.reoff_days} 個交易日（約 15 個月）而且收盤在季線上方，才換回二倍槓桿；還差 ${left} 個交易日。新投入的錢照常買二倍槓桿。`,
+             `The rules switched 2x into 1x on ${D8(lastMg(m))}. They move back to 2x once the margin signal has been off for ${r.reoff_days} trading days (about 15 months) and price is above the 60-day MA; ${left} trading days to go. New money buys 2x as usual.`)],
+    normal:[L('沒有觸發條件，照現在的比例持有','No signal. Hold what you have.'),
+           L(`每月薪資照 60／40 買進；收盤在季線下方時全部買二倍槓桿。`,`Buy at 60 / 40 each month; when price is below the 60-day MA, put it all into 2x.`)],
+  };
+  return T[st]||T.normal;
+}
+function salaryText(m, nm){ const s=m.rule.salary; const x = s.to==='1x'?nm.one:nm.lev;
+  return s.all ? L(`本月薪資：全部買 ${x}（收盤在季線下方）`,`This month's savings: all into ${x} (price below the 60-day MA)`)
+               : L(`本月薪資：${pct(m.base)} 買 ${x}、${pct(1-m.base)} 買 ${nm.bul}`,`This month's savings: ${pct(m.base)} into ${x}, ${pct(1-m.base)} into ${nm.bul}`); }
 
 function chrome(){
-  document.documentElement.lang = LANG==='en' ? 'en' : 'zh-Hant';
-  document.getElementById('eyebrow').textContent = MODE==='us'?(VENUE==='eu'?'LQQ ＋ IB01':'QLD ＋ SGOV'):t('eb_full');
+  document.documentElement.lang = EN() ? 'en' : 'zh-Hant';
+  const nm = names(MODE==='us'?'us':'tw');
+  document.getElementById('eyebrow').textContent = MODE==='us'?`${nm.lev} · ${nm.one} · ${nm.bul}`:t('eb_full');
   document.getElementById('h1').textContent = MODE==='us'?t('h1_us'):t('h1_full');
   document.getElementById('subtitle').textContent = t('subtitle');
   document.getElementById('foot1').textContent = t('foot1');
@@ -427,152 +402,91 @@ function chrome(){
   const rb=document.getElementById('refresh'); if(!rb.disabled) rb.textContent=t('refresh');
   const gb=document.getElementById('guideBtn'); gb.textContent=t('guide'); gb.onclick=openGuide; document.getElementById('guideClose').onclick=closeGuide;
   if (DATA) document.getElementById('stamp').textContent = t('stamp',{t:taipei(DATA.generated)});
-  // tabs
-  const tb=document.getElementById('tabs'); tb.textContent='';
-  if (MODE==='us') tb.hidden=true; else for(const k of ['tw','us','pf']){ const b=el('button',{role:'tab','aria-selected':String(cur===k)},(MODE==='us'&&k==='us')?t('tab_sig'):t('tab_'+k)); b.onclick=()=>{cur=k;store.set(MODE==='us'?'dash-tab-us':'dash-tab',k);chrome();render();}; tb.append(b); }
-  // language
+  const tb=document.getElementById('tabs'); tb.textContent=''; tb.hidden=false;
+  const tabs = MODE==='us' ? [['us',t('tab_sig')],['bt',t('tab_bt')]] : [['tw',t('tab_tw')],['us',t('tab_us')],['pf',t('tab_pf')],['bt',t('tab_bt')]];
+  for(const [k,n] of tabs){ const b=el('button',{role:'tab','aria-selected':String(cur===k)},n); b.onclick=()=>{cur=k;store.set(MODE==='us'?'dash-tab-us':'dash-tab',k);chrome();render();window.scrollTo(0,0);}; tb.append(b); }
   const lg=document.getElementById('lang'); lg.textContent='';
   if (MODE==='us'){ lg.hidden=false; for(const [k,n] of [['zh','中文'],['en','EN']]){ const b=el('button',{'aria-pressed':String(LANG===k)},n); b.onclick=()=>{LANG=k;store.set('dash-lang',k);chrome();render();sourcesRender();staleCheck();}; lg.append(b);} }
   const vn=document.getElementById('venue'); vn.textContent='';
-  if (MODE==='us'){ vn.hidden=false; for(const [k,n] of [['us','QLD · SGOV'],['eu','LQQ · IB01']]){ const b=el('button',{'aria-pressed':String(VENUE===k),title:k==='us'?t('v_us'):t('v_eu')},n); b.onclick=()=>{VENUE=k;store.set('dash-venue',k);chrome();render();}; vn.append(b);} }
+  if (MODE==='us'){ vn.hidden=cur==='bt'; for(const [k,n] of [['us','US'],['eu','EU']]){ const b=el('button',{'aria-pressed':String(VENUE===k),title:k==='us'?t('v_us'):t('v_eu')},k==='us'?L('美國券商','US broker'):L('歐洲券商','EU broker')); b.onclick=()=>{VENUE=k;store.set('dash-venue',k);chrome();render();}; vn.append(b);} }
 }
-function taipei(iso){ try{ return new Date(iso).toLocaleString(LANG==='en'?'en-US':'zh-TW',{timeZone:'Asia/Taipei',hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return iso} }
+function taipei(iso){ try{ return new Date(iso).toLocaleString(EN()?'en-US':'zh-TW',{timeZone:'Asia/Taipei',hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return iso} }
 function fgLabel(v){ return t(v<25?'fg0':v<45?'fg1':v<=55?'fg2':v<75?'fg3':'fg4'); }
-const tierName = (id, m) => id==='refill' ? t('refill',{th:m.rsi_refill}) : t(id);
+const EVN = {panic1:['VIX ≥ 35：二倍槓桿加到 85%','VIX ≥ 35: 2x to 85%'], panic2:['VIX ≥ 40：二倍槓桿加到 100%','VIX ≥ 40: 2x to 100%'], deep:['深跌補滿：二倍槓桿加到 100%','Deep-drop top-up: 2x to 100%'],
+  rsi:['RSI 過熱：二倍槓桿調回 60%','RSI trim: 2x back to 60%'], mg:['融資過熱：二倍槓桿換成一倍原型','Margin overheating: 2x into 1x'], re:['融資退燒：一倍原型換回二倍槓桿','Margin cooled: 1x back into 2x']};
+const evName = k => (EVN[k]||[k,k])[EN()?1:0];
 
 function render(){
   charts.forEach(c=>c.dispose()); charts=[];
   const main=document.getElementById('main'); main.textContent='';
-  if (cur==='pf'){ if(MODE==='us') renderPFUS(main); else renderPF(main); return; }
-  const m = DATA[cur];
-  if(!m){ main.append(el('div',{class:'loading'},t('nomarket'))); return; }
-  const isTW = cur==='tw'; const idxD = isTW?0:2;
-  const cur$ = isTW?t('twd'):(MODE==='us'&&VENUE==='eu'?'EUR':t('usd'));
-  let lev = m.lev, bul = m.bul;
-  if (MODE==='full' && cur==='us'){ lev='00830'; bul='00865B'; }
-  const EU = MODE==='us' && VENUE==='eu';
-  if (EU){ lev='LQQ'; bul='IB01'; }
-  const idx = isTW ? '加權指數' : 'QQQ';
-  const color = {normal:C.ok,dip:C.warn,panic:C.bad,refill:C.info}[m.state];
+  if (cur==='pf'){ renderPF(main); return; }
+  if (cur==='bt'){ renderBT(main); return; }
+  renderSig(main);
+}
+
+/* 三段比例條：二倍槓桿／一倍原型／子彈 */
+function bar3(w2,w1,wb){ const b=el('div',{class:'bar'}); b.append(el('i',{class:'lev',style:`width:${w2*100}%`}), el('i',{class:'one',style:`width:${w1*100}%`}), el('i',{class:'bul',style:`width:${wb*100}%`})); return b; }
+function mixTxt(w2,w1,wb){ return L(`二倍 ${pct(w2)}・一倍 ${pct(w1)}・子彈 ${pct(wb)}`,`2x ${pct(w2)} · 1x ${pct(w1)} · reserve ${pct(wb)}`); }
+
+function renderSig(main){
+  const key = MODE==='us' ? 'us' : cur;
+  const m = DATA[key];
+  if(!m || !m.rule){ main.append(el('div',{class:'loading'},t('nomarket'))); return; }
+  const r = m.rule, isTW = key==='tw', idxD = isTW?0:2, nm = names(key);
+  const color = STATE_C()[m.state];
   document.documentElement.style.setProperty('--state', color);
-
   // ===== verdict =====
-  const active = m.tiers.filter(x=>x.active);
-  const panicActive = active.filter(x=>x.group==='恐慌加碼');
-  const SAL = active.some(x=>x.group!=='恐慌加碼');
-  const TARGET = m.state==='refill' ? m.base : Math.max(m.base, ...panicActive.map(x=>x.target));
-  const vixT = m.tiers.filter(x=>x.group==='恐慌加碼' && x.id.startsWith('vix')).sort((a,b)=>a.line-b.line);
-  const ddT = m.tiers.find(x=>x.id==='dd30');
-  const lastEp = ((DATA.macro||{}).vix||{}).last_ep||{};
   const verdict = el('section',{class:'card verdict'});
-  verdict.append(el('div',{class:'vhead'}, el('span',{class:'pill'}, el('span',{class:'dot'}), t('st_'+m.state)), el('span',{class:'muted',style:'font-size:.82rem'}, t('close_at',{idx, d:D8(m.asof)}))));
-  let title = t('t_normal');
-  if (m.state==='panic') title = t('t_dipX',{lev, w:pct(TARGET)});
-  if (m.state==='dip') title = t('t_sal',{lev});
-  if (m.state==='refill') title = t('t_refillX',{lev, w:pct(m.base), bul});
-  verdict.append(el('p',{class:'srcline'}, t('src_line',{idx, lev, dd:sgn(m.dd), ldd:sgn(m.lev_dd)}) + (lev==='LQQ'?t('fx_note'):'')));
-  verdict.append(el('div',{class:'vtitle'}, title), el('p',{class:'vsub'}, t('s_'+m.state)));
+  const pill = el('span',{class:'pill'}, el('span',{class:'dot'}), t('st_'+m.state));
+  if (m.state==='panic') pill.prepend(el('span',{class:'bang',title:'!'},'!'));
+  verdict.append(el('div',{class:'vhead'}, pill, el('span',{class:'muted',style:'font-size:.82rem'}, L(`${isTW?'加權指數':'QQQ'} 收盤 ${D8(m.asof)}`,`QQQ close ${D8(m.asof)}`))));
+  const [title, sub] = verdictText(m, nm);
+  verdict.append(el('div',{class:'vtitle'}, title), el('p',{class:'vsub'}, sub));
   const why = el('div',{class:'why'});
-  if (active.length) active.forEach(x=>why.append(el('span',{class:'chip on'}, '✓ '+tierName(x.id,m)+(x.first_this_wave?t('first',{d:D8(x.first_this_wave)}):''))));
-  else if (m.refill) why.append(el('span',{class:'chip on'}, t('rsi_hit',{v:m.rsi_w, th:m.rsi_refill})));
-  else why.append(el('span',{class:'chip'}, t('nosig')));
-  if (m.credit&&m.credit.block&&m.tiers.some(x=>x.reached)) why.append(el('span',{class:'chip on'}, t('chip_blk')));
+  why.append(el('span',{class:'chip'+(r.below60?' on':'')}, salaryText(m,nm)));
+  if (r.panic.blocked) why.append(el('span',{class:'chip on'}, `⏸ 信用利差 3 個月擴大 ${pp(r.panic.baa_chg)}，恐慌加碼暫停（第 ${r.panic.brun} 天，最多 30 個交易日）`));
+  if (r.vix>=35 && !r.panic.g1 && r.panic.target<0.85) why.append(el('span',{class:'chip on'}, L('⏸ 殖利率或利差急升，VIX ≥ 35 這一階暫停','⏸ Yields or credit spreads spiking: the VIX ≥ 35 step is paused')));
   verdict.append(why);
+  // 組合
   const alloc = el('div',{class:'alloc'});
-  const row=(lab,w)=>{ const b=el('div',{class:'bar'}); b.append(el('i',{class:'lev',style:`width:${w*100}%`}), el('i',{class:'bul',style:`width:${(1-w)*100}%`})); alloc.append(el('span',{class:'muted'},lab), b, el('span',{class:'num'}, `${pct(w)} / ${pct(1-w)}`)); };
-  row(t('base_mix'), m.base);
-  if (m.state==='panic') row(t('sug_mix'), TARGET);
-  else if (SAL) row(t('sal_mix'), 1);
-  const curRow = {lab:el('span',{class:'muted'},t('cur_mix')), bar:el('div',{class:'bar'}), num:el('span',{class:'num'})};
-  const setCur = w => { const show = w!=null; [curRow.lab,curRow.bar,curRow.num].forEach(n=>n.hidden=!show); if(!show) return;
-    curRow.bar.textContent=''; curRow.bar.append(el('i',{class:'lev',style:`width:${w*100}%`}), el('i',{class:'bul',style:`width:${(1-w)*100}%`})); curRow.num.textContent=`${pct(w)} / ${pct(1-w)}`; };
-  alloc.append(curRow.lab, curRow.bar, curRow.num); setCur(null);
-  verdict.append(alloc, el('div',{class:'legend'}, el('span',{style:`--c:${C.brass}`}, t('lev_tag',{x:lev})), el('span',{style:'--c:#3b4a5c'}, t('bul_tag',{x:bul}))));
-
-  // calculator
-  const key='hold-'+cur; let saved={}; try{saved=JSON.parse(store.get(key)||'{}')}catch(e){}
-  const calc = el('div',{class:'calc'});
-  const tabs = el('div',{class:'ctabs',role:'tablist'}); const pH=el('div',{}), pS=el('div',{});
-  const ctab = store.get('ctab')||'hold';
-  const bH=el('button',{role:'tab','aria-selected':String(ctab==='hold')},t('tab_hold')), bS=el('button',{role:'tab','aria-selected':String(ctab==='sal')},t('tab_sal'));
-  const showT=k=>{ store.set('ctab',k); bH.setAttribute('aria-selected',String(k==='hold')); bS.setAttribute('aria-selected',String(k==='sal')); pH.hidden=k!=='hold'; pS.hidden=k!=='sal'; };
-  bH.onclick=()=>showT('hold'); bS.onclick=()=>showT('sal'); tabs.append(bH,bS); calc.append(tabs, pH, pS);
-  pH.append(el('div',{class:'eyebrow',style:'margin-bottom:10px'}, t('calc_eb')));
-  const fL = el('input',{id:'in-lev-'+cur,type:'number',inputmode:'decimal',min:'0',placeholder:t('eg',{n:isTW?'700000':'5000'})}); fL.value=saved.lev||'';
-  const fB = el('input',{id:'in-bul-'+cur,type:'number',inputmode:'decimal',min:'0',placeholder:t('eg',{n:isTW?'300000':'5000'})}); fB.value=saved.bul||'';
-  pH.append(el('div',{class:'calc-row'}, el('label',{class:'f',for:fL.id}, t('val',{x:lev,c:cur$}), fL), el('label',{class:'f',for:fB.id}, t('val',{x:bul,c:cur$}), fB)));
-  const out = el('div',{class:'action'}); pH.append(out);
-  const upd=()=>{
-    const L=+fL.value||0, B=+fB.value||0, T=L+B; store.set(key, JSON.stringify({lev:fL.value,bul:fB.value}));
-    out.textContent='';
-    if(!T){ setCur(null); out.append(t('calc_empty')); return; }
-    const w=L/T, tgt=TARGET; setCur(w);
-    const now = el('div',{}); const parts = t('calc_now',{a:'\u0001',b:'\u0002'}).split(/(\u0001|\u0002)/);
-    parts.forEach(p=> now.append(p==='\u0001'?el('b',{},pct(w,1)):p==='\u0002'?el('b',{},pct(tgt)):p)); out.append(now);
-    const line = el('div',{style:'margin-top:6px'});
-    const sb=(amt,from,to)=>{ const ps=t('sell_buy',{amt:'\u0001',c:cur$,from,to}).split('\u0001'); line.append(ps[0], el('b',{},fmt(amt)), ps[1]); };
-    if (m.state==='refill'){
-      if (w > m.base+0.03){ const x=L-m.base*T; sb(x, lev, bul); line.append(el('div',{class:'note'}, t('after',{lev,a:fmt(L-x),wa:pct(m.base),bul,b:fmt(B+x),wb:pct(1-m.base)}))); }
-      else line.append(t('in_range'));
-    } else if (m.state==='panic'){
-      if (tgt > w+0.03){ const x=Math.min(tgt*T-L,B); sb(x, bul, lev); const nw=(L+x)/T; line.append(el('div',{class:'note'}, t('after',{lev,a:fmt(L+x),wa:pct(nw),bul,b:fmt(B-x),wb:pct(1-nw)}))); }
-      else if (w > tgt+0.03) line.append(t('above',{th:m.rsi_refill}));
-      else line.append(t('in_range'));
-    } else if (m.state==='dip'){
-      line.append(t('calc_sal',{lev}));
-    } else {
-      if (w < m.base-0.03) line.append(t('below_base',{lev,w:pct(m.base)}));
-      else if (w > m.base+0.03) line.append(t('above',{th:m.rsi_refill}));
-      else line.append(t('in_range'));
-    }
-    out.append(line);
-  };
-  fL.oninput=fB.oninput=upd; upd();
-  // salary tab
-
-  const fs = el('input',{id:'in-sal-'+cur,type:'number',inputmode:'decimal',min:'0',placeholder:t('eg',{n:isTW?'30000':'1000'})}); fs.value=store.get('sal-'+cur)||'';
-  const so = el('div',{class:'action'});
-  const su=()=>{ store.set('sal-'+cur,fs.value); const v=+fs.value||0; so.textContent='';
-    if (SAL){ so.append(el('div',{class:'num'}, t('sal_out_dip',{lev,a:fmt(v),c:cur$}))); so.append(el('div',{class:'note'}, t('sal_note_dip',{a:pct(m.base),b:pct(1-m.base)}))); }
-    else { so.append(el('div',{class:'num'}, t('sal_out',{lev,a:fmt(v*m.base),bul,b:fmt(v*(1-m.base)),c:cur$}))); so.append(el('div',{class:'note'}, t('sal_note',{a:pct(m.base),b:pct(1-m.base)}))); } };
-  fs.oninput=su; su();
-  pS.append(el('div',{class:'calc-row'}, el('label',{class:'f',for:fs.id}, t('sal_in',{c:cur$}), fs)), so);
-  showT(ctab);
-  calc.append(el('div',{class:'note'}, t('privacy')+' '+t('exec_note')));
-  if (MODE!=='us'){ const go=el('button',{class:'btn-ghost',style:'margin-top:16px'},'到「我的庫存」看要買賣哪幾檔、幾股 →'); go.onclick=()=>{cur='pf';store.set('dash-tab','pf');chrome();render();window.scrollTo(0,0);}; verdict.append(el('div',{},go)); }
+  const row=(lab,a,b,c)=>alloc.append(el('span',{class:'muted'},lab), bar3(a,b,c), el('span',{class:'num'}, mixTxt(a,b,c)));
+  const md=r.model; row(L('規則目前的組合','Rules\' mix now'), md.w2, md.w1, md.wb);
+  const E0 = r.panic.target>0 ? r.panic.target : m.base;
+  if (r.conv_ok) row(L('新投入的起始組合','Starting mix for new money'), 0, E0, 1-E0); else row(L('新投入的起始組合','Starting mix for new money'), E0, 0, 1-E0);
+  verdict.append(alloc, el('div',{class:'legend'}, el('span',{style:`--c:${C.brass}`}, L(`${nm.lev}（二倍槓桿）`,`${nm.lev} (2x)`)), el('span',{style:'--c:#8fb3a0'}, L(`${nm.one}（一倍原型）`,`${nm.one} (1x)`)), el('span',{style:'--c:#3b4a5c'}, L(`${nm.bul}（子彈）`,`${nm.bul} (reserve)`))));
+  verdict.append(el('p',{class:'note'}, L('「規則目前的組合」是從 2012 年起照規則一路操作到今天、不含每月薪資的比例。訊號以收盤價計算，下一個交易日執行即可，不用盯盤。','"Rules\' mix now" is where the rules would stand today after following them since 2012, without monthly savings. Signals use closing prices; acting on the next trading day is fine.')));
+  if (MODE!=='us'){ const go=el('button',{class:'btn-ghost',style:'margin-top:12px'},'到「我的庫存」看要買賣哪幾檔、幾股 →'); go.onclick=()=>{cur='pf';store.set('dash-tab','pf');chrome();render();window.scrollTo(0,0);}; verdict.append(el('div',{},go)); }
 
   // ===== ladder =====
   const lad = el('section',{class:'card'});
-  lad.append(el('h2',{}, t('ladder')), el('p',{class:'muted',style:'margin:2px 0 6px;font-size:.84rem'}, t('lad_sub',{idx, c:fmt(m.close,idxD), dd:sgn(m.dd), rsi:m.rsi_w, vix:m.vix??'—', vd:D8(m.vix_asof)})));
-  const L2 = el('div',{class:'ladder'});
-  const rung=(on,c,tt,d,w)=>{ const r=el('div',{class:'rung'+(on?' on':''),style:`--c:${c}`}); r.append(el('span',{class:'mk'}), el('div',{}, el('div',{class:'t'},tt), el('div',{class:'d'},d)), el('div',{class:'w'},w)); L2.append(r); };
-  L2.append(el('div',{class:'grp major'},t('g_base')));
-  rung(m.state==='normal', C.ok, t('r_base'), t('r_base_d',{lev,a:pct(m.base),bul,b:pct(1-m.base)}), t('w_base',{w:pct(m.base)}));
-  L2.append(el('div',{class:'grp major'},t('g_heat')));
-  const gap=m.rsi_refill-m.rsi_w;
-  rung(m.refill, C.info, t('r_refill',{th:m.rsi_refill}), gap>0?t('r_refill_d',{v:m.rsi_w,gap:gap.toFixed(1)}):t('r_refill_d2',{v:m.rsi_w}), t('w_trim',{w:pct(m.base)}));
-  L2.append(el('div',{class:'grp major'},t('g_add')));
-  const t60=m.tiers.find(x=>x.id==='ma60'), t120=m.tiers.find(x=>x.id==='ma120');
-  const pos=x=>`${fmt(x.line,idxD)}（${x.gap>=0?t('d_hi'):t('d_lo')} ${pct(Math.abs(x.gap),1)}）`;
-  L2.append(el('div',{class:'grp'}, t('g_mid_sal')));
-  rung(SAL, C.warn, t('r_sal'), t('d_sal',{a:pos(t60), b:pos(t120)}) + (t60.first_this_wave?t('d_first',{d:D8(t60.first_this_wave)}):''), t('w_sal'));
-  L2.append(el('div',{class:'grp'}, t('g_panic')));
-  { const act=vixT.filter(x=>x.active); const top=act[act.length-1]; const lo=vixT[0].line;
-    const le=lastEp[String(lo)]; const blk=m.credit&&m.credit.block;
-    rung(act.length>0&&!blk, C.bad, t('r_vix'), t('d_vixm',{v:m.vix??'—', th:lo, d:le?D8(le):'—'}), blk?t('w_blk'):top?t('w_add',{w:pct(top.target)}):t('w_none'));
-    const box=el('div',{class:'vbox',style:`--c:${C.bad}`});
-    const mx=Math.max(50, vixT[vixT.length-1].line+10), mn=10; const posn=v=>Math.min(100,Math.max(0,(v-mn)/(mx-mn)*100));
-    const mtr=el('div',{class:'vmeter'}); mtr.append(el('div',{class:'fill',style:`width:${posn(m.vix??mn)}%`}), el('div',{class:'now',style:`left:${posn(m.vix??mn)}%`}, String(m.vix??'—')));
-    vixT.forEach(x=>mtr.append(el('div',{class:'tk'+((x.active||x.reached)?' on':''),style:`left:${posn(x.line)}%`})));
-    const tg=el('div',{class:'vtiers'}); vixT.forEach(x=>tg.append(el('div',{class:'vt'+((x.active||x.reached)?' on':'')}, el('span',{},'VIX ≥ '+x.line), el('b',{},pct(x.target)))));
+  lad.append(el('h2',{}, L('規則與目前位置','Rules and where we are')), el('p',{class:'muted',style:'margin:2px 0 6px;font-size:.84rem'},
+    L(`${isTW?'加權指數':'QQQ'} ${fmt(m.close,idxD)}　距高點 ${sgn(m.dd)}　週 RSI ${r.rsi}　VIX ${r.vix??'—'}（${D8(m.vix_asof)}）`,`QQQ ${fmt(m.close,idxD)}   ${sgn(m.dd)} from high   weekly RSI ${r.rsi}   VIX ${r.vix??'—'} (${D8(m.vix_asof)})`)));
+  const LD = el('div',{class:'ladder'});
+  const rung=(on,c,tt,d,w,bang)=>{ const x=el('div',{class:'rung'+(on?' on':''),style:`--c:${c}`}); const tl=el('div',{class:'t'},tt); if(on&&bang) tl.prepend(el('span',{class:'bang'},'!')); x.append(el('span',{class:'mk'}), el('div',{}, tl, el('div',{class:'d',html:d})), el('div',{class:'w'},w)); LD.append(x); };
+  const grp=(s,major)=>LD.append(el('div',{class:'grp'+(major?' major':'')},s));
+  const p=r.panic, dp=p.deep;
+  grp(L('恐慌加碼（先用一倍原型，再用子彈）','Panic buying (1x first, then reserve)'), true);
+  rung(r.vix>=35 && p.g1 && !p.blocked, C.bad, 'VIX ≥ 35', L(`目前 VIX ${r.vix??'—'}・上次 ≥ 35：${D8(p.last_vix35)||'—'}<br>暫停條件：2 年期殖利率 3 個月 ${pp(p.y2_chg)}（> +0.5 暫停）、信用利差 3 個月 ${pp(p.baa_chg)}（> +0.7 暫停）${p.g1?'':'　<b style="color:var(--warn)">⏸ 暫停中</b>'}`,
+    `VIX now ${r.vix??'—'} · last ≥ 35: ${D8(p.last_vix35)||'—'}<br>Paused if the 2-year yield rose more than 0.5 in 3 months (now ${pp(p.y2_chg)}) or credit spreads widened more than 0.7 (now ${pp(p.baa_chg)})${p.g1?'':' <b style="color:var(--warn)">⏸ paused</b>'}`), L('85% 二倍槓桿','85% in 2x'), true);
+  rung(r.vix>=40 && !p.blocked, C.bad, 'VIX ≥ 40', L(`目前 VIX ${r.vix??'—'}，沒有暫停條件`,`VIX now ${r.vix??'—'}; never paused`), L('100% 二倍槓桿','100% in 2x'), true);
+  rung(dp.on && !p.blocked, C.bad, L('深跌補滿','Deep-drop top-up'), L(`三個條件同時成立：一年內 VIX 曾 ≥ 35（最高 ${dp.vix_max252}）${dp.vix_max252>=35?'✓':'✗'}、距一年高點跌超過 30%（目前 ${sgn(dp.dd)}，觸發價位約 ${fmt(dp.line,idxD)}${isTW?'（含息指數）':''}）${dp.dd<=-0.3?'✓':'✗'}、信用利差 3 個月擴大不到 0.5（${pp(p.baa_chg)}）${dp.credit_ok?'✓':'✗'}`,
+    `All three: VIX reached 35 within a year (max ${dp.vix_max252}) ${dp.vix_max252>=35?'✓':'✗'}; more than 30% below the 1-year high (now ${sgn(dp.dd)}, about ${fmt(dp.line,idxD)}) ${dp.dd<=-0.3?'✓':'✗'}; credit spreads widened less than 0.5 in 3 months (${pp(p.baa_chg)}) ${dp.credit_ok?'✓':'✗'}`), L('100% 二倍槓桿','100% in 2x'), true);
+  { const box=el('div',{class:'vbox',style:`--c:${C.bad}`}); const mx=55, mn=10; const posn=v=>Math.min(100,Math.max(0,(v-mn)/(mx-mn)*100)); const vv=r.vix??mn;
+    const mtr=el('div',{class:'vmeter'}); mtr.append(el('div',{class:'fill',style:`width:${posn(vv)}%`}), el('div',{class:'now',style:`left:${posn(vv)}%`}, String(r.vix??'—')));
+    [35,40].forEach(x=>mtr.append(el('div',{class:'tk'+(vv>=x?' on':''),style:`left:${posn(x)}%`})));
+    const tg=el('div',{class:'vtiers'}); [[35,'85%'],[40,'100%']].forEach(([x,w])=>tg.append(el('div',{class:'vt'+(vv>=x?' on':'')}, el('span',{},'VIX ≥ '+x), el('b',{},L(`${w} 二倍槓桿`,`${w} 2x`)))));
     box.append(mtr, tg);
-    if (m.credit) box.append(el('div',{class:'cred'+(blk?' on':'')}, t(blk?'cred_on':'cred_off',{x:(m.credit.chg>0?'+':'')+m.credit.chg.toFixed(2), th:m.credit.th})));
-    L2.append(box); }
-  for(const x of m.tiers.filter(x=>x.id==='dd30')){
-    const dd30=true; const le=x.last_seen;
-    rung(x.active, C.bad, tierName(x.id,m), (dd30?t('d_dd30',{dd:sgn(m.dd), p:fmt(x.line,idxD)}):t('d_vix',{v:m.vix??'—', th:x.line})) + (le?t('d_lastep',{d:D8(le)}):'') + (x.first_this_wave?t('d_first',{d:D8(x.first_this_wave)}):''), t('w_add',{w:pct(x.target)}));
-  }
-  lad.append(L2);
+    if (isTW) box.append(el('div',{class:'cred'+(p.blocked?' on':'')}, p.blocked?`⏸ 信用利差 3 個月擴大 ${pp(p.baa_chg)}，超過 +0.8：所有恐慌加碼暫停（最多 30 個交易日）`:`台股另外：信用利差 3 個月擴大超過 0.8 時，所有恐慌加碼暫停（最多 30 個交易日）。目前 ${pp(p.baa_chg)}`));
+    LD.append(box); }
+  grp(L('過熱調節','Trim when hot'), true);
+  rung(r.rsi_hot, C.info, L(`週 RSI > ${r.rsi_th}`,`Weekly RSI > ${r.rsi_th}`), r.rsi_hot?L(`目前 ${r.rsi}，已超過門檻`,`Now ${r.rsi}, above the line`):L(`目前 ${r.rsi}，還差 ${(r.rsi_th-r.rsi).toFixed(1)}`,`Now ${r.rsi}, ${(r.rsi_th-r.rsi).toFixed(1)} to go`), L(`二倍槓桿調回 ${pct(m.base)}`,`2x back to ${pct(m.base)}`));
+  grp(L('融資過熱','Margin overheating'), true);
+  rung(r.margin.on, C.warn, isTW?'融資過熱':L('FINRA 融資年增 > 50%','FINRA margin debt > 50% YoY'), mgDesc(m) + (r.margin.on && !r.conv_ok ? L(`<br><b style="color:var(--warn)">先不換：${pauseWhy(m)}</b>`,`<br><b style="color:var(--warn)">On hold: ${pauseWhy(m)}</b>`):''), L('二倍槓桿 → 一倍原型','2x → 1x'));
+  rung(r.margin.reentry_ready && md.w1>0.01, C.ok, L('融資退燒換回','Back to 2x after cooling'), L(`融資訊號關閉 ${r.margin.off_days}／${r.reoff_days} 個交易日、收盤${r.below60?'在季線下方 ✗':'在季線上方 ✓'}${md.w1>0.01?'':'（規則目前沒有一倍原型）'}`,`Margin signal off ${r.margin.off_days} / ${r.reoff_days} trading days; price ${r.below60?'below the 60-day MA ✗':'above the 60-day MA ✓'}${md.w1>0.01?'':' (the rules hold no 1x now)'}`), L('一倍原型 → 二倍槓桿','1x → 2x'));
+  grp(L('每月薪資','Monthly savings'), true);
+  rung(r.below60, C.warn, L('收盤在季線下方','Close below the 60-day MA'), L(`季線 ${fmt(r.ma60,idxD)}${isTW?'（含息指數）':''}，收盤${r.below60?'低':'高'} ${pct(Math.abs(r.close/r.ma60-1),1)}`,`60-day MA ${fmt(r.ma60,idxD)}; price is ${pct(Math.abs(r.close/r.ma60-1),1)} ${r.below60?'below':'above'}`), r.salary.to==='1x'?L('薪資全買一倍原型','All savings to 1x'):L('薪資全買二倍槓桿','All savings to 2x'));
+  lad.append(LD);
+  if (isTW) lad.append(el('p',{class:'note'},'台股的季線、距高點、週 RSI 用「加權報酬指數（含息）」計算，和回測一致，所以數字和加權指數本身略有不同。'));
   const top = el('div',{class:'grid-top'}); top.append(verdict, lad); main.append(top);
   if (MODE==='us') renderPFUS(main, verdict);
 
@@ -580,17 +494,16 @@ function render(){
   const mac = DATA.macro||{};
   const stats = el('section',{class:'stats'});
   const stat=(k,v,s,main_)=>stats.append(el('div',{class:'stat'}, el('div',{class:'k'},k, el('span',{class:'tag'+(main_?' main':'')}, main_?t('tag_main'):t('tag_ref'))), el('div',{class:'v'},v), el('div',{class:'s'},s)));
-  stat(t('k_vix'), mac.vix?fmt(mac.vix.last,2):'—', mac.vix?(mac.vix.live?t('s_vix_live',{t:mac.vix.live.slice(5).replace('-','/')}):t('s_vix',{d:D8(mac.vix.asof)}))+(lastEp[String(vixT[0].line)]?' · '+t('last35',{th:vixT[0].line,d:D8(lastEp[String(vixT[0].line)])}):''):'', true);
-  stat(t('k_dd'), sgn(m.dd), t('s_dd',{p:fmt(m.ath,idxD), d:D8(m.ath_date)}), true);
-  stat(t('k_rsi'), m.rsi_w, t('s_rsi',{th:m.rsi_refill}), true);
-  const cr=m.credit||((mac.baa)?{chg:mac.baa.chg63,th:null,block:false}:null);
-  const crStat=(main_)=>stat(t('k_cr'), cr?((cr.chg>0?'+':'')+cr.chg.toFixed(2)):'—', cr?(cr.th!=null?(cr.block?t('s_cr_on',{th:cr.th}):t('s_cr',{th:cr.th})):t('s_cr_us')):'', main_);
-  if (m.credit) crStat(true);
+  stat(t('k_vix'), mac.vix?fmt(mac.vix.last,2):'—', mac.vix?(mac.vix.live?t('s_vix_live',{t:mac.vix.live.slice(5).replace('-','/')}):D8(mac.vix.asof)):'', true);
+  stat(t('k_rsi'), r.rsi, t('s_rsi',{th:r.rsi_th}), true);
+  stat(t('k_mg'), isTW?sgn(r.margin.tw_yoy,0):sgn(r.margin.us_yoy,0), isTW?`兩年 ${sgn(r.margin.tw_2y,0)}・美股 ${sgn(r.margin.us_yoy,0)}`:L('FINRA，> 50% 過熱','FINRA; > 50% is overheated'), true);
+  stat(t('k_cr'), pp(r.panic.baa_chg), L('> 0.7 暫停 85%・> 0.5 不深跌補滿','> 0.7 pauses 85% · > 0.5 blocks top-up'), true);
+  stat(t('k_y2'), pp(r.panic.y2_chg), L('> 0.5 暫停 85%','> 0.5 pauses 85%'), true);
+  stat(t('k_dd'), sgn(m.dd), t('s_dd',{p:fmt(m.ath,idxD), d:D8(m.ath_date)}), false);
   main.append(stats);
   const refs=el('details',{class:'refs'}); refs.append(el('summary',{},t('refs_h')));
-  const stats2=el('section',{class:'stats'}); const statsMain=stats;
+  const stats2=el('section',{class:'stats'});
   { const stat2=(k,v,s_)=>stats2.append(el('div',{class:'stat'}, el('div',{class:'k'},k, el('span',{class:'tag'},t('tag_ref'))), el('div',{class:'v'},v), el('div',{class:'s'},s_)));
-    if (!m.credit && cr) stat2(t('k_cr'), (cr.chg>0?'+':'')+cr.chg.toFixed(2), t('s_cr_us'));
     stat2(t('k_fg'), mac.fg?fmt(mac.fg.last,0):'—', mac.fg?fgLabel(mac.fg.last)+' · '+D8(mac.fg.asof):'');
     stat2(t('k_vxn'), mac.vxn?fmt(mac.vxn.last,2):'—', t('s_vxn'));
     stat2(t('k_term'), mac.term?mac.term.last.toFixed(3):'—', t('s_term'));
@@ -599,50 +512,85 @@ function render(){
   refs.append(stats2, el('p',{class:'note'}, t('stats_note'))); main.append(refs);
 
   // ===== charts =====
+  const idx = isTW ? L('加權指數','TAIEX') : 'QQQ';
   const ch = el('div',{class:'charts'});
-  const c1 = el('section',{class:'card chart-card'}); c1.append(el('h2',{}, t('ch_price',{idx}), el('small',{}, t('ch_price_s',{idx}))), el('div',{class:'chart',id:'c-price'}));
+  const c1 = el('section',{class:'card chart-card'}); c1.append(el('h2',{}, t('ch_price',{idx}), el('small',{}, t('ch_price_s'))), el('div',{class:'chart',id:'c-price'}));
   const two = el('div',{class:'two'});
-  const c2 = el('section',{class:'card chart-card'}); c2.append(el('h2',{}, t('ch_vix'), el('small',{}, t('ch_vix_s',{l:vixT.map(x=>x.line).join('／')}))), el('div',{class:'chart sm',id:'c-vix'}));
-  const c3 = el('section',{class:'card chart-card'}); c3.append(el('h2',{}, t('ch_rsi'), el('small',{}, t('ch_rsi_s',{th:m.rsi_refill}))), el('div',{class:'chart sm',id:'c-rsi'}));
-  two.append(c2,c3); ch.append(c1,two);
-  main.append(ch);
-  // ===== signal history =====
-  { const H=m.hist; const ev=m.marks.slice().reverse().slice(0,12);
+  const c2 = el('section',{class:'card chart-card'}); c2.append(el('h2',{}, t('ch_vix'), el('small',{}, t('ch_vix_s'))), el('div',{class:'chart sm',id:'c-vix'}));
+  const c3 = el('section',{class:'card chart-card'}); c3.append(el('h2',{}, t('ch_rsi'), el('small',{}, t('ch_rsi_s',{th:r.rsi_th}))), el('div',{class:'chart sm',id:'c-rsi'}));
+  two.append(c2,c3); ch.append(c1,two); main.append(ch);
+  // ===== history =====
+  { const H=m.hist; const ev=m.marks.slice().reverse().slice(0,14);
     if (ev.length){ const hs=el('section',{class:'card'}); hs.append(el('h2',{},t('hist_h')), el('p',{class:'muted',style:'margin:2px 0 8px;font-size:.82rem'},t('hist_s',{idx})));
       const w=el('div',{class:'tbl'}); const tb=el('table',{class:'bt sigtbl'});
-      const hr=el('tr'); [t('hc_d'),t('hc_s'),t('hc_w'),t('hc_3'),t('hc_12')].forEach(x=>hr.append(el('th',{},x))); tb.append(hr);
-      const fwd=(d,n)=>{ const i=H.date.indexOf(d); if(i<0) return '—'; const j=i+n; if(j>=H.date.length) return t('hc_na'); const r=H.close[j]/H.close[i]-1; return (r>=0?'+':'−')+pct(Math.abs(r)); };
-      ev.forEach(x=>{ const tr=el('tr'); [D8(x.date), tierName(x.id||'',m), x.kind==='dip'?t('w_sal'):pct(x.target), fwd(x.date,63), fwd(x.date,252)].forEach(c=>tr.append(el('td',{},c))); tb.append(tr); });
+      const hr=el('tr'); [t('hc_d'),t('hc_s'),t('hc_3'),t('hc_12')].forEach((x,i)=>hr.append(el('th',{style:i===1?'text-align:left':''},x))); tb.append(hr);
+      const fwd=(d,n)=>{ let i=H.date.indexOf(d); if(i<0) i=H.date.findIndex(x=>x>d); if(i<0) return '—'; const j=i+n; if(j>=H.date.length) return t('hc_na'); const q=H.close[j]/H.close[i]-1; return (q>=0?'+':'−')+pct(Math.abs(q)); };
+      ev.forEach(x=>{ const tr=el('tr'); [D8(x.date), evName(x.kind), fwd(x.date,63), fwd(x.date,252)].forEach((c,i)=>tr.append(el('td',{style:i===1?'text-align:left':''},c))); tb.append(tr); });
       w.append(tb); hs.append(w); main.append(hs); } }
-
-
   requestAnimationFrame(()=>drawCharts(m, idxD, idx));
 }
 
-
-
-
-// 偏離基準太多時（例如剛開始用這套規則），建議先把組合調到基準
-function alignItems(o){ // o: {w,base,st,lev,bul,L,B,cur,buyLev,sellLev,sellBul,en}
-  const T=o.L+o.B; if(!T) return null; const gap=o.w-o.base; if(Math.abs(gap)<=0.15) return null;
-  const E=o.en, N=n=>Math.round(n).toLocaleString('en-US'), b_=x=>`<b>${x}</b>`;
-  const x=Math.abs(gap)*T; const it=[];
-  if(gap<0){
-    it.push(E?`${o.lev} is only ${pct(o.w)} of ${o.lev}+${o.bul}, far below the ${pct(o.base)} base. Reserve above ${pct(1-o.base)} is idle cash, not crash reserve.`
-             :`${o.lev} 只佔 ${pct(o.w)}，遠低於基準 ${pct(o.base)}。超過 ${pct(1-o.base)} 的子彈是閒置資金，不是留給崩跌的子彈。`);
-    it.push((E?'Move it to the base: sell ':'先調到基準：賣出 ')+o.sellBul(x)+(E?', buy ':'，買進 ')+o.buyLev(x));
-    it.push(E?`Doing it at once has worked better about two thirds of the time historically; if you prefer, split it over 3 months (${N(x/3)} ${o.cur} each).`
-             :`一次調整在歷史上大約三分之二的時候比較好；如果想分散時間點，也可以分 3 個月，每月轉 ${b_(N(x/3))} ${o.cur}。`);
-  } else {
-    it.push(E?`${o.lev} is ${pct(o.w)}, well above the ${pct(o.base)} base, so there is little reserve for a crash.`
-             :`${o.lev} 佔 ${pct(o.w)}，比基準 ${pct(o.base)} 高很多，崩跌時幾乎沒有子彈可用。`);
-    if(o.st==='normal'){ it.push((E?'Bring it back to the base now: sell ':'建議現在先調回基準：賣出 ')+o.sellLev(x)+(E?`, buy ${o.bul} ${b_(N(x))} ${o.cur}`:`，買進 ${o.bul} ${b_(N(x))} ${o.cur}`)); }
-    else it.push(E?`Don't sell into this pullback. Put new money into ${o.bul} until you are back near the base, and trim the rest at the next weekly-RSI trim signal.`
-                  :`現在是回調或恐慌，不要在低檔賣正二。新投入的錢先買 ${o.bul}，補回基準附近；剩下的等下次週 RSI 過熱時一次調回。`);
+/* ===================== 規則 → 持股建議 =====================
+   v: {L2,L1,B} 二倍槓桿／一倍原型／子彈的市值；sal: 本月可投入金額
+   o: {nm, buy(role,amt)->html, sell(role,amt)->html} */
+function plan(m, v, sal, o){
+  const r=m.rule, base=m.base, nm=o.nm; const acts=[]; const A=(c,h,items)=>acts.push({c,h,items});
+  const T=v.L2+v.L1+v.B, pT=r.panic.target||0, inst=r.conv_ok?'one':'lev', instN=r.conv_ok?nm.one:nm.lev;
+  if (!T){
+    if (sal>0){ const E=pT>0?pT:base; const it=[];
+      it.push(L(`還沒有持股：第一次投入照${pT>0?'恐慌加碼的目標':'基準'}比例建立組合`,`No holdings yet. Build the ${pT>0?'panic-buy target':'base'} mix with your first money:`));
+      it.push(`${o.buy(inst,sal*E)}${L('、',', ')}${o.buy('bul',sal*(1-E))}`);
+      if (r.conv_ok) it.push(L(`現在融資過熱，股票部分先買一倍原型 ${nm.one}，不買二倍槓桿。等融資訊號關閉滿 15 個月、收盤在季線上方，再換成 ${nm.lev}；中間如果 VIX ≥ 35，會先用 ${nm.one} 加碼。`,`Margin is overheated now, so the stock part goes into 1x (${nm.one}), not 2x. It moves to ${nm.lev} after the margin signal has been off for 15 months with price above the 60-day MA; if VIX reaches 35 first, the ${nm.one} is used to buy 2x.`));
+      if (m.state==='wait1x') it.push(L(`規則目前持有一倍原型，是 ${D8(lastMg(m))} 融資過熱時換的；新投入的錢照規則買二倍槓桿。`,`The rules hold 1x from the ${D8(lastMg(m))} margin switch; new money buys 2x under the rules.`));
+      if (r.below60 && !pT) it.push(L('為什麼不是全買：季線下方「薪資全買」的前提是手上已經有 40% 子彈留給恐慌加碼。第一次投入還沒有子彈，所以先照基準建立。','Why not all of it? The below-the-MA rule assumes you already hold a 40% reserve for panic buys. Your first money has to build that reserve.'));
+      it.push(L('之後每個月照上面的燈號操作。','From next month on, follow the signal above.'));
+      A(C.brass, L('第一次投入','Your first investment'), it); }
+    return acts;
   }
-  return it;
+  const w2=v.L2/T, w1=v.L1/T, E=w2+w1; let acted=false;
+  if (pT>0){
+    if (pT>w2+0.03){ let need=(pT-w2)*T; const u1=Math.min(v.L1,need); need-=u1; const ub=Math.min(v.B,need); const it=[];
+      if (u1>1) it.push(L('賣出一倍原型：','Sell 1x: ')+o.sell('one',u1));
+      if (ub>1) it.push(L('賣出子彈：','Sell reserve: ')+o.sell('bul',ub));
+      it.push(L('買進 ','Buy ')+o.buy('lev',u1+ub));
+      const nw=(v.L2+u1+ub)/T; it.push(L(`完成後二倍槓桿 ${pct(nw)}`,`After this: 2x at ${pct(nw)}`)+(nw<pT-0.01?L('（子彈已全部用完）',' (reserve fully used)'):''));
+      A(C.bad, L(`! 恐慌加碼：二倍槓桿加到 ${pct(pT)}`,`! Panic buy: raise 2x to ${pct(pT)}`), it); acted=true; }
+    else A(C.bad, L('恐慌加碼','Panic buy'), [L(`二倍槓桿已經 ${pct(w2)}，達到目標 ${pct(pT)}，不用再動。之後比重掉回目標以下、訊號還在時再補。`,`2x is already ${pct(w2)}, at the ${pct(pT)} target. Top up later if it slips below while the signal holds.`)]);
+  } else if (r.margin.reentry_ready && v.L1>1){
+    A(C.ok, L('換回二倍槓桿','Back to 2x'), [L('賣出一倍原型：','Sell 1x: ')+o.sell('one',v.L1), L('買進 ','Buy ')+o.buy('lev',v.L1)]); acted=true;
+  } else if (r.rsi_hot && w2>base+0.03){ const x=(w2-base)*T;
+    A(C.info, L(`過熱調節：二倍槓桿調回 ${pct(base)}`,`Trim: 2x back to ${pct(base)}`), [L('賣出 ','Sell ')+o.sell('lev',x), L('買進 ','Buy ')+o.buy('bul',x), L(`完成後二倍槓桿 ${pct(base)}`,`After this: 2x at ${pct(base)}`)]); acted=true;
+  } else if (r.conv_ok && v.L2>1){
+    A(C.warn, L('融資過熱：二倍槓桿換成一倍原型','Margin overheating: switch 2x into 1x'), [L('賣出 ','Sell ')+o.sell('lev',v.L2), L('買進 ','Buy ')+o.buy('one',v.L2), L('子彈不動。','Leave the reserve as it is.')]); acted=true;
+  } else {
+    const it=[L(`目前二倍槓桿 ${pct(w2)}、一倍原型 ${pct(w1)}、子彈 ${pct(1-E)}，今天規則沒有要你買賣。`,`You hold 2x ${pct(w2)}, 1x ${pct(w1)}, reserve ${pct(1-E)}. The rules have no trade for you today.`)];
+    if (r.rsi_hot) it.push(L(`週 RSI 過熱，但二倍槓桿沒有超過 ${pct(base+0.03)}，不用調節。`,`Weekly RSI is hot, but 2x is not above ${pct(base+0.03)}, so no trim.`));
+    if (r.margin.on && !r.conv_ok) it.push(L(`融資過熱，但${pauseWhy(m)}，二倍槓桿先不換。`,`Margin is overheated, but ${pauseWhy(m)}, so keep the 2x for now.`));
+    if (r.conv_ok && v.L2<=1) it.push(L('融資過熱中，你已經沒有二倍槓桿，維持一倍原型。','Margin is overheated and you hold no 2x; stay in 1x.'));
+    A(STATE_C()[m.state], L('今天','Today'), it);
+  }
+  // 和規則對齊（剛開始用這套規則、或過去沒照做）
+  if (!pT && !(r.rsi_hot && w2>base+0.03)){
+    if (!acted && v.L1>1 && !r.margin.on && r.model.w1<0.01)
+      A(C.brass, L('和規則對齊：一倍原型換成二倍槓桿','Get in line with the rules: 1x into 2x'), [L('規則目前沒有持有一倍原型（融資沒有過熱）。','The rules hold no 1x right now (margin is not overheated).'), L('賣出一倍原型：','Sell 1x: ')+o.sell('one',v.L1), L('買進 ','Buy ')+o.buy('lev',v.L1)]);
+    if (!acted && v.L2>1 && m.state==='wait1x')
+      A(C.brass, L('如果你當時沒有換成一倍原型','If you did not switch to 1x back then'), [L(`規則在 ${D8(lastMg(m))} 融資過熱時把二倍槓桿換成一倍原型。現在融資訊號已經關閉，規則不會再要求換，可以繼續持有二倍槓桿。`,`The rules switched 2x into 1x on ${D8(lastMg(m))}. The margin signal is off now, so the rules will not ask you to switch; keeping the 2x is fine.`)]);
+    if (E < base-0.15 && v.B>1){ const x=(base-E)*T;
+      A(C.brass, L('和規則對齊：子彈太多','Get in line with the rules: too much reserve'), [L(`股票部位只有 ${pct(E)}，遠低於基準 ${pct(base)}。超過 ${pct(1-base)} 的子彈是閒置資金。`,`Stocks are only ${pct(E)} of the total, far below the ${pct(base)} base; reserve above ${pct(1-base)} is idle.`),
+        L('調到基準：賣出 ','Move to the base: sell ')+o.sell('bul',x)+L('，買進 ',', buy ')+o.buy(inst,x), L(`也可以分 3 個月，每月轉 ${b_(N(x/3))}。`,`Or split it over 3 months, ${b_(N(x/3))} each.`)]); }
+    if (E > base+0.15 && !r.rsi_hot)
+      A(C.brass, L('子彈偏少','Reserve is low'), [L(`股票部位 ${pct(E)}，子彈只剩 ${pct(1-E)}。規則平常不賣，等週 RSI > ${r.rsi_th} 時再一次調回 ${pct(base)}；在那之前，${r.below60?'收盤回到季線上方後，':''}新投入的錢先買子彈。`,`Stocks are ${pct(E)} and reserve only ${pct(1-E)}. The rules do not sell until weekly RSI > ${r.rsi_th}, then trim back to ${pct(base)}; until then, ${r.below60?'once price is back above the 60-day MA, ':''}put new money into reserve first.`)]);
+  }
+  // 本月投入
+  if (sal>0){ const it=[]; const sInst=r.salary.to==='1x'?'one':'lev';
+    if (E>base+0.15 && !r.below60 && !pT){ it.push(L('全部買子彈：','All into reserve: ')+o.buy('bul',sal)); it.push(L('子彈偏少，先用薪資補回。','Reserve is low, so rebuild it with new money first.')); }
+    else if (r.below60 || pT>0 || E<base-0.15){ it.push(L('全部買 ','All into ')+o.buy(sInst,sal)); it.push(r.below60?L('收盤在季線下方，薪資全買。','Price is below the 60-day MA, so it all goes in.'):L('股票部位偏低，先用薪資補回。','Stocks are underweight, so new money goes there first.')); }
+    else { it.push(`${o.buy(sInst,sal*base)}${L('、',', ')}${o.buy('bul',sal*(1-base))}`); }
+    if (sInst==='one') it.push(L(`融資過熱中，二倍槓桿那一份改買一倍原型 ${nm.one}。`,`Margin is overheated, so the 2x share goes into 1x (${nm.one}).`));
+    A(C.brass, L('本月投入怎麼分','This month\'s money'), it); }
+  return acts;
 }
-
+function drawActs(box, acts){ const w=el('div',{class:'pf-acts'}); acts.forEach(a=>{ const d=el('div',{class:'pf-act',style:`--c:${a.c}`}); d.append(el('h4',{},a.h)); const u=el('ul',{}); a.items.forEach(x=>u.append(el('li',{html:x}))); d.append(u); w.append(d); }); box.append(w); }
 
 // 任意代號報價：美股用 FinMind，其他（例如 SAP.DE、ASML.AS、IB01.L）用 Yahoo Finance（經公開 CORS 代理）
 const QCACHE_MS=6*3600*1000;
@@ -662,13 +610,13 @@ function fxConv(p, from, to){
   const a=r(from), b=r(to); return (a&&b)? p/a*b : null;
 }
 
+
 // ===================== 朋友版：我的庫存（美股）=====================
 function renderPFUS(main, slot){
-  const EN=LANG==='en', EU=VENUE==='eu';
-  const L=(zh,en)=>EN?en:zh;
-  const LEV=EU?'LQQ':'QLD', BUL=EU?'IB01':'SGOV', CUR=EU?'EUR':'USD';
-  const ROL={ul:L('正二','2x'),ub:L('子彈','Reserve'),up:L('待轉換（1 倍）','To convert (1x)'),uo:L('其他','Other')};
-  const AU={QLD:'ul',LQQ:'ul',TQQQ:'ul',SGOV:'ub',IB01:'ub',BIL:'ub',SHV:'ub',XEON:'ub',ZPR1:'ub',ERNE:'ub',QQQ:'up',QQQM:'up',VOO:'up',SPY:'up',CSPX:'up',EQQQ:'up',CNDX:'up',SXRV:'up',VUAA:'up'};
+  const EU=VENUE==='eu'; const nmx=names('us');
+  const LEV=nmx.lev, ONE=nmx.one, BUL=nmx.bul, CUR=EU?'EUR':'USD';
+  const ROL={ul:L('二倍槓桿','2x'),up:L('一倍原型','1x'),ub:L('子彈','Reserve'),uo:L('其他（不算入）','Other (ignored)')};
+  const AU={QLD:'ul',LQQ:'ul',QLD2:'ul',SGOV:'ub',IB01:'ub',BIL:'ub',SHV:'ub',XEON:'ub',ZPR1:'ub',ERNE:'ub',QQQ:'up',QQQM:'up',VOO:'up',SPY:'up',CSPX:'up',EQQQ:'up',CNDX:'up',SXRV:'up',VUAA:'up'};
   const auto=c=>AU[c]||'uo';
   const UP=EU?(DATA.eprices||{}):Object.assign(Object.fromEntries(Object.entries(DATA.eprices||{}).filter(([k])=>k.includes('.')).map(([k,x])=>[k,[x[0],fxConv(x[1],'EUR','USD'),x[2],x[3]]])),DATA.uprices||{});
   const key='pfus-'+(EU?'eu':'us');
@@ -736,56 +684,29 @@ function renderPFUS(main, slot){
   const out=el('div',{}); c2.append(out);
   if (slot){ c2.className='pf-slot'; slot.append(c2); c1.style.marginTop='16px'; main.append(c1); }
   else { grid.append(c1,c2); grid.style.marginTop='16px'; main.append(grid); }
-  const b_=x=>`<b>${x}</b>`;
   function upd(){
     const S={ul:0,ub:0,up:0,uo:0}; const by={};
     rows.forEach((r,i)=>{ const c=(r.c||'').toUpperCase(); const v=(+r.n||0)*price(r); const role=r.r||auto(c); S[role]+=v; (by[role]=by[role]||[]).push({c,v,px:price(r)}); const x=vcs.find(z=>z[0]===i); if(x) x[1].textContent=v?N(v):'—'; });
     out.textContent='';
-    const T=S.ul+S.ub+S.up; const all=T+S.uo;
-    if(!all && !(+cfg.sal>0)){ out.append(el('p',{class:'muted'},(slot?L('在下方輸入持股，或在上面填本月可投入金額，這裡會算出要買賣多少。','Enter your holdings below, or this month\'s amount above, to see what to buy or sell.'):L('在左邊輸入持股後，這裡會算出目前比例和燈號出現時要買賣多少。','Enter your holdings on the left to see your current mix and what to trade when a signal fires.')))); return; }
-    const US=DATA.us, base=US.base, st=US.state;
+    const T=S.ul+S.ub+S.up; const all=T+S.uo; const sal=+cfg.sal||0;
+    if(!all && !(sal>0)){ out.append(el('p',{class:'muted'},(slot?L('在下方輸入持股，或在上面填本月可投入金額，這裡會依規則算出要買賣多少。還沒有持股的人，只要填金額就會告訴你第一次怎麼買。','Enter your holdings below, or this month\'s amount above, to see what to buy or sell under the rules. No holdings yet? Just enter the amount to see how to start.'):L('在左邊輸入持股後，這裡會算出要買賣多少。','Enter your holdings on the left to see what to trade.')))); return; }
     if(all) out.append(el('div',{class:'eyebrow',style:'margin-top:6px'},L(`總市值 ${N(all)} ${CUR}`,`Total ${N(all)} ${CUR}`)));
-    if(S.ul+S.ub){ const w_=S.ul/(S.ul+S.ub); const b=el('div',{class:'bar'}); b.append(el('i',{class:'lev',style:`width:${w_*100}%`}), el('i',{class:'bul',style:`width:${(1-w_)*100}%`})); out.append(el('div',{class:'pf-bar'}, el('span',{class:'muted'},`${LEV}／${BUL}`), b, el('span',{class:'num'},`${pct(w_)} / ${pct(1-w_)}`))); }
-    if(S.up) out.append(el('p',{class:'note'},L(`待轉換的 1 倍 ETF ${N(S.up)} ${CUR}，下次恐慌加碼或過熱調節時轉換`,`1x funds to convert: ${N(S.up)} ${CUR}, at the next panic or trim signal`)));
-    const sh=(amt,k)=>{ const r=(by.ul||[]).concat(by.ub||[]).find(x=>x.c===k&&x.px); const p_=r?r.px:autoPx(k); return p_?` ${L('（約','(about')} ${b_(N(Math.floor(amt/p_)))} ${L('股）','shares)')}`:''; };
+    if(T){ out.append(el('div',{class:'pf-bar'}, el('span',{class:'muted'},L('你的組合','Your mix')), bar3(S.ul/T,S.up/T,S.ub/T), el('span',{class:'num'},mixTxt(S.ul/T,S.up/T,S.ub/T))));
+      out.append(el('p',{class:'note',style:'margin:-4px 0 6px'},L(`二倍槓桿／一倍原型／子彈。規則目前：${mixTxt(DATA.us.rule.model.w2,DATA.us.rule.model.w1,DATA.us.rule.model.wb)}`,`2x / 1x / reserve. The rules now: ${mixTxt(DATA.us.rule.model.w2,DATA.us.rule.model.w1,DATA.us.rule.model.wb)}`))); }
+    if(S.uo) out.append(el('p',{class:'note'},L(`「其他」${N(S.uo)} ${CUR} 不算進規則。`,`"Other" (${N(S.uo)} ${CUR}) is left out of the rules.`)));
+    const nameOf={lev:LEV,one:ONE,bul:BUL}, roleOf={lev:'ul',one:'up',bul:'ub'};
+    const sh=(amt,k)=>{ const r=Object.values(by).flat().find(x=>x.c===k&&x.px); const p_=r?r.px:autoPx(k); return p_?` ${L('（約','(about')} ${b_(N(Math.floor(amt/p_)))} ${L('股）','shares)')}`:''; };
     const sellFrom=(role,amt)=>{ const res=[]; let left=amt; for(const x of (by[role]||[]).filter(x=>x.v>0).sort((a,b)=>b.v-a.v)){ const y=Math.min(left,x.v); if(y<=0) break; res.push(`${x.c} ${b_(N(y))} ${CUR}${x.px?` ${L('（約','(about')} ${b_(N(Math.floor(y/x.px)))} ${L('股）','shares)')}`:''}`); left-=y; } return res.join(L('、',', ')); };
-    const acts=el('div',{class:'pf-acts'}); out.append(acts);
-    const act=(c,h,items)=>{ const a=el('div',{class:'pf-act',style:`--c:${c}`}); a.append(el('h4',{},h)); const u=el('ul',{}); items.forEach(x=>{ const li=el('li',{}); li.innerHTML=x; u.append(li); }); a.append(u); acts.append(a); };
-    if(all){ const items=[];
-    if(st==='panic'||st==='refill'){
-      const tg=st==='panic'?US.target:base;
-      if(S.up>0) items.push(L('賣出待轉換的 ','Sell the 1x funds: ')+sellFrom('up',S.up));
-      const dL=tg*T-S.ul, dB=(1-tg)*T-S.ub;
-      if(dL>1) items.push(L('買進 ','Buy ')+`${LEV} ${b_(N(dL))} ${CUR}`+sh(dL,LEV)); else if(dL<-1) items.push(L('賣出 ','Sell ')+sellFrom('ul',-dL));
-      if(dB>1) items.push(L('買進 ','Buy ')+`${BUL} ${b_(N(dB))} ${CUR}`+sh(dB,BUL)); else if(dB<-1) items.push(L('賣出 ','Sell ')+sellFrom('ub',-dB));
-      items.push(L(`完成後 ${LEV} ${pct(tg)}／${BUL} ${pct(1-tg)}`,`After this: ${LEV} ${pct(tg)} / ${BUL} ${pct(1-tg)}`));
-      act(st==='panic'?C.bad:C.info, st==='panic'?L('恐慌加碼','Panic buying'):L('過熱調節','Trim'), items);
-    } else {
-      if(S.up>0) items.push(L('待轉換的 1 倍 ETF 先不動，等恐慌加碼或過熱調節燈號時一起轉換','Leave the 1x funds for now; convert them at the next panic or trim signal'));
-      const w_=(S.ul+S.ub)?S.ul/(S.ul+S.ub):0;
-      if(st==='dip') items.push(L(`基準內的子彈不動，本月的錢全部買 ${LEV}`,`Leave the base reserve alone; put all new money into ${LEV}`));
-      else items.push(L(`${LEV} 目前 ${pct(w_)}（基準 ${pct(base)}），不用買賣`,`${LEV} is ${pct(w_)} (base ${pct(base)}); no trades needed`));
-      act(st==='dip'?C.warn:C.ok, st==='dip'?L('中期回調','Pullback'):L('平常狀態','Normal'), items);
-      const al=alignItems({w:w_,base,st,lev:LEV,bul:BUL,L:S.ul,B:S.ub,cur:CUR,en:EN,
-        buyLev:a=>`${LEV} ${b_(N(a))} ${CUR}`+sh(a,LEV), sellLev:a=>sellFrom('ul',a), sellBul:a=>sellFrom('ub',a)});
-      if(al) act(C.brass, L('先把組合調到基準','First, get to the base mix'), al);
-    }
-    }
-    const sal=+cfg.sal||0;
-    if(sal>0){ const it=[]; const dip=all>0&&(st==='dip'||st==='panic');
-      if(!all){ const tg=st==='panic'?US.target:base; it.push(L(`還沒有持股，第一次投入先照${st==='panic'?'恐慌加碼目標':'基準'}比例建立組合：`,`No holdings yet. Build the ${st==='panic'?'panic-buy target':'base'} mix with your first money:`)); it.push(`${LEV} ${b_(N(sal*tg))} ${CUR}${sh(sal*tg,LEV)}${L('、',', ')}${BUL} ${b_(N(sal*(1-tg)))} ${CUR}${sh(sal*(1-tg),BUL)}`); it.push(L('之後每個月照上面的燈號操作。','From next month on, follow the signal above.')); if(st==='dip') it.push(L('為什麼不是全買正二：回調時「薪資全買正二」的前提是手上已經有 40% 子彈留給 VIX 恐慌訊號；第一次投入還沒有子彈，所以先照基準建立。','Why not all into 2x? The pullback rule assumes you already hold a 40% reserve for VIX panic signals. Your first money has to build that reserve, so start at the base mix.')); }
-      else
-      if(dip) it.push(L(`全部買 ${LEV} ${b_(N(sal))} ${CUR}`,`All ${b_(N(sal))} ${CUR} into ${LEV}`)+sh(sal,LEV));
-      else it.push(L(`${LEV} ${b_(N(sal*base))} ${CUR}${sh(sal*base,LEV)}、${BUL} ${b_(N(sal*(1-base)))} ${CUR}${sh(sal*(1-base),BUL)}`,`${LEV} ${b_(N(sal*base))} ${CUR}${sh(sal*base,LEV)}, ${BUL} ${b_(N(sal*(1-base)))} ${CUR}${sh(sal*(1-base),BUL)}`));
-      act(C.brass,L('本月投入怎麼分','This month\'s money'),it); }
-    out.append(el('p',{class:'note'},L('股數依最近收盤價估算，下單前請用當時價格確認。','Share counts use the latest close; check the live price before you trade.')));
+    const o={nm:{lev:LEV,one:ONE,bul:BUL}, buy:(k,a)=>`${nameOf[k]} ${b_(N(a))} ${CUR}${sh(a,nameOf[k])}`, sell:(k,a)=>sellFrom(roleOf[k],a)};
+    drawActs(out, plan(DATA.us, {L2:S.ul,L1:S.up,B:S.ub}, sal, o));
+    out.append(el('p',{class:'note'},L('股數依最近收盤價估算，下單前請用當時價格確認。賣出可能要繳資本利得稅（台灣居民買美國 ETF 沒有資本利得稅，但股息預扣 30%；法國約 30%）；不想賣的人，可以只用新投入的錢慢慢調整。','Share counts use the latest close; check the live price before you trade. Selling can trigger capital gains tax (about 30% in France, for example); if you prefer not to sell, steer with new money only.')));
   }
   draw(); upd(); loadEU(); loadUSN();
 }
 
 // ===================== 我的庫存 =====================
-const ROLES={tl:'台股正二',tb:'台股子彈',core:'核心（VIX≥40 換正二）',ul:'美股正二',ub:'美股子彈',up:'美股待轉換',to:'台股其他',uo:'美股其他'};
-const AUTO={'00685L':'tl','00631L':'tl','00675L':'tl','00663L':'tl','00713':'tb','00918':'tb','0056':'tb','00878':'tb','00919':'tb','00701':'tb','00731':'tb','00929':'tb',
+const ROLES={tl:'台股二倍槓桿',t1:'台股一倍原型',tb:'台股子彈',core:'核心（VIX≥40 換二倍槓桿）',ul:'美股二倍槓桿',up:'美股一倍原型',ub:'美股子彈',to:'台股其他',uo:'美股其他'};
+const AUTO={'00685L':'tl','00631L':'tl','00675L':'tl','00663L':'tl','0050':'t1','006208':'t1','00692':'t1','00713':'tb','00918':'tb','0056':'tb','00878':'tb','00919':'tb','00701':'tb','00731':'tb','00929':'tb',
   '2330':'core','00670L':'ul','00830':'ul','00865B':'ub','00719B':'ub','00864B':'ub','00662':'up','00924':'up','009815':'up','00646':'up','00757':'up'};
 const autoRole=c=>AUTO[c]||'to';
 let PRICES=null;
@@ -840,139 +761,105 @@ function renderPF2(main){
   const c2=el('section',{class:'card'}); c2.append(el('h2',{},'現況與今天要做的事'));
   const set=el('div',{class:'pf-set'});
   const fTw=el('input',{type:'number',min:'0',max:'100',value:cfg.tw}); const fSal=el('input',{type:'number',min:'0',inputmode:'numeric',placeholder:'例如 60000',value:cfg.sal});
-  const fUl=el('select',{}); [['00830','全部 00830（費半 1 倍，建議）'],['mix','00670L、00830 各半'],['00670L','全部 00670L（納指 2 倍）']].forEach(([k,v])=>fUl.append(el('option',{value:k},v))); fUl.value=cfg.ul;
+  const fUl=el('select',{}); [['00830','全部 00830（費半 1 倍）'],['mix','00670L、00830 各半'],['00670L','全部 00670L（納指 2 倍）']].forEach(([k,v])=>fUl.append(el('option',{value:k},v))); fUl.value=cfg.ul;
   fTw.oninput=fSal.oninput=fUl.onchange=()=>{ cfg.tw=+fTw.value||0; cfg.sal=fSal.value; cfg.ul=fUl.value; save(); upd(); };
-  set.append(el('label',{},'台股目標比重（%）',fTw), el('label',{},'本月可投入金額（元）',fSal), el('label',{},'美股正二要買',fUl)); c2.append(set);
+  set.append(el('label',{},'台股目標比重（%）',fTw), el('label',{},'本月可投入金額（元）',fSal), el('label',{},'美股二倍槓桿要買',fUl)); c2.append(set);
   const out=el('div',{}); c2.append(out);
   grid.append(c1,c2); main.append(grid);
   const shares=(amt,k)=>px(k)?Math.floor(amt/px(k)):0;
-  const bar=(lab,w_,txt)=>{ const b=el('div',{class:'bar'}); b.append(el('i',{class:'lev',style:`width:${Math.max(0,Math.min(1,w_))*100}%`}), el('i',{class:'bul',style:`width:${Math.max(0,1-w_)*100}%`})); return el('div',{class:'pf-bar'}, el('span',{class:'muted'},lab), b, el('span',{class:'num'},txt)); };
   function upd(){
-    const S={tl:0,tb:0,core:0,ul:0,ub:0,up:0,to:0,uo:0}; const byRole={}; 
+    const S={tl:0,t1:0,tb:0,core:0,ul:0,ub:0,up:0,to:0,uo:0}; const byRole={};
     rows.forEach((r,i)=>{ const c=(r.c||'').toUpperCase(); const val=(+r.n||0)*px(c); const role=r.r||autoRole(c); S[role]+=val; (byRole[role]=byRole[role]||[]).push({c,val,n:+r.n||0}); const vc=valCells.find(x=>x[0]===i); if(vc) vc[1].textContent=val?N(val):'—'; });
     out.textContent='';
-    const TWv=S.tl+S.tb+S.core+S.to, USv=S.ul+S.ub+S.up+S.uo, T=TWv+USv;
-    if(!T && !(+cfg.sal>0)){ out.append(el('p',{class:'muted'},'在左邊輸入持股，或填本月可投入金額，這裡會算出要買賣多少。')); return; }
+    const TWv=S.tl+S.t1+S.tb+S.core+S.to, USv=S.ul+S.ub+S.up+S.uo, T=TWv+USv; const Sal=+cfg.sal||0;
+    if(!T && !(Sal>0)){ out.append(el('p',{class:'muted'},'在左邊輸入持股，或填本月可投入金額，這裡會依規則算出要買賣多少。還沒有持股的人，只要填金額就會告訴你第一次怎麼買。')); return; }
     const tgt=(cfg.tw||70)/100;
     const ulBuy = cfg.ul==='mix' ? [['00670L',.5],['00830',.5]] : [[cfg.ul,1]];
-    const buyUL=(amt)=>ulBuy.map(([k,f])=>`${k} ${b_(N(amt*f))} 元（約 ${b_(N(shares(amt*f,k)))} 股）`).join('、');
+    const one=(k,a)=>`${k} ${b_(N(a))} 元（約 ${b_(N(shares(a,k)))} 股）`;
     const sellFrom=(role,amt)=>{ const list=(byRole[role]||[]).filter(x=>x.val>0).sort((a,b)=>b.val-a.val); const res=[]; let left=amt;
-      for(const x of list){ const y=Math.min(left,x.val); if(y<=0) break; res.push(`${x.c} ${b_(N(y))} 元（約 ${b_(N(shares(y,x.c)))} 股）`); left-=y; } return res.join('、'); };
-    if(!T){ const Sal=+cfg.sal, sTW=Sal*tgt, sUS=Sal*(1-tgt); const twT=TW.state==='panic'?TW.target:TW.base, usT=US.state==='panic'?US.target:US.base;
-      const acts=el('div',{class:'pf-acts'}); out.append(acts); const a=el('div',{class:'pf-act',style:`--c:${C_.brass}`}); a.append(el('h4',{},'本月投入怎麼分')); const u=el('ul',{});
-      [`還沒有持股，第一次投入先照台美 ${pct(tgt)}／${pct(1-tgt)} 和各自的${TW.state==='panic'||US.state==='panic'?'加碼目標':'基準'}比例建立組合：`,
-       `台股 ${b_(N(sTW))} 元：00685L ${b_(N(sTW*twT))} 元（約 ${b_(N(shares(sTW*twT,'00685L')))} 股）、00713 ${b_(N(sTW*(1-twT)))} 元（約 ${b_(N(shares(sTW*(1-twT),'00713')))} 股）`,
-       `美股 ${b_(N(sUS))} 元：${buyUL(sUS*usT)}、00865B ${b_(N(sUS*(1-usT)))} 元（約 ${b_(N(shares(sUS*(1-usT),'00865B')))} 股）`,
-       '之後每個月照上面的燈號操作。']
-       .concat(TW.state==='dip'||US.state==='dip'?['為什麼不是全買正二：回調時「薪資全買正二」的前提是手上已經有 40% 子彈留給 VIX 恐慌訊號；第一次投入還沒有子彈，所以先照基準建立。']:[])
-       .forEach(x=>{ const li=el('li',{}); li.innerHTML=x; u.append(li); }); a.append(u); acts.append(a);
-      out.append(el('p',{class:'note'},'股數依最近收盤價估算，下單前請用當時價格確認。')); return; }
-    out.append(el('div',{class:'eyebrow',style:'margin-top:6px'},`總市值 ${N(T)} 元`));
-    out.append(bar('台股／美股',TWv/T,`${pct(TWv/T)} / ${pct(USv/T)}`));
-    out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`目標 ${pct(tgt)} / ${pct(1-tgt)}`));
-    const L=S.tl, B=S.tb, C=S.core, UL=S.ul, UB=S.ub, G=S.up;
-    if(L+B) out.append(bar('台股正二／子彈',L/(L+B),`${pct(L/(L+B))} / ${pct(B/(L+B))}`));
-    if(C) out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`核心持股 ${N(C)} 元，不算在 60/40 裡`));
-    if(UL+UB) out.append(bar('美股正二／子彈',UL/(UL+UB),`${pct(UL/(UL+UB))} / ${pct(UB/(UL+UB))}`));
-    if(G) out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`美股待轉換 ${N(G)} 元，下次美股燈號時轉換`));
-    const acts=el('div',{class:'pf-acts'}); out.append(acts);
-    const act=(c,h,items)=>{ const a=el('div',{class:'pf-act',style:`--c:${c}`}); a.append(el('h4',{},h)); const u=el('ul',{}); items.forEach(x=>{ const li=el('li',{}); li.innerHTML=x; u.append(li); }); a.append(u); acts.append(a); };
-    // ---------- 台股 ----------
-    if(TW && (L+B+C)){
-      const st=TW.state, base=TW.base; const items=[];
-      if(st==='panic'){
-        const tg=TW.target; const need=tg*(L+B)-L;
-        if(need>1){ const x=Math.min(need,B); items.push('賣出 '+sellFrom('tb',x)); items.push(`買進 00685L ${b_(N(x))} 元（約 ${b_(N(shares(x,'00685L')))} 股），正二佔正二＋子彈的 ${pct(tg)}`); }
-        else items.push(`正二已經在 ${pct(tg)} 以上，子彈不用再動`);
-        const v40=TW.tiers.find(x=>x.id==='vix40'); if(C>0){ if(v40&&v40.active) { items.push('VIX ≥ 40：賣出核心持股 '+sellFrom('core',C)); items.push(`全部買進 00685L（約 ${b_(N(shares(C,'00685L')))} 股）`); } else items.push('核心持股先不動，等 VIX ≥ 40 再換成正二'); }
-        act(C_.bad,'台股：恐慌加碼',items);
-      } else if(st==='refill'){
-        const w_=(L+B)?L/(L+B):0;
-        if(w_>base+0.03){ const x=L-base*(L+B); items.push('賣出 '+sellFrom('tl',x)+`，正二調回 ${pct(base)}`); items.push(`買進 00713 ${b_(N(x))} 元（約 ${b_(N(shares(x,'00713')))} 股）`); }
-        else items.push(`正二 ${pct(w_)}，已在 ${pct(base)} 附近，不用調節`);
-        act(C_.info,'台股：過熱調節',items);
-      } else if(st==='dip'){ act(C_.warn,'台股：中期回調',['基準內的子彈和持股都不動','本月投入台股的錢全部買 00685L']); }
-      else { const w_=(L+B)?L/(L+B):0; act(C_.ok,'台股：平常狀態',[`正二 ${pct(w_)}（基準 ${pct(base)}），不用買賣`,`本月投入台股的錢照 ${pct(base)}／${pct(1-base)} 買 00685L／00713`]); }
-      if(st==='dip'||st==='normal'){ const al=alignItems({w:(L+B)?L/(L+B):0,base,st,lev:'台股正二',bul:'00713',L,B,cur:'元',en:false,
-        buyLev:a=>`00685L ${b_(N(a))} 元（約 ${b_(N(shares(a,'00685L')))} 股）`, sellLev:a=>sellFrom('tl',a), sellBul:a=>sellFrom('tb',a)});
-        if(al) act(C_.brass,'台股：先把組合調到基準',al); }
+      for(const x of list){ const y=Math.min(left,x.val); if(y<=0) break; res.push(one(x.c,y)); left-=y; } return res.join('、'); };
+    const oTW={nm:{lev:'00685L',one:'0050',bul:'00713'}, buy:(k,a)=>one({lev:'00685L',one:'0050',bul:'00713'}[k],a), sell:(k,a)=>sellFrom({lev:'tl',one:'t1',bul:'tb'}[k],a)};
+    const oUS={nm:{lev:ulBuy.map(x=>x[0]).join('／'),one:'00662',bul:'00865B'}, buy:(k,a)=>k==='lev'?ulBuy.map(([c,f])=>one(c,a*f)).join('、'):one({one:'00662',bul:'00865B'}[k],a), sell:(k,a)=>sellFrom({lev:'ul',one:'up',bul:'ub'}[k],a)};
+    // 本月投入：台美比重偏離超過 5% 時，全部投入比重低的一邊
+    let sTW=Sal*tgt, sUS=Sal*(1-tgt); const tw_=T?TWv/T:tgt;
+    if(T && tw_>tgt+0.05){ sTW=0; sUS=Sal; } else if(T && tw_<tgt-0.05){ sTW=Sal; sUS=0; }
+    if(T){
+      out.append(el('div',{class:'eyebrow',style:'margin-top:6px'},`總市值 ${N(T)} 元`));
+      out.append(el('div',{class:'pf-bar'}, el('span',{class:'muted'},'台股／美股'), (()=>{ const b=el('div',{class:'bar'}); b.append(el('i',{class:'lev',style:`width:${TWv/T*100}%`}), el('i',{class:'bul',style:`width:${USv/T*100}%`})); return b; })(), el('span',{class:'num'},`${pct(TWv/T)} / ${pct(USv/T)}`)));
+      out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`目標 ${pct(tgt)} / ${pct(1-tgt)}。台美比重只用新投入的錢慢慢調整，不為了比重賣股票。`));
     }
-    // ---------- 美股 ----------
-    if(US && (UL+UB+G)){
-      const st=US.state, base=US.base; const items=[]; const U=UL+UB+G;
-      const tg = st==='panic' ? US.target : base;
-      if(st==='panic' || st==='refill'){
-        if(G>0) items.push('賣出待轉換的 '+sellFrom('up',G));
-        const dL=tg*U-UL, dB=(1-tg)*U-UB;
-        if(dL>1) items.push('買進 '+buyUL(dL)); else if(dL<-1) items.push('賣出 '+sellFrom('ul',-dL));
-        if(dB>1) items.push(`買進 00865B ${b_(N(dB))} 元（約 ${b_(N(shares(dB,'00865B')))} 股）`); else if(dB<-1) items.push('賣出 '+sellFrom('ub',-dB));
-        items.push(`完成後美股正二部位 ${pct(tg)}／子彈 ${pct(1-tg)}`);
-        act(st==='panic'?C_.bad:C_.info, st==='panic'?'美股：恐慌加碼':'美股：過熱調節', items);
-      } else {
-        if(G>0) items.push('待轉換的美股先不動，等恐慌加碼或過熱調節燈號時一起轉換');
-        items.push(st==='dip' ? '本月投入美股的錢全部買美股正二' : `本月投入美股的錢照 ${pct(base)}／${pct(1-base)} 買美股正二／00865B`);
-        act(st==='dip'?C_.warn:C_.ok, st==='dip'?'美股：中期回調':'美股：平常狀態', items);
-        const al=alignItems({w:(UL+UB)?UL/(UL+UB):0,base,st,lev:'美股正二',bul:'00865B',L:UL,B:UB,cur:'元',en:false,
-          buyLev:a=>buyUL(a), sellLev:a=>sellFrom('ul',a), sellBul:a=>sellFrom('ub',a)});
-        if(al) act(C_.brass,'美股：先把組合調到基準',al);
-      }
-    }
-    // ---------- 本月投入 ----------
-    const Sal=+cfg.sal||0;
-    if(Sal>0){
-      let sTW=Sal*tgt, sUS=Sal*(1-tgt); const tw_=TWv/T;
-      if(tw_>tgt+0.05){ sTW=0; sUS=Sal; } else if(tw_<tgt-0.05){ sTW=Sal; sUS=0; }
-      const it=[]; const twDip=TW&&(TW.state==='dip'||TW.state==='panic'), usDip=US&&(US.state==='dip'||US.state==='panic');
-      if(sTW>0){ if(twDip) it.push(`台股 ${b_(N(sTW))} 元：全部買 00685L（約 ${b_(N(shares(sTW,'00685L')))} 股）`);
-        else it.push(`台股 ${b_(N(sTW))} 元：00685L ${b_(N(sTW*TW.base))} 元（約 ${N(shares(sTW*TW.base,'00685L'))} 股）、00713 ${b_(N(sTW*(1-TW.base)))} 元（約 ${N(shares(sTW*(1-TW.base),'00713'))} 股）`); }
-      if(sUS>0){ if(usDip) it.push(`美股 ${b_(N(sUS))} 元：${buyUL(sUS)}`);
-        else it.push(`美股 ${b_(N(sUS))} 元：${buyUL(sUS*US.base)}、00865B ${b_(N(sUS*(1-US.base)))} 元（約 ${N(shares(sUS*(1-US.base),'00865B'))} 股）`); }
-      if(tw_>tgt+0.05) it.push(`台股目前 ${pct(tw_)}，比目標高超過 5%，本月全部投入美股來拉回比重`);
-      if(tw_<tgt-0.05) it.push(`台股目前 ${pct(tw_)}，比目標低超過 5%，本月全部投入台股來拉回比重`);
-      act(C_.brass,'本月投入怎麼分',it);
-    }
-    out.append(el('p',{class:'note'},'股數依最近收盤價估算，下單前請用當時價格確認。台美比重只用新投入的錢慢慢調整，不為了比重賣股票。'));
+    const sleeve=(lab,m,v,sal,o)=>{ const t_=v.L2+v.L1+v.B; if(!m) return;
+      if(!t_ && !(sal>0)) return;
+      const h=el('h3',{style:'margin:16px 0 6px;font-size:.98rem'},lab); out.append(h);
+      if(t_) out.append(el('div',{class:'pf-bar'}, el('span',{class:'muted'},'二倍／一倍／子彈'), bar3(v.L2/t_,v.L1/t_,v.B/t_), el('span',{class:'num'},mixTxt(v.L2/t_,v.L1/t_,v.B/t_))));
+      out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`燈號：${t('st_'+m.state)}・規則目前 ${mixTxt(m.rule.model.w2,m.rule.model.w1,m.rule.model.wb)}`));
+      drawActs(out, plan(m, v, sal, o).map(a=>({...a,h:a.h})));
+    };
+    sleeve('台股', DATA.tw, {L2:S.tl,L1:S.t1,B:S.tb}, sTW, oTW);
+    if(S.core){ const v40=DATA.tw && DATA.tw.rule.vix>=40; out.append(el('p',{class:'note'}, v40?`核心持股 ${N(S.core)} 元：VIX ≥ 40，可以換成 00685L（${sellFrom('core',S.core).replace(/<[^>]+>/g,'')}）`:`核心持股 ${N(S.core)} 元不算在規則裡，等 VIX ≥ 40 再換成二倍槓桿`)); }
+    sleeve('美股', DATA.us, {L2:S.ul,L1:S.up,B:S.ub}, sUS, oUS);
+    if(S.to||S.uo) out.append(el('p',{class:'note'},`「其他」${N(S.to+S.uo)} 元不算進規則。`));
+    if(T && tw_>tgt+0.05 && Sal>0) out.append(el('p',{class:'note'},`台股目前 ${pct(tw_)}，比目標高超過 5%，本月全部投入美股。`));
+    if(T && tw_<tgt-0.05 && Sal>0) out.append(el('p',{class:'note'},`台股目前 ${pct(tw_)}，比目標低超過 5%，本月全部投入台股。`));
+    out.append(el('p',{class:'note'},'股數依最近收盤價估算，下單前請用當時價格確認。'));
   }
-  const C_=C; const b_=x=>`<b>${x}</b>`;
   drawRows(); upd();
 }
 
-function euroBlock(){
-  const c = el('section',{class:'gsec'});
-  c.append(el('h3',{},t('eu_h')), el('p',{class:'muted',style:'margin:4px 0 12px;font-size:.88rem'},t('eu_p')));
-  const w = el('div',{class:'tbl'}); const tb = el('table',{class:'bt eu'});
-  t('eu_rows').forEach((r,i)=>{ const tr=el('tr'); r.forEach(x=>tr.append(el(i?'td':'th',{},x))); tb.append(tr); });
-  w.append(tb); c.append(w);
-  const u = el('ul',{class:'eu-notes'}); t('eu_notes').forEach(x=>u.append(el('li',{},x))); c.append(u);
-  return c;
-}
-
+/* ===================== 使用說明 ===================== */
 function openGuide(){
-  const isTW = MODE!=='us' && cur!=='us'; const P = isTW?'tw_':'us_'; const body=document.getElementById('guideBody'); body.textContent='';
-  document.getElementById('guideTitle').textContent = t('guide') + (MODE==='us'?'':'・'+t('tab_'+(cur==='us'?'us':'tw')));
-  const sec=(h,items,intro)=>{ const s=el('section',{class:'gsec'}); s.append(el('h3',{},h)); if(intro) s.append(el('p',{class:'gintro'},intro)); if(items){ const u=el('ul',{}); items.forEach(i=>u.append(el('li',{},i))); s.append(u);} body.append(s); return s; };
-  const tbl=(rows,cap)=>{ const w=el('div',{class:'tbl'}); const tb=el('table',{class:'bt gt'}); if(cap) tb.append(el('caption',{},cap)); rows.forEach((r,i)=>{ const tr=el('tr'); r.forEach(c=>tr.append(el(i?'td':'th',{},c))); tb.append(tr); }); w.append(tb); return w; };
-  sec(t('g1'), t('g1_i'));
-  sec(t('g8'), t(isTW?'gd_risk_tw':'gd_risk_us'));
-  sec(t('gd_disc'), [t('foot2')]);
-  sec(t('g2'), t('g2_i'));
-  const s3=sec(t('g3'), null, t('g3_p')); s3.append(tbl(t(P+'rules'))); const u3=el('ul',{}); t(P+'rules_n').forEach(i=>u3.append(el('li',{},i))); s3.append(u3);
-  sec(t('g4'), t(P+'why'));
-  const s5=sec(t('g5'), null, t('g5_p')); s5.append(tbl(t(P+'rej')));
-  const s6=sec(t('g6'), null, t('g6_p')); s6.append(tbl(t(isTW?'bt_tw':'bt_us'), t('bt_cap'))); const uc=el('ul',{}); t(P+'cmp').forEach(i=>uc.append(el('li',{},i))); s6.append(uc); s6.append(el('p',{class:'note'}, t('bt_note')));
+  const isTW = MODE!=='us' && cur!=='us'; const body=document.getElementById('guideBody'); body.textContent='';
+  const nm = names(isTW?'tw':'us'); const th = isTW?80:75;
+  document.getElementById('guideTitle').textContent = t('guide') + (MODE==='us'?'':'・'+(isTW?'台股':'美股'));
+  const sec=(h,items,intro)=>{ const s=el('section',{class:'gsec'}); s.append(el('h3',{},h)); if(intro) s.append(el('p',{class:'gintro'},intro)); if(items){ const u=el('ul',{}); items.forEach(i=>u.append(el('li',{html:i}))); s.append(u);} body.append(s); return s; };
+  const tbl=(rows)=>{ const w=el('div',{class:'tbl'}); const tb=el('table',{class:'bt gt'}); rows.forEach((r,i)=>{ const tr=el('tr'); r.forEach(c=>tr.append(el(i?'td':'th',{html:c}))); tb.append(tr); }); w.append(tb); return w; };
+  if (MODE==='full' && !isTW) body.append(el('p',{class:'note',style:'margin:0 0 12px'},'這一頁用台灣上市的 ETF 執行美股規則：二倍槓桿 → 00670L 或 00830，一倍原型 → 00662，子彈 → 00865B。訊號看 QQQ、VIX 和美股融資；回測數字是用那斯達克 100 計算的。'));
+  sec(L('這個儀表板在做什麼','What this page does'), [
+    L(`用回測過的規則，告訴你什麼時候在三種部位之間移動：<b>二倍槓桿</b>（${nm.lev}）、<b>一倍原型</b>（${nm.one}）和<b>子彈</b>（${nm.bul}）。`,`It applies backtested rules to tell you when to move between three holdings: <b>2x</b> (${nm.lev}), <b>1x</b> (${nm.one}) and <b>reserve</b> (${nm.bul}).`),
+    L('它不預測漲跌。最上方的燈號就是今天要做的事；沒有訊號時就什麼都不用做。','It does not forecast the market. The light at the top is what to do today; with no signal, do nothing.'),
+    L('在「我的庫存」輸入持股，會直接算出要買賣哪幾檔、幾股。還沒有持股的人，只填本月金額，就會告訴你第一次怎麼買。','Enter your holdings and it works out exactly what to buy or sell. No holdings yet? Enter this month\'s amount to see how to start.'),
+    L('訊號以收盤價計算，每個交易日台北時間 20:50 自動更新，下一個交易日執行即可。','Signals use closing prices and update at 20:50 Taipei time each trading day; acting the next trading day is fine.')]);
+  const s3=sec(L('規則（台股、美股相同）','The rules (same for Taiwan and the US)'), null, L('每天依序檢查，前面成立就不看後面。','Checked in this order every day; the first one that applies wins.'));
+  s3.append(tbl([[L('項目','Item'),L('規則','Rule')],
+    [L('基準','Base'), L(`二倍槓桿 60%／子彈 40%`,`2x 60% / reserve 40%`)],
+    [L('恐慌加碼','Panic buy'), L(`VIX ≥ 35：二倍槓桿加到 85%（美國 2 年期殖利率 3 個月內升超過 0.5 個百分點，或 BAA 信用利差 3 個月內擴大超過 0.7，這一階暫停）<br>VIX ≥ 40：加到 100%<br>先賣一倍原型，不夠再用子彈${isTW?'<br>台股另外：利差 3 個月擴大超過 0.8 時，所有恐慌加碼暫停，最多 30 個交易日':''}`,
+      `VIX ≥ 35: raise 2x to 85% (paused if the US 2-year yield rose more than 0.5 point in 3 months, or the BAA credit spread widened more than 0.7)<br>VIX ≥ 40: raise to 100%<br>Sell 1x first, then use reserve`)],
+    [L('深跌補滿','Deep-drop top-up'), L('一年內 VIX 曾 ≥ 35、距一年高點跌超過 30%，而且利差 3 個月擴大不到 0.5：二倍槓桿加到 100%','VIX reached 35 within the past year, price is more than 30% below its 1-year high, and credit spreads widened less than 0.5 in 3 months: raise 2x to 100%')],
+    [L('融資退燒換回','Back to 2x'), L('融資訊號關閉滿 315 個交易日（約 15 個月）且收盤在季線上方：一倍原型全部換回二倍槓桿','Margin signal off for 315 trading days (about 15 months) and price above the 60-day MA: move all 1x back into 2x')],
+    [L('過熱調節','Trim'), L(`週 RSI > ${th}：二倍槓桿調回 60%，賣出的錢買子彈`,`Weekly RSI > ${th}: trim 2x back to 60% and put the rest in reserve`)],
+    [L('融資過熱','Margin overheating'), L(isTW?'台股融資年增 > 35% 且兩年增長 > 20%，或美國 FINRA 融資年增 > 50%：二倍槓桿全部換成一倍原型，子彈不動。VIX ≥ 35、深跌區、或恐慌加碼後 60 個交易日內先不換':'美國 FINRA 融資年增 > 50%：二倍槓桿全部換成一倍原型，子彈不動。VIX ≥ 35、深跌區、或恐慌加碼後 60 個交易日內先不換',
+      'US FINRA margin debt up more than 50% year on year: switch all 2x into 1x and leave the reserve alone. Not while VIX ≥ 35, in a deep drop, or within 60 trading days of a panic buy')],
+    [L('每月薪資','Monthly savings'), L('收盤在季線下方：全部買二倍槓桿；否則 60／40。融資過熱時，二倍槓桿那一份改買一倍原型','Price below the 60-day MA: all into 2x; otherwise 60 / 40. While margin is overheated, the 2x share buys 1x instead')]]));
+  sec(L('已經有部位、還沒照規則調整的人','If you already hold positions'), [
+    L('先看「今天」那一欄：有訊號就照做（加碼、調節、換成一倍原型或換回）。','Start with "Today": if there is a signal, do it (buy, trim, switch to 1x or back).'),
+    L('沒有訊號、但組合和規則差很多時，頁面會另外提示：子彈超過 55% 是閒置資金，可以一次或分 3 個月調到基準；子彈太少時，規則平常不賣，新投入的錢先全部買子彈，等週 RSI 過熱再一次調回。','With no signal but a mix far from the rules, the page flags it: reserve above 55% is idle and can be moved to the base at once or over 3 months; if reserve is low, the rules do not sell, so new money goes into reserve until the next RSI trim.'),
+    L('融資訊號關閉後，規則不會要求把二倍槓桿換成一倍原型；所以當時沒換的人可以繼續持有二倍槓桿。','Once the margin signal is off, the rules never ask you to switch 2x into 1x, so if you missed the switch you can keep the 2x.'),
+    L('賣出可能要繳稅。不想賣的人，可以只用新投入的錢慢慢調整，比較慢，但沒有稅。','Selling can trigger tax. If you prefer not to sell, steer with new money only; slower, but tax free.')]);
+  sec(L('開始之前','Before you start'), [L('先準備 3–6 個月生活費的緊急預備金，放在銀行，不算在這個組合裡。子彈是給股災加碼用的，不是急用金。','Keep 3–6 months of living costs in a bank account, outside this portfolio. The reserve is for buying in a crash, not for emergencies.'),
+    L('只投入 10 年以上不會動用的錢。二倍槓桿每天的漲跌約是原型的兩倍，帳面損益會比新聞報導的跌幅嚇人很多。','Only invest money you won\'t need for 10+ years. A 2x fund moves about twice as much as the index each day.')]);
+  sec(L('最大風險：請先接受這些','Biggest risks: accept these first'), isTW?[
+    '回測最大回檔約 −65%（1999 年起）。一直持有台股二倍槓桿的人，從 2000 年高點要等 17.5 年才回本。',
+    '台股高度集中在台積電與半導體；如果 AI 投資放緩，台股可能首當其衝。請以未來會遇到一次 40–60% 回檔為前提來投資。',
+    '台股融資從 2024 年起長期偏高，所以「融資過熱」經常成立，規則有相當多時間持有一倍原型。',
+    '00713 在崩跌時也會跌（2020 年 −25%），只是跌得比二倍槓桿少。',
+    '規則來自有限的歷史樣本（VIX ≥ 40 只出現過 9–13 次），數字不要看得太精確。']:[
+    L('回測最大回檔 −81%（1990 年起）。一直持有 QLD 的人，從 2000 年高點要等 20.5 年才回本；規則能減輕，但無法消除。','The worst backtested drawdown is −81% (from 1990). Someone holding QLD from the 2000 peak needed 20.5 years to break even; the rules soften this but cannot remove it.'),
+    L('目前估值是 2000 年以來最高的水準之一。請以未來會遇到一次 40–60% 回檔為前提來投資。','Valuations are among the highest since 2000. Invest assuming you will live through at least one 40–60% decline.'),
+    L('只投資納指 100，等於集中在美國大型科技股。','The Nasdaq-100 is concentrated in large US tech.'),
+    L('槓桿 ETF 每日重設，盤整時會有耗損；費用率 QLD 0.95%、LQQ 0.60%。','Leveraged ETFs reset daily and lose value in choppy markets; fees are QLD 0.95%, LQQ 0.60%.'),
+    L('規則來自有限的歷史樣本（VIX ≥ 40 只出現過 13 次），數字不要看得太精確。','The rules come from limited history (VIX ≥ 40 appeared only 13 times); trust the direction more than the exact figures.')]);
+  sec(L('回測','Backtest'), [L('完整的回測圖、績效比較和每一次動作，在上方「回測」分頁。','The full backtest chart, performance table and every action are on the Backtest tab.')]);
   body.append(histBlock());
   if (MODE==='us') body.append(euroBlock());
-  if (MODE==='full' && cur==='us'){ // 完整版的美股用台灣上市 ETF
-    body.prepend(el('p',{class:'note',style:'margin:0 0 12px'},'這一頁用台灣上市的 ETF 執行美股規則：QLD → 00830（國泰費城半導體，1 倍，持有美股、有美元曝險），SGOV → 00865B（美國短期公債）。訊號仍然看 QQQ 和 VIX；下面的回測數字是用 QLD／SGOV 計算的。'));
-  }
+  sec(L('免責聲明','Disclaimer'), [t('foot2')]);
   const g=document.getElementById('guide'); g.hidden=false; document.body.style.overflow='hidden'; document.getElementById('guideClose').focus();
 }
 function closeGuide(){ document.getElementById('guide').hidden=true; document.body.style.overflow=''; document.getElementById('guideBtn').focus(); }
 
 function histBlock(){
-  const d=el('section',{class:'gsec'}); d.append(el('h3',{},t('g7')), el('p',{class:'note',style:'margin:0 0 8px'},t('gd_hist_p')));
+  const d=el('section',{class:'gsec'}); d.append(el('h3',{},L('過去 VIX ≥ 35 的時間點','Past VIX ≥ 35 signals')), el('p',{class:'note',style:'margin:0 0 8px'},L('1990 年以來共 19 次，平均約兩年一次。距高點是當時距離前一個最高點的跌幅。','19 times since 1990, about once every two years. "From high" is the drop from the previous peak at the time.')));
   const w=el('div',{class:'tbl'}); const tb=el('table',{class:'bt'});
-  const rows=[[t('h_d'),t('h_ndd'),t('h_n12'),t('h_tdd'),t('h_t12')],
+  const rows=[[L('首次觸發','First day'),L('納指距高點','NDX from high'),L('納指 12 個月後','NDX 12 months later'),'台股距高點','台股 12 個月後'],
     ['1990/08/06','−18%','+36%','',''],['1991/01/14','−21%','+81%','',''],['1997/10/30','−13%','+41%','',''],['1998/08/27','−10%','+85%','',''],
     ['2001/09/17','−73%','−28%','−61%','+15%'],['2002/07/15','−78%','+27%','−43%','−3%'],['2008/09/17','−63%','+6%','−35%','+22%'],
     ['2010/05/07','−57%','+30%','−21%','+25%'],['2011/08/08','−52%','+33%','−15%','+2%'],['2011/11/09','−46%','+13%','−14%','+1%'],
@@ -981,84 +868,168 @@ function histBlock(){
     ['2022/03/07','−19%','−8%','−10%','−8%'],['2024/08/05','−13%','+32%','−21%','+37%'],['2025/04/04','−21%','+44%','−13%','+96%']];
   const cols = MODE==='us' ? [0,1,2] : [0,1,2,3,4];
   rows.forEach((r,i)=>{ const tr=el('tr'); cols.forEach(j=>tr.append(el(i?'td':'th',{},r[j]))); tb.append(tr); });
-  w.append(tb); d.append(w, el('p',{class:'note'},t('gd_hist_note')));
-  return d;
+  w.append(tb); d.append(w); return d;
+}
+function euroBlock(){
+  const c = el('section',{class:'gsec'});
+  c.append(el('h3',{},L('在歐洲怎麼買','Buying from Europe')), el('p',{class:'muted',style:'margin:4px 0 12px;font-size:.88rem'},L('歐盟的散戶通常買不到美國註冊的 ETF（像 QLD、QQQM、SGOV），因為它們沒有歐盟要求的 KID 文件。可以改買在歐洲上市的 UCITS 版本，訊號和比例照用本頁。','EU retail investors usually cannot buy US-domiciled ETFs such as QLD, QQQM and SGOV, because they lack the KID document EU rules require. Use the UCITS versions listed in Europe; the signals and ratios still apply.')));
+  const w = el('div',{class:'tbl'}); const tb = el('table',{class:'bt eu'});
+  [[L('角色','Role'),L('美國','US'),L('歐洲（UCITS）','Europe (UCITS)'),L('說明','Notes')],
+   [L('二倍槓桿','2x Nasdaq-100'),'QLD','LQQ（Amundi Nasdaq-100 Daily 2x，ISIN FR0010342592）',L('巴黎上市、歐元交易，費用率 0.60%','Paris, EUR, 0.60% fee')],
+   [L('一倍原型','1x Nasdaq-100'),'QQQM','EQQQ（Invesco EQQQ Nasdaq-100，ISIN IE0032077012）或 CNDX（iShares Nasdaq 100，ISIN IE00B53SZB19）',L('融資過熱時持有；CNDX 費用較低','Held while margin is overheated; CNDX is cheaper')],
+   [L('子彈（美元，建議）','Reserve (USD, suggested)'),'SGOV','IB01（iShares $ Treasury Bond 0-1yr，ISIN IE00BGSF1X88）',L('美國短期國債，有美元兌歐元匯率波動','Short US Treasuries; carries USD/EUR swings')],
+   [L('子彈（歐元，替代）','Reserve (EUR, alternative)'),'SGOV','XEON（ISIN LU0290358497）',L('歐元隔夜利率，沒有匯率風險，利息較低','Euro overnight rate, no currency risk, lower yield')]]
+   .forEach((r,i)=>{ const tr=el('tr'); r.forEach(x=>tr.append(el(i?'td':'th',{},x))); tb.append(tr); });
+  w.append(tb); c.append(w);
+  const u = el('ul',{class:'eu-notes'}); [L('買賣前在券商的商品頁確認 ISIN，不同交易所的代號可能不同。','Check the ISIN on your broker before trading; tickers differ between exchanges.'),L('LQQ、EQQQ 以歐元計價，報酬也會受美元兌歐元匯率影響。','LQQ and EQQQ trade in euros, so the dollar-euro rate also moves them.')].forEach(x=>u.append(el('li',{},x))); c.append(u);
+  return c;
 }
 
-function btBlock(isTW){
-  const d=el('section',{class:'gsec'}); d.append(el('h3',{},t('bt_h')));
-  const tw_ = el('div',{class:'tbl'}); const tb=el('table',{class:'bt'});
-  tb.append(el('caption',{},t('bt_cap')));
-  t(isTW?'bt_tw':'bt_us').forEach((r,i)=>{ const tr=el('tr'); r.forEach(c=>tr.append(el(i?'td':'th',{},c))); tb.append(tr); });
-  tw_.append(tb); d.append(tw_, el('p',{class:'note'}, t('bt_note')));
-  return d;
+/* ===================== 回測 ===================== */
+let BT=null, btMkt = MODE==='us' ? 'us' : (store.get('bt-mkt')||'tw'), btRng = 'all';
+const RANGES = { all:null, '2000':['1999-01-01','2003-06-30'], '2008':['2006-06-01','2009-12-31'], '2011':['2010-06-01','2012-06-30'], '2015':['2014-01-01','2016-06-30'],
+  '2018':['2017-01-01','2019-06-30'], '2020':['2019-06-01','2021-06-30'], '2022':['2021-01-01','2023-12-31'], '2025':['2024-10-01','2025-12-31'], '2024':['2023-06-01','2026-12-31'] };
+const RNG_L = {all:['全期','All'],'2000':['2000 網路泡沫','2000 dot-com'],'2008':['2008 金融海嘯','2008 crisis'],'2011':['2011 歐債','2011 euro debt'],'2015':['2015 中國股災','2015 China'],
+  '2018':['2018 貿易戰','2018 trade war'],'2020':['2020 疫情','2020 Covid'],'2022':['2022 升息','2022 rate hikes'],'2025':['2025 關稅','2025 tariffs'],'2024':['2024–2026','2024–2026']};
+function renderBT(main){
+  if (!BT){ main.append(el('div',{class:'loading'},t('loading'))); fetch('bt.json').then(r=>r.json()).then(j=>{ BT=j; if(cur==='bt') render(); }).catch(()=>{ main.textContent=''; main.append(el('div',{class:'loading'},t('loadfail'))); }); return; }
+  if (!window.d3){ main.append(el('div',{class:'loading'},t('loadfail'))); return; }
+  const D = BT[btMkt]; const isTW = btMkt==='tw';
+  const head = el('section',{class:'card'});
+  head.append(el('h2',{},L('二倍槓桿調節加碼回測','Backtest of the rules')),
+    el('p',{class:'muted',style:'margin:4px 0 12px;font-size:.88rem;max-width:80ch'},L('每個標記是規則的一次買賣：紅色往上三角形是 VIX ≥ 35 加到 85%，白色往上三角形是 VIX ≥ 40 加到 100%，空心三角形是深跌補滿，藍色往下三角形是 RSI 過熱調節，橘色菱形是融資過熱把二倍槓桿換成一倍原型，綠色圓點是融資退燒後換回二倍槓桿。灰色區塊是歷次大跌，從高點到低點。',
+      'Each marker is one trade: red up-triangle = VIX ≥ 35, 2x to 85%; white up-triangle = VIX ≥ 40, 2x to 100%; hollow triangle = deep-drop top-up; blue down-triangle = RSI trim; orange diamond = margin overheating, 2x into 1x; green dot = back to 2x after margin cools. Grey bands are major declines, peak to trough.')));
+  const ctl = el('div',{class:'bt-ctl'});
+  if (MODE!=='us'){ const sg=el('div',{class:'seg'}); [['tw','台股'],['us','美股（那斯達克 100）']].forEach(([k,n])=>{ const b=el('button',{'aria-pressed':String(btMkt===k)},n); b.onclick=()=>{btMkt=k;store.set('bt-mkt',k);render();}; sg.append(b); }); ctl.append(sg); }
+  const rg=el('div',{class:'rngs'}); ['all','2000','2008','2011','2015','2018','2020','2022','2025','2024'].forEach(k=>{ const b=el('button',{'aria-pressed':String(btRng===k)},RNG_L[k][EN()?1:0]); b.onclick=()=>{btRng=k;render();}; rg.append(b); }); ctl.append(rg);
+  head.append(ctl); main.append(head);
+  // 績效比較
+  const RL = {t0050:['全部 0050（一倍原型）','All 0050 (1x)'], qqq:['全部 QQQ（一倍原型）','All QQQ (1x)'], r6040:['二倍槓桿 60/40 每年再平衡','2x 60/40, rebalanced yearly'], m3:['現有規則','Current rules']};
+  const sum = el('section',{class:'card'}); sum.append(el('h2',{},L('績效比較','Performance')),
+    el('p',{class:'muted',style:'margin:2px 0 8px;font-size:.82rem;max-width:90ch'},L(`全期與 2009 後年化、總倍數是一次投入；15 年中位數與最差是每月定期投入，任選一個 15 年後資產是投入本金的幾倍。全部${isTW?' 0050':' QQQ'} 是每月薪資全買一倍原型、從不賣出${isTW?'（0050 在 2003 年才上市，之前用含息加權報酬指數）':''}。績效含股息與 ETF 費用。`,
+      `Annual returns and the total multiple are for a single starting investment; the 15-year median and worst are for monthly saving, as the multiple of money put in after any 15-year window. "All QQQ" buys 1x with every month's savings and never sells. Returns include dividends and fund fees.`)));
+  const w=el('div',{class:'tbl'}); const tb=el('table',{class:'bt'}); const hr=el('tr');
+  [L('策略','Strategy'),L(`全期年化（${isTW?'1999':'1990'} 起）`,`Annual return (from ${isTW?'1999':'1990'})`),L('2009 後年化','Annual return since 2009'),L('15 年中位數','15-year median'),L('15 年最差','15-year worst'),L('最大跌幅','Max drawdown'),L('一次投入總倍數','Total multiple')].forEach(x=>hr.append(el('th',{},x))); tb.append(hr);
+  D.sum.forEach(s=>{ const tr=el('tr',{class:s.rule==='m3'?'on':''}); [RL[s.rule][EN()?1:0], s.cagr.toFixed(1)+'%', s.cagr09.toFixed(1)+'%', s.median15.toFixed(2)+L(' 倍','x'), s.worst15.toFixed(2)+L(' 倍','x'), s.mdd+'%', fmt(s.multiple,1)+L(' 倍','x')].forEach(x=>tr.append(el('td',{},x))); tb.append(tr); });
+  w.append(tb); sum.append(w); main.append(sum);
+  // 圖
+  const c1=el('section',{class:'card chart-card'}); c1.append(el('h2',{},L('大盤走勢與每次動作','Index and every action'), el('small',{},L(`${isTW?'加權指數':'那斯達克 100 指數'}實際點位（不含息），對數刻度；績效計算仍包含股息。滑鼠移到標記上（手機點一下）看當時的訊號。`,'Actual Nasdaq-100 level (price only), log scale; performance includes dividends. Hover or tap a marker for details.'))));
+  const lg=el('div',{class:'bt-legend'});
+  const sw=(cls,c,txt)=>{ const s=el('span',{}); s.append(el('i',{class:'bt-sw '+cls,style:`--c:${c}`}), txt); lg.append(s); };
+  sw('tri',C.bad,L('VIX ≥ 35：加到 85%','VIX ≥ 35: to 85%')); sw('tri',C.fg,L('VIX ≥ 40：加到 100%','VIX ≥ 40: to 100%')); sw('tri hollow',C.fg,L('深跌補滿','Deep-drop top-up'));
+  sw('tri down',C.info,L('RSI 過熱調節','RSI trim')); sw('dia',C.warn,L('融資過熱：換成一倍原型','Margin overheating: to 1x')); sw('dot',C.ok,L('融資退燒：換回二倍槓桿','Margin cooled: back to 2x')); sw('band',C.faint,L('大跌（高點到低點）','Major decline'));
+  c1.append(lg, el('div',{class:'bt-chart',id:'bt-price'})); main.append(c1);
+  const two=el('div',{class:'two'});
+  const c2=el('section',{class:'card chart-card'}); c2.append(el('h2',{},L('整體槓桿','Overall leverage'), el('small',{},L('二倍槓桿算 2 倍、一倍原型算 1 倍、子彈算 0','2x counts 2, 1x counts 1, reserve 0'))), el('div',{class:'bt-chart sm',id:'bt-lev'}));
+  const c3=el('section',{class:'card chart-card'}); c3.append(el('h2',{},L('組合價值','Portfolio value'), el('small',{},L('一次投入，以所選期間的起點為 1，對數刻度','Single investment, start of the range = 1, log scale'))), el('div',{class:'bt-chart sm',id:'bt-val'}));
+  two.append(c2,c3); main.append(two);
+  // 動作清單
+  const c4=el('section',{class:'card'}); c4.append(el('h2',{},L('每一次動作','Every action')), el('p',{class:'muted',style:'margin:2px 0 8px;font-size:.82rem'},L('所選期間內規則的全部動作；同一類動作在 10 個交易日內連續發生時合併成一筆。','All rule actions in the selected range; repeats of the same action within 10 trading days are merged.')));
+  const w4=el('div',{class:'tbl',style:'max-height:420px;overflow:auto'}); const t4=el('table',{class:'bt'}); const h4=el('tr'); [L('日期','Date'),L('動作','Action'),L('指數','Index'),L('當時訊號','Signal'),L('槓桿變化','Leverage')].forEach((x,i)=>h4.append(el('th',{style:i===1||i===3?'text-align:left':''},x))); t4.append(h4);
+  const dom=btDom(D); const evs=D.ev.filter(e=>e[0]>=dom[0]&&e[0]<=dom[1]);
+  evs.forEach(e=>{ const tr=el('tr'); [e[0].replace(/-/g,'/'), evName(e[1]), fmt(e[2],0), sigLabel(e), `${e[3].toFixed(2)} → ${e[4].toFixed(2)}${L(' 倍','x')}`].forEach((x,i)=>tr.append(el('td',{style:i===1||i===3?'text-align:left':''},x))); t4.append(tr); });
+  w4.append(t4); c4.append(w4); main.append(c4);
+  main.append(el('p',{class:'note',style:'max-width:95ch'},L('回測說明：每天依序檢查恐慌加碼、深跌補滿、融資退燒換回、RSI 過熱調節、融資過熱，前面成立就不看後面。台股融資資料從 2001 年開始，2000 年那次靠美股融資訊號。QLD、00631L 上市前以指數模擬，和實際日報酬的相關係數 0.97–0.99。樣本中 VIX ≥ 40 只出現 9–13 次，數字不要看得太精確。',
+    'Method: each day the rules check panic buying, the deep-drop top-up, moving back to 2x, the RSI trim and margin overheating, in that order. Before QLD launched it is simulated from the index (0.99 daily correlation with the real fund). VIX ≥ 40 appeared only 13 times in the sample, so trust the direction more than the exact figures.')));
+  requestAnimationFrame(()=>{ btPrice(D); btLine(D,'lev'); btLine(D,'val'); });
+}
+function sigLabel(e){ if(!EN()) return e[5]; const s=e[6];
+  return {panic1:`VIX ${s.toFixed(1)}`, panic2:`VIX ${s.toFixed(1)}`, deep:`${(s*100).toFixed(1)}% from 1-year high`, rsi:`Weekly RSI ${Math.round(s)}`,
+    mg:e[5].replace('美股融資年增','US margin debt').replace('台股融資年增','TW margin').replace('、兩年',', 2-year'), re:`Margin signal off ${Math.round(s)} trading days`}[e[1]]||e[5]; }
+function btDom(D){ const R=RANGES[btRng]; const a=D.s[0][0], b=D.s[D.s.length-1][0]; return R?[R[0]<a?a:R[0], R[1]>b?b:R[1]]:[a,b]; }
+function btTip(box){ let tip=box.querySelector('.bt-tip'); if(!tip){ tip=el('div',{class:'bt-tip'}); tip.hidden=true; box.append(tip);} return tip; }
+function tipAt(box,tip,lines,x,y){ tip.textContent=''; lines.forEach((s,i)=>tip.append(el('div',{class:i?'':'d'},s))); tip.hidden=false; const W=box.clientWidth, tw=tip.offsetWidth, th=tip.offsetHeight; tip.style.left=Math.max(0,Math.min(W-tw,x-tw/2))+'px'; tip.style.top=(y-th-12<0?y+14:y-th-12)+'px'; }
+function axes(svg,x,y,H,ml,W,yfmt,yt){
+  const g=svg.append('g'); yt.forEach(v=>{ g.append('line').attr('x1',ml).attr('x2',W).attr('y1',y(v)).attr('y2',y(v)).attr('stroke',C.line).attr('stroke-dasharray','3 4'); g.append('text').attr('x',ml-6).attr('y',y(v)+3).attr('text-anchor','end').attr('fill',C.faint).attr('font-size',10).text(yfmt(v)); });
+  const xa=svg.append('g').attr('transform',`translate(0,${H-22})`).call(d3.axisBottom(x).ticks(Math.max(2,Math.floor((W-ml)/80))).tickSizeOuter(0));
+  xa.select('.domain').attr('stroke',C.line2); xa.selectAll('.tick line').attr('stroke',C.line2); xa.selectAll('text').attr('fill',C.faint).attr('font-size',10).attr('font-family',FONT);
+}
+function logT(lo,hi,n){ const s=d3.scaleLog([lo,hi]); let t_=s.ticks(n); if(t_.length>n+2) t_=t_.filter(v=>[1,2,5].includes(+String(v).replace(/0+$/,'').replace('.','').slice(0,1))); if(t_.length>n+2) t_=t_.filter(v=>+String(v).replace(/0+$/,'').replace('.','').slice(0,1)===1); return t_; }
+function btPrice(D){
+  const box=document.getElementById('bt-price'); if(!box) return; box.textContent='';
+  const P=d3.utcParse('%Y-%m-%d'); const dom=btDom(D); const vis=D.s.filter(r=>r[0]>=dom[0]&&r[0]<=dom[1]);
+  const W=box.clientWidth||640, H=380, ml=52;
+  const svg=d3.select(box).append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('width','100%');
+  const lo=d3.min(vis,r=>r[1]), hi=d3.max(vis,r=>r[1]);
+  const y=d3.scaleLog([lo/1.12,hi*1.12],[H-22,24]); const x=d3.scaleUtc([P(dom[0]),P(dom[1])],[ml,W-10]);
+  axes(svg,x,y,H,ml,W-10,d3.format(',.0f'),logT(lo/1.12,hi*1.12,6));
+  const bands=D.cr.filter(c=>c[2]>=dom[0]&&c[1]<=dom[1]); let lastX=-1e9;
+  bands.forEach(c=>{ const a=P(c[1]<dom[0]?dom[0]:c[1]), b=P(c[2]>dom[1]?dom[1]:c[2]); svg.append('rect').attr('x',x(a)).attr('y',18).attr('width',Math.max(2,x(b)-x(a))).attr('height',H-40).attr('fill',C.faint).attr('opacity',.18);
+    const tx=svg.append('text').attr('x',x(a)+2).attr('y',12).attr('fill',C.muted).attr('font-size',10).text(`${c[0]} ${c[3]}%`); const bx=x(a), tw=tx.node().getComputedTextLength(); if(bx<lastX+4||bx+tw>W) tx.remove(); else lastX=bx+tw; });
+  svg.append('path').datum(vis).attr('fill','none').attr('stroke',C.muted).attr('stroke-width',1.4).attr('d',d3.line().x(r=>x(P(r[0]))).y(r=>y(r[1])));
+  const tip=btTip(box); const sz=W<500?40:60;
+  const K={panic1:[d3.symbolTriangle,0,13,C.bad], panic2:[d3.symbolTriangle,0,24,C.fg], deep:[d3.symbolTriangle,0,24,C.panel], rsi:[d3.symbolTriangle,180,-13,C.info], mg:[d3.symbolDiamond,0,-13,C.warn], re:[d3.symbolCircle,0,-13,C.ok]};
+  D.ev.filter(e=>e[0]>=dom[0]&&e[0]<=dom[1]).forEach(e=>{ const k=K[e[1]]; const px_=x(P(e[0])), py=y(e[2])+k[2];
+    svg.append('path').attr('d',d3.symbol(k[0],sz)()).attr('transform',`translate(${px_},${py}) rotate(${k[1]})`).attr('fill',k[3]).attr('stroke',e[1]==='deep'?C.fg:C.panel).attr('stroke-width',e[1]==='deep'?1.5:1).style('cursor','pointer')
+      .on('pointerenter pointerdown',()=>tipAt(box,tip,[e[0],evName(e[1]),sigLabel(e),L(`槓桿 ${e[3].toFixed(2)} → ${e[4].toFixed(2)} 倍`,`Leverage ${e[3].toFixed(2)} → ${e[4].toFixed(2)}x`),L('指數 ','Index ')+fmt(e[2],0)],px_*box.clientWidth/W,py*box.clientWidth/W))
+      .on('pointerleave',()=>{tip.hidden=true;}); });
+}
+function btLine(D,kind){
+  const box=document.getElementById(kind==='lev'?'bt-lev':'bt-val'); if(!box) return; box.textContent='';
+  const P=d3.utcParse('%Y-%m-%d'); const dom=btDom(D); const vis=D.s.filter(r=>r[0]>=dom[0]&&r[0]<=dom[1]);
+  const W=box.clientWidth||400, H=230, ml=kind==='lev'?40:46;
+  const svg=d3.select(box).append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('width','100%');
+  const x=d3.scaleUtc([P(dom[0]),P(dom[1])],[ml,W-10]); let y, acc, yt, yf;
+  if(kind==='lev'){ y=d3.scaleLinear([0,2.1],[H-22,10]); acc=r=>r[3]; yt=[0,.5,1,1.5,2]; yf=v=>v.toFixed(1)+L(' 倍','x'); }
+  else { const b0=vis[0][2]; acc=r=>r[2]/b0; const lo=d3.min(vis,acc), hi=d3.max(vis,acc); y=d3.scaleLog([lo/1.08,hi*1.08],[H-22,10]); yt=logT(lo/1.08,hi*1.08,5); yf=d3.format(',.2~f'); }
+  axes(svg,x,y,H,ml,W-10,yf,yt);
+  if(kind==='lev'){ svg.append('line').attr('x1',ml).attr('x2',W-10).attr('y1',y(1.2)).attr('y2',y(1.2)).attr('stroke',C.faint).attr('stroke-dasharray','4 3'); svg.append('text').attr('x',W-12).attr('y',y(1.2)-4).attr('text-anchor','end').attr('fill',C.muted).attr('font-size',10).text(L('基準 1.2 倍','Base 1.2x')); }
+  svg.append('path').datum(vis).attr('fill','none').attr('stroke',C.brass).attr('stroke-width',1.8).attr('d',(kind==='lev'?d3.line().curve(d3.curveStepAfter):d3.line()).x(r=>x(P(r[0]))).y(r=>y(acc(r))));
+  if(kind==='val'){ const l=vis[vis.length-1]; svg.append('text').attr('x',W-12).attr('y',y(acc(l))-6).attr('text-anchor','end').attr('fill',C.brass).attr('font-size',11).attr('font-weight',600).text(fmt(acc(l),1)+L(' 倍','x')); }
+  const tip=btTip(box); const dot=svg.append('circle').attr('r',3.5).attr('fill',C.brass).attr('opacity',0); const bis=d3.bisector(r=>P(r[0])).center;
+  svg.append('rect').attr('x',ml).attr('y',0).attr('width',W-10-ml).attr('height',H-22).attr('fill','transparent')
+    .on('pointermove pointerdown',e=>{ const [mx]=d3.pointer(e); const r=vis[bis(vis,x.invert(mx))]; if(!r) return; dot.attr('cx',x(P(r[0]))).attr('cy',y(acc(r))).attr('opacity',1);
+      tipAt(box,tip,[r[0], kind==='lev'?L(`槓桿 ${r[3].toFixed(2)} 倍`,`Leverage ${r[3].toFixed(2)}x`):L(`${fmt(acc(r),2)} 倍`,`${fmt(acc(r),2)}x`)], x(P(r[0]))*box.clientWidth/W, y(acc(r))*box.clientWidth/W); })
+    .on('pointerleave',()=>{tip.hidden=true; dot.attr('opacity',0);});
 }
 
-function rulesBlock(isTW){
-  const d = el('section',{class:'gsec'});
-  d.append(el('h3',{}, t('rules')));
-  const g = el('div',{class:'rules'});
-  const blk=(h,items)=>{ const b=el('div',{}); b.append(el('h3',{},h)); const u=el('ul',{}); items.forEach(i=>u.append(el('li',{},i))); b.append(u); g.append(b); };
-  const p = isTW?'tw_':'us_';
-  blk(t('h_alloc'), t(p+'alloc')); blk(t('h_add'), t(p+'add')); blk(t('h_trim'), t(p+'trim'));
-  d.append(g);
-  return d;
-}
-
+/* ===================== 每日走勢圖 ===================== */
 function baseOpt(){ return {backgroundColor:'transparent',animation:false,textStyle:{fontFamily:FONT,color:C.muted},
   grid:{left:8,right:12,top:18,bottom:26,containLabel:true},
   tooltip:{trigger:'axis',backgroundColor:'#0f1115',borderColor:C.line2,textStyle:{color:C.fg,fontSize:12,fontFamily:FONT},confine:true,axisPointer:{lineStyle:{color:C.line2}}},
   xAxis:{type:'category',boundaryGap:false,axisLine:{lineStyle:{color:C.line2}},axisTick:{show:false},axisLabel:{color:C.faint,fontSize:10,hideOverlap:true,formatter:v=>v.slice(2,7).replace('-','/')}},
   yAxis:{type:'value',scale:true,splitLine:{lineStyle:{color:C.line,type:[3,4]}},axisLabel:{color:C.faint,fontSize:10}} }; }
-
 function drawCharts(m, idxD, idx){
   if(!window.echarts) return;
   const H=m.hist;
   const mk = (id,opt)=>{ const n=document.getElementById(id); if(!n) return; const c=echarts.init(n,null,{renderer:'canvas'}); c.setOption(opt); charts.push(c); };
-  const colorFor = k => k==='panic'?C.bad:k==='refill'?C.info:C.warn;
-  const marks = m.marks.filter(x=>H.date.includes(x.date)).map(x=>({coord:[x.date, H.close[H.date.indexOf(x.date)]], itemStyle:{color:colorFor(x.kind)}, label:{show:false}, tooltip:{formatter:`${D8(x.date)}<br>${tierName(x.id||'',m)} → ${(x.target*100).toFixed(0)}%`}}));
+  const SYM={panic1:'triangle',panic2:'triangle',deep:'emptyTriangle',rsi:'triangle',mg:'diamond',re:'circle'};
+  const near=d=>{ let i=H.date.indexOf(d); if(i<0) i=H.date.findIndex(x=>x>d); return i; };
+  const marks = m.marks.map(x=>{ const i=near(x.date); if(i<0) return null; return {coord:[H.date[i], H.close[i]], symbol:SYM[x.kind]||'circle', symbolRotate:x.kind==='rsi'?180:0, itemStyle:{color:KIND_C(x.kind)}, label:{show:false}, tooltip:{formatter:`${D8(x.date)}<br>${evName(x.kind)}`}}; }).filter(Boolean);
   const o1 = baseOpt(); o1.xAxis.data=H.date;
   o1.legend={top:0,right:0,textStyle:{color:C.muted,fontSize:11,fontFamily:FONT},icon:'roundRect',itemWidth:12,itemHeight:3};
-  o1.grid.top=30;
-  o1.tooltip.valueFormatter=v=>v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:idxD});
-  o1.dataZoom=[{type:'inside',start:55,end:100}];
+  o1.grid.top=30; o1.tooltip.valueFormatter=v=>v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:idxD});
+  o1.dataZoom=[{type:'inside',start:40,end:100}];
   const line=(name,data,color,w,dash)=>({name,type:'line',data,showSymbol:false,lineStyle:{color,width:w,type:dash||'solid'},itemStyle:{color}});
   const p = line(idx,H.close,C.fg,1.6); p.areaStyle={color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(235,231,223,.10)'},{offset:1,color:'rgba(235,231,223,0)'}])};
-  p.markPoint={symbol:'circle',symbolSize:8,data:marks,tooltip:{trigger:'item'}};
-  o1.series=[p, line(t('ln_ma60'),H.ma60,C.warn,1.1), line(t('ln_ma120'),H.ma120,C.brass,1.3), line(t('ln_ma240'),H.ma240,C.info,1,'dashed')];
+  p.markPoint={symbolSize:11,data:marks,tooltip:{trigger:'item'}};
+  o1.series=[p, line(t('ln_ma60'),H.ma60,'#4fb6ff',1.4), line(t('ln_ma120'),H.ma120,'#ff8a3d',1.4), line(t('ln_ma240'),H.ma240,C.faint,1,'dashed')];
   mk('c-price',o1);
-
-  const o2 = baseOpt(); o2.xAxis.data=H.date; o2.dataZoom=[{type:'inside',start:55,end:100}];
+  const o2 = baseOpt(); o2.xAxis.data=H.date; o2.dataZoom=[{type:'inside',start:40,end:100}];
   o2.series=[{name:'VIX',type:'line',data:H.vix,showSymbol:false,lineStyle:{color:C.fg,width:1.3},itemStyle:{color:C.fg},
-    markArea:{silent:true,data:(()=>{const L=m.tiers.filter(x=>x.id.startsWith('vix')).map(x=>x.line).sort((a,b)=>a-b); return [[{yAxis:L[0],itemStyle:{color:'rgba(230,98,90,.09)'}},{yAxis:L[L.length-1]}],[{yAxis:L[L.length-1],itemStyle:{color:'rgba(230,98,90,.20)'}},{yAxis:90}]];})()},
-    markLine:{silent:true,symbol:'none',label:{color:C.faint,fontSize:10,formatter:'{c}'},lineStyle:{type:[4,4],width:1},data:m.tiers.filter(x=>x.id.startsWith('vix')).map(x=>({yAxis:x.line,lineStyle:{color:C.bad}}))}}];
-  o2.yAxis.max=v=>Math.max(45,Math.ceil(v.max/5)*5); o2.yAxis.min=8;
-  mk('c-vix',o2);
-
+    markArea:{silent:true,data:[[{yAxis:35,itemStyle:{color:'rgba(230,98,90,.10)'}},{yAxis:40}],[{yAxis:40,itemStyle:{color:'rgba(230,98,90,.22)'}},{yAxis:90}]]},
+    markLine:{silent:true,symbol:'none',label:{color:C.faint,fontSize:10,formatter:'{c}'},lineStyle:{type:[4,4],width:1},data:[{yAxis:35,lineStyle:{color:C.bad}},{yAxis:40,lineStyle:{color:C.bad}}]}}];
+  o2.yAxis.max=v=>Math.max(45,Math.ceil(v.max/5)*5); o2.yAxis.min=8; mk('c-vix',o2);
   const R=m.hist_rsi; const o3=baseOpt(); o3.xAxis.data=R.date; o3.yAxis.min=10; o3.yAxis.max=95; o3.yAxis.scale=false;
   o3.series=[{name:t('ch_rsi'),type:'line',data:R.rsi,showSymbol:false,lineStyle:{color:C.brass,width:1.4},itemStyle:{color:C.brass},
-    markLine:{silent:true,symbol:'none',label:{color:C.faint,fontSize:10},lineStyle:{type:[4,4],width:1},data:[{yAxis:m.rsi_refill,lineStyle:{color:C.info}},{yAxis:30,lineStyle:{color:C.faint}}]}}];
+    markLine:{silent:true,symbol:'none',label:{color:C.faint,fontSize:10},lineStyle:{type:[4,4],width:1},data:[{yAxis:m.rsi_refill,lineStyle:{color:C.info}}]}}];
   mk('c-rsi',o3);
-
-  const F=(DATA.macro||{}).fg; if(F && document.getElementById('c-fg')){ const o4=baseOpt(); o4.xAxis.data=F.series.date; o4.yAxis.min=0; o4.yAxis.max=100; o4.yAxis.scale=false; o4.dataZoom=[{type:'inside',start:40,end:100}];
-    o4.series=[{name:t('fgname'),type:'line',data:F.series.v,showSymbol:false,lineStyle:{color:C.fg,width:1.2},itemStyle:{color:C.fg},
-      markArea:{silent:true,data:[[{yAxis:0,itemStyle:{color:'rgba(230,98,90,.10)'}},{yAxis:25}],[{yAxis:75,itemStyle:{color:'rgba(91,183,138,.08)'}},{yAxis:100}]]}}];
-    mk('c-fg',o4); }
 }
+
 document.addEventListener('keydown',e=>{ if(e.key==='Escape' && !document.getElementById('guide').hidden) closeGuide(); });
 document.getElementById('guide').addEventListener('click',e=>{ if(e.target.id==='guide') closeGuide(); });
-let rz; window.addEventListener('resize',()=>{clearTimeout(rz); rz=setTimeout(()=>charts.forEach(c=>c.resize()),120);});
+let rz; window.addEventListener('resize',()=>{clearTimeout(rz); rz=setTimeout(()=>{ charts.forEach(c=>c.resize()); if(cur==='bt'&&BT){ const D=BT[btMkt]; btPrice(D); btLine(D,'lev'); btLine(D,'val'); } },150);});
 
 function staleCheck(){
   const st=document.getElementById('stale'); const age=(Date.now()-new Date(DATA.generated).getTime())/864e5;
   // 只有會影響燈號的來源失敗才警示：VIX、指數價格、（台股）信用利差
-  const crit = k => /^(CBOE|FRED) VIX$/.test(k) || /QQQ/.test(k) || (MODE!=='us' && (/加權指數/.test(k) || /BAA/.test(k)));
+  const crit = k => /^(CBOE|FRED) VIX$/.test(k) || /QQQ/.test(k) || /BAA/.test(k) || /2 年期/.test(k) || (MODE!=='us' && /加權/.test(k));
   const bad=Object.entries(DATA.sources||{}).some(([k,v])=>v!=='ok' && crit(k));
   if (age>3.5 || bad){ st.hidden=false; st.textContent= bad ? t('stale_src',{s:Object.entries(DATA.sources).filter(([k,v])=>v!=='ok'&&crit(k)).map(([k])=>k).join('、')}) : t('stale',{n:Math.floor(age)}); } else st.hidden=true;
 }
 function sourcesRender(){
   const s=document.getElementById('sources'); s.textContent='';
-  const en = s => LANG!=='en' ? s : s.replace('CNN 恐懼貪婪','CNN Fear & Greed').replace('前瞻本益比','forward P/E').replace('加權指數','TAIEX').replace('失敗','failed');
+  const en = s => LANG!=='en' ? s : s.replace('CNN 恐懼貪婪','CNN Fear & Greed').replace('前瞻本益比','forward P/E').replace('加權指數','TAIEX').replace('美股融資','US margin debt').replace('2 年期殖利率','2-year yield').replace('利差','spread').replace('長期','history').replace('失敗','failed').replace('用快取到','using cache to');
   for(const [k,v] of Object.entries(DATA.sources||{})) s.append(el('span',{class:v==='ok'?'':'bad',title:v},en(k)+(v==='ok'?'':' ('+en(v)+')')));
 }
 
@@ -1090,6 +1061,7 @@ document.getElementById('main').firstChild.textContent = t('loading');
   };
 })();
 })();
+
 </script>
 
 </body>

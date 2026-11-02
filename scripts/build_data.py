@@ -29,7 +29,7 @@ def fred(sid, start="2014-01-01"):
 import os
 FM_TOKEN = os.environ.get("FINMIND_TOKEN", "").strip()
 def finmind(dataset, sid, start):
-    url = f"https://api.finmindtrade.com/api/v4/data?dataset={dataset}&data_id={sid}&start_date={start}"
+    url = f"https://api.finmindtrade.com/api/v4/data?dataset={dataset}" + (f"&data_id={sid}" if sid else "") + f"&start_date={start}"
     if FM_TOKEN:
         url += f"&token={FM_TOKEN}"
     d = json.loads(get(url))["data"]
@@ -79,24 +79,58 @@ except Exception:
 vxn = vol("VXN", "VXNCLS")
 vix3m = vol("VIX3M", "VXVCLS")
 hy = safe("FRED HY OAS", lambda: fred("BAMLH0A0HYM2", "2020-01-01"))
-baa = safe("FRED BAA 利差", lambda: fred("BAA10Y", "2025-01-01"))
+baa = safe("FRED BAA 利差", lambda: fred("BAA10Y", "2012-01-01"))
 taiex = safe("FinMind 加權指數", lambda: finmind("TaiwanStockPrice", "TAIEX", "2014-01-01"))
 qqq = safe("FinMind QQQ", lambda: finmind("USStockPrice", "QQQ", "2014-01-01"))
 fg = safe("CNN 恐懼貪婪 (GitHub)", lambda: pd.read_csv(io.StringIO(get("https://raw.githubusercontent.com/whit3rabbit/fear-greed-data/main/fear-greed.csv")), parse_dates=["Date"]).set_index("Date")["Fear Greed"])
 fpe = safe("Siblis 前瞻本益比", lambda: json.loads(get("https://siblisresearch.supabase.co/functions/v1/free-data-api/v1/NDX/pe-forward"))["data"])
 
+# ---------------- 融資資料（快取在 data/，每次只補最新的）----------------
+import rules as RU
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+def tw_margin():
+    p = os.path.join(ROOT, "data", "margin_tw.csv"); c = pd.read_csv(p)
+    st = (pd.Timestamp(c["date"].iloc[-1]) - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+    try:
+        d = finmind("TaiwanStockTotalMarginPurchaseShortSale", "", st).reset_index()
+        d = d[d["name"] == "MarginPurchaseMoney"]
+        n = pd.DataFrame({"date": d["date"].dt.strftime("%Y-%m-%d"), "balance": d["TodayBalance"].astype("int64")})
+        c = pd.concat([c[~c["date"].isin(n["date"])], n]).sort_values("date"); c.to_csv(p, index=False)
+        src_status["FinMind 台股融資"] = "ok"
+    except Exception as e:
+        src_status["FinMind 台股融資"] = f"失敗: {type(e).__name__}（用快取到 {c['date'].iloc[-1]}）"
+    return pd.Series(c["balance"].astype(float).values, index=pd.to_datetime(c["date"]))
+def us_margin():
+    p = os.path.join(ROOT, "data", "margin_us.csv"); c = pd.read_csv(p)
+    try:
+        import re as _re
+        html = get("https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics", tries=2)
+        link = [l for l in _re.findall(r'href="([^"]+\.xlsx)"', html) if "margin" in l.lower()][0]
+        url = link if link.startswith("http") else "https://www.finra.org" + link
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        x = pd.read_excel(io.BytesIO(urllib.request.urlopen(req, timeout=90).read()))
+        x = x.iloc[:, :2]; x.columns = ["ym", "debt"]; x = x.dropna()
+        x["ym"] = pd.to_datetime(x["ym"].astype(str).str[:7]).dt.strftime("%Y-%m")
+        if len(x) > 300:
+            c = x.sort_values("ym"); c.to_csv(p, index=False)
+        src_status["FINRA 美股融資"] = "ok"
+    except Exception as e:
+        src_status["FINRA 美股融資"] = f"失敗: {type(e).__name__}（用快取到 {c['ym'].iloc[-1]}）"
+    return pd.Series(c["debt"].astype(float).values, index=pd.to_datetime(c["ym"]))
+mg_tw = tw_margin(); mg_us = us_margin()
+dgs2 = safe("FRED 2 年期殖利率", lambda: fred("DGS2", "2012-01-01"))
+taiex_tr = safe("FinMind 加權報酬指數", lambda: finmind("TaiwanStockTotalReturnIndex", "TAIEX", "2012-01-01"))
+qqq_long = safe("FinMind QQQ 長期", lambda: finmind("USStockPrice", "QQQ", "2012-01-01"))
+
 # ---------------- rules ----------------
 RULES = {
-    "tw": {"name": "台股", "lev": "00685L", "bul": "00713", "base": 0.60, "rsi_refill": 80,
-           "mid": [("ma60", 0.0, 0.64, "跌破季線", "ma60"), ("ma120", 0.0, 0.67, "跌破半年線", "ma120"), ("ma120", -0.05, 0.70, "低於半年線 5%", "ma120_5")],
-           "vix": [(28, 0.80, "VIX ≥ 28", "vix28"), (32, 0.85, "VIX ≥ 32", "vix32"), (36, 0.90, "VIX ≥ 36", "vix36"), (40, 1.00, "VIX ≥ 40", "vix40")],
-           "credit_block": 0.80},
-    "us": {"name": "美股", "lev": "QLD", "bul": "SGOV", "base": 0.60, "rsi_refill": 75,
-           "mid": [("ma60", 0.0, 0.65, "跌破季線", "ma60"), ("ma120", 0.0, 0.70, "跌破半年線", "ma120"), ("ma120", -0.05, 0.75, "低於半年線 5%", "ma120_5")],
-           "vix": [(35, 0.85, "VIX ≥ 35", "vix35"), (40, 1.00, "VIX ≥ 40", "vix40")]},
+    "tw": {"name": "台股", "lev": "00685L", "one": "0050", "bul": "00713", "base": 0.60, "rsi_refill": 80},
+    "us": {"name": "美股", "lev": "QLD", "one": "QQQM", "bul": "SGOV", "base": 0.60, "rsi_refill": 75},
 }
+EVN = {"panic1": "VIX ≥ 35：二倍槓桿加到 85%", "panic2": "VIX ≥ 40：二倍槓桿加到 100%", "deep": "深跌補滿：二倍槓桿加到 100%",
+       "rsi": "RSI 過熱：二倍槓桿調回 60%", "mg": "融資過熱：二倍槓桿換成一倍原型", "re": "融資退燒：一倍原型換回二倍槓桿"}
 
-def market(close, key):
+def market(close, key, rclose):
     R = RULES[key]
     df = pd.DataFrame({"close": close})
     for k in [20, 60, 120, 240]:
@@ -105,96 +139,47 @@ def market(close, key):
     rsi = wrsi(close); df["rsi_w"] = rsi.reindex(df.index, method="ffill")
     v = vix.reindex(df.index, method="ffill") if vix is not None else pd.Series(np.nan, index=df.index)
     if key == "tw":
-        v = v.shift(1)                       # 歷史：美股前一晚收盤 = 台股開盤前已知
-        if vix is not None and len(v): v.iloc[-1] = float(vix.iloc[-1])   # 今天：用最新一筆 VIX
+        v = v.shift(1)
+        if vix is not None and len(v): v.iloc[-1] = float(vix.iloc[-1])
     df["vix"] = v
     last = df.iloc[-1]
-    # tiers
-    tiers = []
     ath_date = df.index[df["close"] == df["close"].cummax()][-1]
-    ep = df.loc[ath_date:]                   # 本波（自最近一次創高以來）
-    for col, off, w, label, tid in R["mid"]:
-        cond = ep["close"] <= ep[col] * (1 + off)
-        first = cond[cond].index.min() if cond.any() else None
-        now = bool(last["close"] <= last[col] * (1 + off))
-        tiers.append({"id": tid, "group": "中期回調", "label": label, "target": w, "active": now,
-                      "line": round(float(last[col] * (1 + off)), 2),
-                      "gap": float(last["close"] / (last[col] * (1 + off)) - 1),
-                      "first_this_wave": first.strftime("%Y-%m-%d") if first is not None else None})
-    for th, w, label, tid in R["vix"]:
-        cond = ep["vix"] >= th; first = cond[cond].index.min() if cond.any() else None
-        tiers.append({"id": tid, "group": "恐慌加碼", "label": label, "target": w, "active": bool(last["vix"] >= th),
-                      "line": th, "gap": float(last["vix"] / th - 1) if pd.notna(last["vix"]) else None,
-                      "first_this_wave": first.strftime("%Y-%m-%d") if first is not None else None})
-    if R.get("deep") is not None:
-        dl = R["deep"]; cond = ep["dd"] <= dl; first = cond[cond].index.min() if cond.any() else None
-        prev = df.loc[df["dd"] <= dl]
-        tiers.append({"id": "dd30", "group": "恐慌加碼", "label": "距高點 −30%", "target": 1.00, "active": bool(last["dd"] <= dl),
-                      "line": round(float(last["ath"] * (1 + dl)), 2), "gap": float(last["close"] / (last["ath"] * (1 + dl)) - 1),
-                      "first_this_wave": first.strftime("%Y-%m-%d") if first is not None else None,
-                      "last_seen": prev.index[-1].strftime("%Y-%m-%d") if len(prev) else None})
-    credit = None
-    if R.get("credit_block") is not None and baa is not None and len(baa) > 64:
-        cs = (baa - baa.shift(63)) > R["credit_block"]; run = 0
-        for x in cs.values[::-1]:
-            if not x: break
-            run += 1
-        chg = float(baa.iloc[-1] - baa.iloc[-64]); blk = 0 < run <= 30     # 利差 3 個月擴大超過門檻：暫停恐慌加碼，最多 30 個交易日
-        credit = {"chg": round(chg, 2), "th": R["credit_block"], "block": bool(blk), "days": run, "asof": baa.index[-1].strftime("%Y-%m-%d")}
-        if blk:
-            for t in tiers:
-                if t["group"] == "恐慌加碼":
-                    t["reached"] = t["active"]; t["active"] = False
-    active = [t for t in tiers if t["active"]]
-    target = max([R["base"]] + [t["target"] for t in active])
-    refill = bool(last["rsi_w"] > R["rsi_refill"])
-    if refill and not active:
-        state, target = "refill", R["base"]
-    elif any(t["group"] == "恐慌加碼" for t in active):
-        state = "panic"
-    elif active:
-        state = "dip"
-    else:
-        state = "normal"
-    # history for charts (last ~2.5y)
+    rule = RU.run(key, rclose, vix, baa, dgs2, tw_margin=mg_tw, us_debt=mg_us, start="2012-06-01",
+                  vix_today=float(vix.iloc[-1]) if (key == "tw" and vix is not None) else None)
+    m = rule["model"]; p = rule["panic"]
+    if p["target"] > 0: state = "panic"
+    elif rule["margin"]["reentry_ready"] and m["w1"] > 0.01: state = "reentry"
+    elif rule["rsi_hot"]: state = "refill"
+    elif rule["margin"]["on"]: state = "convert" if rule["conv_ok"] else "mgpause"
+    elif m["w1"] > 0.01: state = "wait1x"
+    else: state = "normal"
+    rule["state"] = state
     h = df.loc[df.index >= df.index[-1] - pd.Timedelta(days=900)]
     hist = {"date": [d.strftime("%Y-%m-%d") for d in h.index]}
     for c in ["close", "ma20", "ma60", "ma120", "ma240", "dd", "vix"]:
         hist[c] = [None if pd.isna(x) else round(float(x), 4 if c == "dd" else 2) for x in h[c]]
     rw = rsi.loc[rsi.index >= h.index[0]]
     hist_rsi = {"date": [d.strftime("%Y-%m-%d") for d in rw.index], "rsi": [round(float(x), 1) for x in rw]}
-    # past trigger markers (first day of each tier episode) within window
-    # 每一波（以創新高分段）每一級只標第一次
-    wave = (df["close"] >= df["ath"]).cumsum().loc[h.index]
-    def firsts(c):
-        c = c.fillna(False); return [d for d in c[c].groupby(wave[c]).head(1).index]
-    marks = []
-    for col, off, w, label, tid in R["mid"]:
-        marks += [{"date": d.strftime("%Y-%m-%d"), "label": label, "id": tid, "target": w, "kind": "dip"} for d in firsts(h["close"] <= h[col] * (1 + off))]
-    if R.get("deep") is not None:
-        marks += [{"date": d.strftime("%Y-%m-%d"), "label": "距高點 −30%", "id": "dd30", "target": 1.0, "kind": "panic"} for d in firsts(h["dd"] <= R["deep"])]
-    for th, w, label, tid in R["vix"]:
-        marks += [{"date": d.strftime("%Y-%m-%d"), "label": label, "id": tid, "target": w, "kind": "panic"} for d in firsts(h["vix"] >= th)]
-    rw2 = h["rsi_w"] > R["rsi_refill"]; st = rw2 & ~rw2.shift(1, fill_value=False)
-    marks += [{"date": d.strftime("%Y-%m-%d"), "label": f"週 RSI > {R['rsi_refill']}（補子彈）", "id": "refill", "target": R["base"], "kind": "refill"} for d in st[st].index]
+    marks = [{"date": d, "kind": k, "label": EVN[k]} for d, k in rule["events"] if d >= hist["date"][0]]
     return {
-        "name": R["name"], "lev": R["lev"], "bul": R["bul"], "base": R["base"], "rsi_refill": R["rsi_refill"],
+        "name": R["name"], "lev": R["lev"], "one": R["one"], "bul": R["bul"], "base": R["base"], "rsi_refill": R["rsi_refill"],
         "asof": df.index[-1].strftime("%Y-%m-%d"),
         "vix_asof": (vix.index[-1].strftime("%Y-%m-%d") if vix is not None else None),
         "close": round(float(last["close"]), 2), "chg1d": float(close.iloc[-1] / close.iloc[-2] - 1),
         "ath": round(float(last["ath"]), 2), "ath_date": ath_date.strftime("%Y-%m-%d"), "dd": float(last["dd"]),
         "lev_dd": float(np.prod(1 + 2 * close.loc[ath_date:].pct_change().dropna().values) - 1),
         "ma": {k: round(float(last[f"ma{k}"]), 2) for k in [20, 60, 120, 240]},
-        "rsi_w": round(float(last["rsi_w"]), 1), "vix": None if pd.isna(last["vix"]) else round(float(last["vix"]), 2),
-        "tiers": tiers, "target": target, "state": state, "refill": refill, "credit": credit,
-        "hist": hist, "hist_rsi": hist_rsi, "marks": sorted(marks, key=lambda m: m["date"]),
+        "rsi_w": rule["rsi"], "vix": None if pd.isna(last["vix"]) else round(float(last["vix"]), 2),
+        "state": state, "target": p["target"], "rule": rule,
+        "hist": hist, "hist_rsi": hist_rsi, "marks": marks,
     }
 
 out = {"generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), "sources": src_status}
-if taiex is not None:
-    out["tw"] = market(taiex["close"].astype(float), "tw")
+if taiex is not None and taiex_tr is not None:
+    out["tw"] = market(taiex["close"].astype(float), "tw", taiex_tr["price"].astype(float))
 if qqq is not None:
-    out["us"] = market(qqq["Close"].astype(float), "us")
+    ql = qqq_long["Close"].astype(float) if qqq_long is not None else qqq["Close"].astype(float)
+    out["us"] = market(qqq["Close"].astype(float), "us", ql)
     out["us"]["index_name"] = "QQQ"
 if "tw" in out: out["tw"]["index_name"] = "加權指數"
 
@@ -331,10 +316,8 @@ out["us_prices"] = us_px
 
 
 # ---------------- 訊號變化（給每日排程推播用）----------------
-def _sig(m):
-    if not m: return {}
-    return {"state": m.get("state"), "tiers": {t["id"]: t["active"] for t in m.get("tiers", [])}, "refill": m.get("refill")}
-NAMES = {"normal": "平常狀態", "dip": "中期回調（薪資全買正二）", "panic": "恐慌加碼", "refill": "過熱調節"}
+NAMES = {"normal": "平常狀態", "panic": "恐慌加碼", "refill": "RSI 過熱調節", "convert": "融資過熱（二倍槓桿換成一倍原型）",
+         "mgpause": "融資過熱（恐慌加碼後冷卻中，先不換）", "wait1x": "融資退燒中（一倍原型先不換回）", "reentry": "一倍原型換回二倍槓桿"}
 changes = []
 prev_path = sys.argv[2] if len(sys.argv) > 2 else None
 if prev_path and os.path.exists(prev_path):
@@ -342,19 +325,13 @@ if prev_path and os.path.exists(prev_path):
         prev = json.load(open(prev_path))
         for key in ["tw", "us"]:
             if key not in out or key not in prev: continue
-            a, b = _sig(prev[key]), _sig(out[key]); m = out[key]
-            lev = m["lev"]; nm = m["name"]
-            if a.get("state") != b.get("state"):
-                msg = f"{nm}：{NAMES.get(a.get('state'), a.get('state'))} → {NAMES.get(b['state'], b['state'])}"
-                if b["state"] in ("panic",): msg += f"，{lev} 加到 {round(m['target']*100)}%"
-                if b["state"] == "refill": msg += f"，{lev} 調回 {round(m['base']*100)}%"
+            m = out[key]; a_, b_ = prev[key].get("state"), m["state"]; nm = m["name"]
+            ta, tb = prev[key].get("target") or 0, m["target"] or 0
+            if a_ != b_ or (b_ == "panic" and tb > ta):
+                msg = f"{nm}：{NAMES.get(a_, a_)} → {NAMES.get(b_, b_)}"
+                if b_ == "panic": msg += f"，二倍槓桿加到 {round(tb*100)}%（先用一倍原型，再用子彈）"
+                if b_ == "refill": msg += f"，二倍槓桿調回 {round(m['base']*100)}%"
                 changes.append(msg)
-            pc, nc = (prev[key].get("credit") or {}).get("block"), (m.get("credit") or {}).get("block")
-            if nc and not pc: changes.append(f"{nm}：信用利差 3 個月擴大超過 {m['credit']['th']}，恐慌加碼暫停")
-            if pc and not nc: changes.append(f"{nm}：信用利差暫停解除，恐慌加碼恢復")
-            for t in m["tiers"]:
-                if t["group"] == "恐慌加碼" and t["active"] and not a.get("tiers", {}).get(t["id"], False) and a.get("state") == "panic":
-                    changes.append(f"{nm}：新觸發 {t['label']}，{lev} 加到 {round(t['target']*100)}%")
     except Exception as e:
         changes.append(f"(比對失敗: {type(e).__name__})")
 
@@ -370,7 +347,7 @@ try:
     us_only["fx"] = {"EUR" + k: round(1 / v, 5) for k, v in fx.items() if k != "EUR"}
 except Exception:
     pass
-us_only["sources"] = {k: v for k, v in src_status.items() if k not in ("FinMind 加權指數", "證交所收盤價", "櫃買中心收盤價", "FRED BAA 利差")}
+us_only["sources"] = {k: v for k, v in src_status.items() if k not in ("FinMind 加權指數", "FinMind 加權報酬指數", "FinMind 台股融資", "證交所收盤價", "櫃買中心收盤價")}
 with open(f"{OUT}/friends/data.json", "w") as f:
     json.dump(us_only, f, ensure_ascii=False, separators=(",", ":"))
 print("CHANGES: " + ("；".join(changes) if changes else "none"))
