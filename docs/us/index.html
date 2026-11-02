@@ -428,6 +428,20 @@ function render(){
 function bar3(w2,w1,wb){ const b=el('div',{class:'bar'}); b.append(el('i',{class:'lev',style:`width:${w2*100}%`}), el('i',{class:'one',style:`width:${w1*100}%`}), el('i',{class:'bul',style:`width:${wb*100}%`})); return b; }
 function mixTxt(w2,w1,wb){ return L(`二倍 ${pct(w2)}・一倍 ${pct(w1)}・子彈 ${pct(wb)}`,`2x ${pct(w2)} · 1x ${pct(w1)} · reserve ${pct(wb)}`); }
 
+let MINE_HOOK=null;
+/* 照規則現在應該有的結構：恐慌加碼目標、二倍槓桿 60/40，或一倍原型 60/40 */
+function sugMix(m){ const r=m.rule, b=m.base, t_=r.panic.target||0;
+  if (t_>0) return [t_,0,1-t_];
+  if (m.state==='convert'||m.state==='wait1x') return [0,b,1-b];
+  return [b,0,1-b]; }
+function sugNote(m){ const r=m.rule;
+  const a = m.state==='wait1x' ? L('已經換成的一倍原型繼續持有，等融資退燒滿 15 個月再換回；新投入的錢照常買二倍槓桿。','Keep the 1x you switched into until margin has been cool for 15 months; new money still buys 2x.')
+    : m.state==='mgpause' ? L(`融資過熱，但${pauseWhy(m)}；條件解除後換成一倍原型 60%／子彈 40%。`,`Margin is overheated, but ${pauseWhy(m)}; once that clears, switch to 1x 60% / reserve 40%.`) : '';
+  return a + L('二倍槓桿漲多後比例會往上漂，規則只在週 RSI 過熱時調回；沒有訊號時，和建議差 15% 以內不用調整。','After gains the 2x share drifts up; the rules only trim it when weekly RSI runs hot. With no signal, a gap of up to 15% from the suggestion needs no action.'); }
+async function mineFromPF(key){ try{ const rows=JSON.parse(store.get('pf-rows')||'[]'); if(!rows.some(r=>+r.n>0)) return null; await loadPrices();
+  const RL = key==='tw' ? ['tl','t1','tb'] : ['ul','up','ub']; const v=[0,0,0];
+  rows.forEach(r=>{ const c=(r.c||'').toUpperCase(); const role=r.r||autoRole(c); const i=RL.indexOf(role); const x=PRICES.p[c]; if(i>=0&&x) v[i]+=(+r.n||0)*x[1]; });
+  const T=v[0]+v[1]+v[2]; return T? v.map(x=>x/T) : null; }catch(e){ return null; } }
 function renderSig(main){
   const key = MODE==='us' ? 'us' : cur;
   const m = DATA[key];
@@ -444,17 +458,19 @@ function renderSig(main){
   verdict.append(el('div',{class:'vtitle'}, title), el('p',{class:'vsub'}, sub));
   const why = el('div',{class:'why'});
   why.append(el('span',{class:'chip'+(r.below60?' on':'')}, salaryText(m,nm)));
-  if (r.panic.blocked) why.append(el('span',{class:'chip on'}, `⏸ 信用利差 3 個月擴大 ${pp(r.panic.baa_chg)}，恐慌加碼暫停（第 ${r.panic.brun} 天，最多 30 個交易日）`));
+  if (r.panic.blocked) why.append(el('span',{class:'chip on'}, L(`⏸ 信用利差 3 個月擴大 ${pp(r.panic.baa_chg)}，恐慌加碼暫停（第 ${r.panic.brun} 天，最多 30 個交易日）`,`⏸ Credit spreads widened ${pp(r.panic.baa_chg)} in 3 months: panic buying paused (day ${r.panic.brun} of up to 30)`)));
   if (r.vix>=35 && !r.panic.g1 && r.panic.target<0.85) why.append(el('span',{class:'chip on'}, L('⏸ 殖利率或利差急升，VIX ≥ 35 這一階暫停','⏸ Yields or credit spreads spiking: the VIX ≥ 35 step is paused')));
   verdict.append(why);
   // 組合
   const alloc = el('div',{class:'alloc'});
   const row=(lab,a,b,c)=>alloc.append(el('span',{class:'muted'},lab), bar3(a,b,c), el('span',{class:'num'}, mixTxt(a,b,c)));
-  const md=r.model; row(L('規則目前的組合','Rules\' mix now'), md.w2, md.w1, md.wb);
-  const E0 = r.panic.target>0 ? r.panic.target : m.base;
-  if (r.conv_ok) row(L('新投入的起始組合','Starting mix for new money'), 0, E0, 1-E0); else row(L('新投入的起始組合','Starting mix for new money'), E0, 0, 1-E0);
+  const sg=sugMix(m); row(L('建議組合','Suggested mix'), ...sg);
+  const mine={lab:el('span',{class:'muted'},L('你的組合','Your mix')), bar:el('div',{}), num:el('span',{class:'num'})}; alloc.append(mine.lab, mine.bar, mine.num);
+  MINE_HOOK = w => { const show=!!w; [mine.lab,mine.bar,mine.num].forEach(n=>n.hidden=!show); if(!show) return; const b=bar3(...w); mine.bar.replaceWith(b); mine.bar=b; mine.num.textContent=mixTxt(...w); };
+  MINE_HOOK(null);
   verdict.append(alloc, el('div',{class:'legend'}, el('span',{style:`--c:${C.brass}`}, L(`${nm.lev}（二倍槓桿）`,`${nm.lev} (2x)`)), el('span',{style:'--c:#8fb3a0'}, L(`${nm.one}（一倍原型）`,`${nm.one} (1x)`)), el('span',{style:'--c:#3b4a5c'}, L(`${nm.bul}（子彈）`,`${nm.bul} (reserve)`))));
-  verdict.append(el('p',{class:'note'}, L('「規則目前的組合」是從 2012 年起照規則一路操作到今天、不含每月薪資的比例。訊號以收盤價計算，下一個交易日執行即可，不用盯盤。','"Rules\' mix now" is where the rules would stand today after following them since 2012, without monthly savings. Signals use closing prices; acting on the next trading day is fine.')));
+  verdict.append(el('p',{class:'note'}, sugNote(m)+' '+L('訊號以收盤價計算，下一個交易日執行即可，不用盯盤。','Signals use closing prices; acting on the next trading day is fine.')));
+  if (MODE!=='us') mineFromPF(key).then(w=>MINE_HOOK&&MINE_HOOK(w));
   if (MODE!=='us'){ const go=el('button',{class:'btn-ghost',style:'margin-top:12px'},'到「我的庫存」看要買賣哪幾檔、幾股 →'); go.onclick=()=>{cur='pf';store.set('dash-tab','pf');chrome();render();window.scrollTo(0,0);}; verdict.append(el('div',{},go)); }
 
   // ===== ladder =====
@@ -476,13 +492,13 @@ function renderSig(main){
     [35,40].forEach(x=>mtr.append(el('div',{class:'tk'+(vv>=x?' on':''),style:`left:${posn(x)}%`})));
     const tg=el('div',{class:'vtiers'}); [[35,'85%'],[40,'100%']].forEach(([x,w])=>tg.append(el('div',{class:'vt'+(vv>=x?' on':'')}, el('span',{},'VIX ≥ '+x), el('b',{},L(`${w} 二倍槓桿`,`${w} 2x`)))));
     box.append(mtr, tg);
-    if (isTW) box.append(el('div',{class:'cred'+(p.blocked?' on':'')}, p.blocked?`⏸ 信用利差 3 個月擴大 ${pp(p.baa_chg)}，超過 +0.8：所有恐慌加碼暫停（最多 30 個交易日）`:`台股另外：信用利差 3 個月擴大超過 0.8 時，所有恐慌加碼暫停（最多 30 個交易日）。目前 ${pp(p.baa_chg)}`));
+    box.append(el('div',{class:'cred'+(p.blocked?' on':'')}, p.blocked?L(`⏸ 信用利差 3 個月擴大 ${pp(p.baa_chg)}，超過 +0.8：所有恐慌加碼暫停（最多 30 個交易日）`,`⏸ Credit spreads widened ${pp(p.baa_chg)} in 3 months, above +0.8: all panic buying paused (up to 30 trading days)`):L(`信用利差 3 個月擴大超過 0.8 時，所有恐慌加碼暫停，最多 30 個交易日。目前 ${pp(p.baa_chg)}`,`If credit spreads widen more than 0.8 in 3 months, all panic buying pauses for up to 30 trading days. Now ${pp(p.baa_chg)}`)));
     LD.append(box); }
   grp(L('過熱調節','Trim when hot'), true);
   rung(r.rsi_hot, C.info, L(`週 RSI > ${r.rsi_th}`,`Weekly RSI > ${r.rsi_th}`), r.rsi_hot?L(`目前 ${r.rsi}，已超過門檻`,`Now ${r.rsi}, above the line`):L(`目前 ${r.rsi}，還差 ${(r.rsi_th-r.rsi).toFixed(1)}`,`Now ${r.rsi}, ${(r.rsi_th-r.rsi).toFixed(1)} to go`), L(`二倍槓桿調回 ${pct(m.base)}`,`2x back to ${pct(m.base)}`));
   grp(L('融資過熱','Margin overheating'), true);
   rung(r.margin.on, C.warn, isTW?'融資過熱':L('FINRA 融資年增 > 50%','FINRA margin debt > 50% YoY'), mgDesc(m) + (r.margin.on && !r.conv_ok ? L(`<br><b style="color:var(--warn)">先不換：${pauseWhy(m)}</b>`,`<br><b style="color:var(--warn)">On hold: ${pauseWhy(m)}</b>`):''), L('二倍槓桿 → 一倍原型','2x → 1x'));
-  rung(r.margin.reentry_ready && md.w1>0.01, C.ok, L('融資退燒換回','Back to 2x after cooling'), L(`融資訊號關閉 ${r.margin.off_days}／${r.reoff_days} 個交易日、收盤${r.below60?'在季線下方 ✗':'在季線上方 ✓'}${md.w1>0.01?'':'（規則目前沒有一倍原型）'}`,`Margin signal off ${r.margin.off_days} / ${r.reoff_days} trading days; price ${r.below60?'below the 60-day MA ✗':'above the 60-day MA ✓'}${md.w1>0.01?'':' (the rules hold no 1x now)'}`), L('一倍原型 → 二倍槓桿','1x → 2x'));
+  const md=r.model; rung(r.margin.reentry_ready && md.w1>0.01, C.ok, L('融資退燒換回','Back to 2x after cooling'), L(`融資訊號關閉 ${r.margin.off_days}／${r.reoff_days} 個交易日、收盤${r.below60?'在季線下方 ✗':'在季線上方 ✓'}${md.w1>0.01?'':'（規則目前沒有一倍原型）'}`,`Margin signal off ${r.margin.off_days} / ${r.reoff_days} trading days; price ${r.below60?'below the 60-day MA ✗':'above the 60-day MA ✓'}${md.w1>0.01?'':' (the rules hold no 1x now)'}`), L('一倍原型 → 二倍槓桿','1x → 2x'));
   grp(L('每月薪資','Monthly savings'), true);
   rung(r.below60, C.warn, L('收盤在季線下方','Close below the 60-day MA'), L(`季線 ${fmt(r.ma60,idxD)}${isTW?'（含息指數）':''}，收盤${r.below60?'低':'高'} ${pct(Math.abs(r.close/r.ma60-1),1)}`,`60-day MA ${fmt(r.ma60,idxD)}; price is ${pct(Math.abs(r.close/r.ma60-1),1)} ${r.below60?'below':'above'}`), r.salary.to==='1x'?L('薪資全買一倍原型','All savings to 1x'):L('薪資全買二倍槓桿','All savings to 2x'));
   lad.append(LD);
@@ -692,12 +708,13 @@ function renderPFUS(main, slot){
     if(!all && !(sal>0)){ out.append(el('p',{class:'muted'},(slot?L('在下方輸入持股，或在上面填本月可投入金額，這裡會依規則算出要買賣多少。還沒有持股的人，只要填金額就會告訴你第一次怎麼買。','Enter your holdings below, or this month\'s amount above, to see what to buy or sell under the rules. No holdings yet? Just enter the amount to see how to start.'):L('在左邊輸入持股後，這裡會算出要買賣多少。','Enter your holdings on the left to see what to trade.')))); return; }
     if(all) out.append(el('div',{class:'eyebrow',style:'margin-top:6px'},L(`總市值 ${N(all)} ${CUR}`,`Total ${N(all)} ${CUR}`)));
     if(T){ out.append(el('div',{class:'pf-bar'}, el('span',{class:'muted'},L('你的組合','Your mix')), bar3(S.ul/T,S.up/T,S.ub/T), el('span',{class:'num'},mixTxt(S.ul/T,S.up/T,S.ub/T))));
-      out.append(el('p',{class:'note',style:'margin:-4px 0 6px'},L(`二倍槓桿／一倍原型／子彈。規則目前：${mixTxt(DATA.us.rule.model.w2,DATA.us.rule.model.w1,DATA.us.rule.model.wb)}`,`2x / 1x / reserve. The rules now: ${mixTxt(DATA.us.rule.model.w2,DATA.us.rule.model.w1,DATA.us.rule.model.wb)}`))); }
+      out.append(el('p',{class:'note',style:'margin:-4px 0 6px'},L(`建議組合：${mixTxt(...sugMix(DATA.us))}`,`Suggested: ${mixTxt(...sugMix(DATA.us))}`))); }
     if(S.uo) out.append(el('p',{class:'note'},L(`「其他」${N(S.uo)} ${CUR} 不算進規則。`,`"Other" (${N(S.uo)} ${CUR}) is left out of the rules.`)));
     const nameOf={lev:LEV,one:ONE,bul:BUL}, roleOf={lev:'ul',one:'up',bul:'ub'};
     const sh=(amt,k)=>{ const r=Object.values(by).flat().find(x=>x.c===k&&x.px); const p_=r?r.px:autoPx(k); return p_?` ${L('（約','(about')} ${b_(N(Math.floor(amt/p_)))} ${L('股）','shares)')}`:''; };
     const sellFrom=(role,amt)=>{ const res=[]; let left=amt; for(const x of (by[role]||[]).filter(x=>x.v>0).sort((a,b)=>b.v-a.v)){ const y=Math.min(left,x.v); if(y<=0) break; res.push(`${x.c} ${b_(N(y))} ${CUR}${x.px?` ${L('（約','(about')} ${b_(N(Math.floor(y/x.px)))} ${L('股）','shares)')}`:''}`); left-=y; } return res.join(L('、',', ')); };
     const o={nm:{lev:LEV,one:ONE,bul:BUL}, buy:(k,a)=>`${nameOf[k]} ${b_(N(a))} ${CUR}${sh(a,nameOf[k])}`, sell:(k,a)=>sellFrom(roleOf[k],a)};
+    if(MINE_HOOK) MINE_HOOK(T?[S.ul/T,S.up/T,S.ub/T]:null);
     drawActs(out, plan(DATA.us, {L2:S.ul,L1:S.up,B:S.ub}, sal, o));
     out.append(el('p',{class:'note'},L('股數依最近收盤價估算，下單前請用當時價格確認。賣出可能要繳資本利得稅（台灣居民買美國 ETF 沒有資本利得稅，但股息預扣 30%；法國約 30%）；不想賣的人，可以只用新投入的錢慢慢調整。','Share counts use the latest close; check the live price before you trade. Selling can trigger capital gains tax (about 30% in France, for example); if you prefer not to sell, steer with new money only.')));
   }
@@ -792,7 +809,7 @@ function renderPF2(main){
       if(!t_ && !(sal>0)) return;
       const h=el('h3',{style:'margin:16px 0 6px;font-size:.98rem'},lab); out.append(h);
       if(t_) out.append(el('div',{class:'pf-bar'}, el('span',{class:'muted'},'二倍／一倍／子彈'), bar3(v.L2/t_,v.L1/t_,v.B/t_), el('span',{class:'num'},mixTxt(v.L2/t_,v.L1/t_,v.B/t_))));
-      out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`燈號：${t('st_'+m.state)}・規則目前 ${mixTxt(m.rule.model.w2,m.rule.model.w1,m.rule.model.wb)}`));
+      out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`燈號：${t('st_'+m.state)}・建議組合 ${mixTxt(...sugMix(m))}`));
       drawActs(out, plan(m, v, sal, o).map(a=>({...a,h:a.h})));
     };
     sleeve('台股', DATA.tw, {L2:S.tl,L1:S.t1,B:S.tb}, sTW, oTW);
@@ -822,8 +839,8 @@ function openGuide(){
   const s3=sec(L('規則（台股、美股相同）','The rules (same for Taiwan and the US)'), null, L('每天依序檢查，前面成立就不看後面。','Checked in this order every day; the first one that applies wins.'));
   s3.append(tbl([[L('項目','Item'),L('規則','Rule')],
     [L('基準','Base'), L(`二倍槓桿 60%／子彈 40%`,`2x 60% / reserve 40%`)],
-    [L('恐慌加碼','Panic buy'), L(`VIX ≥ 35：二倍槓桿加到 85%（美國 2 年期殖利率 3 個月內升超過 0.5 個百分點，或 BAA 信用利差 3 個月內擴大超過 0.7，這一階暫停）<br>VIX ≥ 40：加到 100%<br>先賣一倍原型，不夠再用子彈${isTW?'<br>台股另外：利差 3 個月擴大超過 0.8 時，所有恐慌加碼暫停，最多 30 個交易日':''}`,
-      `VIX ≥ 35: raise 2x to 85% (paused if the US 2-year yield rose more than 0.5 point in 3 months, or the BAA credit spread widened more than 0.7)<br>VIX ≥ 40: raise to 100%<br>Sell 1x first, then use reserve`)],
+    [L('恐慌加碼','Panic buy'), L(`VIX ≥ 35：二倍槓桿加到 85%（美國 2 年期殖利率 3 個月內升超過 0.5 個百分點，或 BAA 信用利差 3 個月內擴大超過 0.7，這一階暫停）<br>VIX ≥ 40：加到 100%<br>先賣一倍原型，不夠再用子彈<br>利差 3 個月擴大超過 0.8 時，所有恐慌加碼（含深跌補滿）暫停，最多 30 個交易日`,
+      `VIX ≥ 35: raise 2x to 85% (paused if the US 2-year yield rose more than 0.5 point in 3 months, or the BAA credit spread widened more than 0.7)<br>VIX ≥ 40: raise to 100%<br>Sell 1x first, then use reserve<br>If the credit spread widens more than 0.8 in 3 months, all panic buying (including the top-up) pauses for up to 30 trading days`)],
     [L('深跌補滿','Deep-drop top-up'), L('一年內 VIX 曾 ≥ 35、距一年高點跌超過 30%，而且利差 3 個月擴大不到 0.5：二倍槓桿加到 100%','VIX reached 35 within the past year, price is more than 30% below its 1-year high, and credit spreads widened less than 0.5 in 3 months: raise 2x to 100%')],
     [L('融資退燒換回','Back to 2x'), L('融資訊號關閉滿 315 個交易日（約 15 個月）且收盤在季線上方：一倍原型全部換回二倍槓桿','Margin signal off for 315 trading days (about 15 months) and price above the 60-day MA: move all 1x back into 2x')],
     [L('過熱調節','Trim'), L(`週 RSI > ${th}：二倍槓桿調回 60%，賣出的錢買子彈`,`Weekly RSI > ${th}: trim 2x back to 60% and put the rest in reserve`)],
@@ -1039,7 +1056,7 @@ document.getElementById('main').firstChild.textContent = t('loading');
   try{
     const r = await fetch('data.json',{cache:'no-store'}); DATA = await r.json();
     chrome(); sourcesRender(); render(); staleCheck();
-  }catch(e){ const mn=document.getElementById('main'); mn.textContent=''; mn.append(el('div',{class:'loading'},t('loadfail'))); }
+  }catch(e){ console.error(e); const mn=document.getElementById('main'); mn.textContent=''; mn.append(el('div',{class:'loading'},t('loadfail'))); }
 })();
 
 // ===== 立即更新：只有頁面擁有者看得到 =====
