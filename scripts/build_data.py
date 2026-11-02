@@ -59,11 +59,14 @@ def wrsi(close, n=14):
 
 # ---------------- fetch ----------------
 src_status = {}
+_T0 = time.time()
+def log(msg): print(f"[{time.time() - _T0:6.1f}s] {msg}", flush=True)
 def safe(name, fn):
+    t = time.time()
     try:
-        v = fn(); src_status[name] = "ok"; return v
+        v = fn(); src_status[name] = "ok"; log(f"{name} ok ({time.time() - t:.1f}s)"); return v
     except Exception as e:
-        src_status[name] = f"失敗: {type(e).__name__}"; return None
+        src_status[name] = f"失敗: {type(e).__name__}"; log(f"{name} 失敗 {type(e).__name__} ({time.time() - t:.1f}s)"); return None
 
 vix = vol("VIX", "VIXCLS")
 # 盤中：CBOE 延遲報價（約 15 分鐘），若比歷史資料新就補上今天這一筆
@@ -135,6 +138,7 @@ def us_margin():
     except Exception as e:
         src_status["FINRA 美股融資"] = f"失敗: {type(e).__name__}（用快取到 {c['ym'].iloc[-1]}）"
     return pd.Series(c["debt"].astype(float).values, index=pd.to_datetime(c["ym"]))
+log("start: mg_tw = tw_margin(); mg_us = u")
 mg_tw = tw_margin(); mg_us = us_margin()
 dgs2 = safe("FRED 2 年期殖利率", lambda: fred("DGS2", "2012-01-01"))
 taiex_tr = safe("FinMind 加權報酬指數", lambda: finmind("TaiwanStockTotalReturnIndex", "TAIEX", "2012-01-01"))
@@ -193,6 +197,7 @@ def market(close, key, rclose):
     }
 
 out = {"generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), "sources": src_status}
+log("start: if taiex is not None and taiex")
 if taiex is not None and taiex_tr is not None:
     out["tw"] = market(taiex["close"].astype(float), "tw", taiex_tr["price"].astype(float))
 if qqq is not None:
@@ -232,6 +237,7 @@ if fpe:
     macro["fpe"] = {"last": fpe[-1]["value"], "asof": fpe[-1]["trading_day (EOD)"], "series": fpe}
 out["macro"] = macro
 
+log("start: # ---------------- 我的庫存用的收盤價")
 # ---------------- 我的庫存用的收盤價（只放在完整版）----------------
 PF_TICKERS = {"2330": "台積電", "00685L": "群益臺灣加權正2", "00631L": "元大台灣50正2", "00713": "元大台灣高息低波",
               "00918": "大華優利高填息30", "00830": "國泰費城半導體", "00670L": "富邦NASDAQ正2", "00865B": "國泰US短期公債",
@@ -269,6 +275,7 @@ for tk, nm in PF_TICKERS.items():
     except Exception:
         pass
 prices_doc = {"date": px_date, "p": {k: [v["name"], v["close"]] for k, v in prices.items()}}
+log("start: # 朋友版：規則用到的歐洲 ETF")
 # 朋友版：規則用到的歐洲 ETF（Yahoo Finance），統一換算成歐元
 EU_UNIVERSE = "LQQ.PA IB01.L XEON.DE EQQQ.DE SXRV.DE CNDX.L CSPX.L VUAA.DE ZPR1.DE ERNE.L VWCE.DE IWDA.AS"  # 其餘歐股由 build_eu.py 另外產生 eu.json
 # 舊代號（沒有交易所代碼）對應
@@ -319,6 +326,7 @@ for tk in ["QLD", "SGOV", "QQQ", "TQQQ", "VOO", "SPY", "BIL", "SHV", "SCHD", "QQ
     except Exception:
         pass
 
+log("start: # 美股常見標的（給朋友版「我的庫存」用）")
 # 美股常見標的（給朋友版「我的庫存」用）
 US_TICKERS = ["QLD", "SGOV", "QQQ", "TQQQ", "QQQM", "SPY", "VOO", "VTI", "SSO", "UPRO", "BIL", "SHV", "USFR", "IEF", "TLT",
               "SCHD", "SOXX", "SMH", "SOXL", "NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "TSM"]
@@ -333,6 +341,7 @@ for tk in US_TICKERS:
 out["us_prices"] = us_px
 
 
+log("start: # ---------------- 訊號變化")
 # ---------------- 訊號變化（給每日排程推播用）----------------
 NAMES = {"normal": "平常狀態", "panic": "恐慌加碼", "refill": "RSI 過熱調節", "convert": "融資過熱（二倍槓桿換成一倍原型）",
          "mgpause": "融資過熱（恐慌加碼後冷卻中，先不換）", "wait1x": "融資退燒中（一倍原型先不換回）", "reentry": "一倍原型換回二倍槓桿"}
