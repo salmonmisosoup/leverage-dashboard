@@ -32,10 +32,10 @@ The same rules for Taiwan and the US. Each day they are checked in this order; t
 | Deep-drop top-up | VIX reached 35 within a year, price > 30% below its 1-year high, credit spread widened < 0.5 pt in 3 months → 2x at 100% |
 | Back to 2x | Margin signal off for 315 trading days (about 15 months) and price above the 60-day MA → all 1x back into 2x |
 | Trim | Weekly RSI > 75 (US) / 80 (Taiwan) → 2x back to 60%, the rest into reserve |
-| Margin overheating | US: FINRA margin debt > 50% YoY. Taiwan: TW margin > 35% YoY and > 20% over 2 years, or the US signal → all 2x into 1x (QQQM / 0050). Not while VIX ≥ 35, in a deep drop, or within 60 trading days of a panic buy |
+| Margin overheating | US: FINRA margin debt > 50% YoY. Taiwan: TW margin balance ÷ index up > 20% in a year (margin growing faster than prices) and margin > 20% over 2 years, or the US signal → all 2x into 1x (QQQM / 0050). Not while VIX ≥ 35, in a deep drop, or within 60 trading days of a panic buy |
 | Monthly savings | Price below the 60-day MA: all into 2x; otherwise 60 / 40. While margin is overheated the 2x share buys 1x |
 
-Backtest (single investment): US 26.8% a year since 1990 (max drawdown −81%) vs 14.9% for holding QQQ; Taiwan 28.7% a year since 1999 (−65%) vs 11.9% for 0050. The full backtest chart is on the **Backtest** tab of each page.
+Backtest (single investment): US 26.8% a year since 1990 (max drawdown −81%) vs 14.9% for holding QQQ; Taiwan 28.3% a year since 1999 (−65%) vs 11.9% for 0050. The full backtest chart is on the **Backtest** tab of each page.
 
 Design notes, backtest comparisons and the main risks are under **How to use** on each page.
 
@@ -107,10 +107,10 @@ MIT
 | 深跌補滿 | 一年內 VIX 曾 ≥ 35、距一年高點跌超過 30%、利差 3 個月擴大不到 0.5 → 二倍槓桿 100% |
 | 融資退燒換回 | 融資訊號關閉滿 315 個交易日（約 15 個月）且收盤在季線上方 → 一倍原型全部換回二倍槓桿 |
 | 過熱調節 | 週 RSI > 75（美股）／80（台股）→ 二倍槓桿調回 60%，賣出的錢買子彈 |
-| 融資過熱 | 美股：FINRA 融資年增 > 50%。台股：台股融資年增 > 35% 且兩年增長 > 20%，或美股訊號成立 → 二倍槓桿全部換成一倍原型（QQQM／0050）。VIX ≥ 35、深跌區、恐慌加碼後 60 個交易日內先不換 |
+| 融資過熱 | 美股：FINRA 融資年增 > 50%。台股：融資餘額÷加權指數一年增加 > 20%（融資增加得比股價快）且融資兩年增長 > 20%，或美股訊號成立 → 二倍槓桿全部換成一倍原型（QQQM／0050）。VIX ≥ 35、深跌區、恐慌加碼後 60 個交易日內先不換 |
 | 每月薪資 | 收盤在季線下方：全部買二倍槓桿；否則 60／40。融資過熱時，二倍槓桿那一份改買一倍原型 |
 
-回測（一次投入）：美股 1990 年起年化 26.8%（最大跌幅 −81%），一直持有 QQQ 是 14.9%；台股 1999 年起年化 28.7%（−65%），0050 是 11.9%。完整回測圖在各頁的「回測」分頁。
+回測（一次投入）：美股 1990 年起年化 26.8%（最大跌幅 −81%），一直持有 QQQ 是 14.9%；台股 1999 年起年化 28.3%（−65%），0050 是 11.9%。完整回測圖在各頁的「回測」分頁。
 
 設計理由、回測對照與最大風險，請看各頁面上的「使用說明」。
 

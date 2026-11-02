@@ -10,7 +10,7 @@
   2. 融資退燒換回：融資訊號關閉滿 315 個交易日（約 15 個月）且收盤在季線上 → 一倍原型全部換回二倍槓桿
   3. RSI 過熱調節：週 RSI > 75（美股）／80（台股）且二倍槓桿 > 63% → 調回 60%，賣出的錢買子彈
   4. 融資過熱：訊號成立、恐慌加碼後已過 60 個交易日、VIX < 35、不在深跌區 → 二倍槓桿全部轉一倍原型
-     美股訊號：FINRA 融資年增 > 50%；台股訊號：台股融資年增 > 35% 且兩年增長 > 20%，或美股訊號成立
+     美股訊號：FINRA 融資年增 > 50%；台股訊號：融資÷指數一年增加 > 20% 且融資兩年增長 > 20%，或美股訊號成立
 每月薪資：收盤在季線下方全部買二倍槓桿，否則 60／40；融資轉換條件成立時，二倍槓桿那一份改買一倍原型。
 """
 import numpy as np, pandas as pd
@@ -56,9 +56,11 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
         Ls = L.shift(1)
         TWY = (Ls / Ls.shift(250) - 1).reindex(D, method="ffill").fillna(0)
         Lr = L.shift(1).reindex(D, method="ffill"); TW2 = (Lr / Lr.shift(500) - 1).fillna(0)
-        MG = ((TWY > 0.35) & (TW2 > 0.20)) | (USM > 0.50)
+        # 台股融資過熱：融資餘額÷加權報酬指數 一年增加 > 20%（融資增加得比股價快），且融資兩年增長 > 20%；或美股訊號成立
+        RR = Lr / P; TWR = (RR / RR.shift(250) - 1).fillna(0)
+        MG = ((TWR > 0.20) & (TW2 > 0.20)) | (USM > 0.50)
     else:
-        TWY = TW2 = None
+        TWY = TW2 = TWR = None
         MG = USM > 0.50
     brun = np.zeros(len(D), int)
     if c["brun"]:
@@ -123,6 +125,7 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
         "margin": {"on": bool(m_[i]), "us_yoy": round(float(USM.iloc[-1]), 4),
                    "tw_yoy": round(float(TWY.iloc[-1]), 4) if TWY is not None else None,
                    "tw_2y": round(float(TW2.iloc[-1]), 4) if TW2 is not None else None,
+                   "tw_ratio": round(float(TWR.iloc[-1]), 4) if TWR is not None else None,
                    "off_days": int(offrun[i]), "reentry_ready": bool(offrun[i] >= REOFF and R60[i] > 0)},
         "cool": {"days_since_add": days_since_add, "active": bool(cool)},
         "conv_ok": conv_ok, "panic_zone": bool(panic_zone), "deep_zone": deep_raw,
