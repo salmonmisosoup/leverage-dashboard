@@ -22,6 +22,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       HAS_MAIL: ${{ secrets.MAIL_USERNAME != '' }}
       HAS_WA: ${{ secrets.WA_APIKEY != '' }}

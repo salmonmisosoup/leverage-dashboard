@@ -88,11 +88,22 @@ fpe = safe("Siblis 前瞻本益比", lambda: json.loads(get("https://siblisresea
 # ---------------- 融資資料（快取在 data/，每次只補最新的）----------------
 import rules as RU
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+def _deadline(fn, sec):
+    """在背景執行，超過 sec 秒就放棄（避免對方網站拖住整個排程）"""
+    import threading
+    box = {}
+    def run():
+        try: box["v"] = fn()
+        except Exception as e: box["e"] = e
+    th = threading.Thread(target=run, daemon=True); th.start(); th.join(sec)
+    if th.is_alive(): raise TimeoutError(f"超過 {sec} 秒")
+    if "e" in box: raise box["e"]
+    return box["v"]
 def tw_margin():
     p = os.path.join(ROOT, "data", "margin_tw.csv"); c = pd.read_csv(p)
     st = (pd.Timestamp(c["date"].iloc[-1]) - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
     try:
-        d = finmind("TaiwanStockTotalMarginPurchaseShortSale", "", st).reset_index()
+        d = _deadline(lambda: finmind("TaiwanStockTotalMarginPurchaseShortSale", "", st), 120).reset_index()
         d = d[d["name"] == "MarginPurchaseMoney"]
         n = pd.DataFrame({"date": d["date"].dt.strftime("%Y-%m-%d"), "balance": d["TodayBalance"].astype("int64")})
         c = pd.concat([c[~c["date"].isin(n["date"])], n]).sort_values("date"); c.to_csv(p, index=False)
@@ -102,13 +113,20 @@ def tw_margin():
     return pd.Series(c["balance"].astype(float).values, index=pd.to_datetime(c["date"]))
 def us_margin():
     p = os.path.join(ROOT, "data", "margin_us.csv"); c = pd.read_csv(p)
+    # FINRA 每月一次（約次月第三週）公布；快取已有上個月的資料就不用再抓
+    want = (pd.Timestamp.today() - pd.DateOffset(months=1)).strftime("%Y-%m")
+    if c["ym"].iloc[-1] >= want or (pd.Timestamp.today().day < 15 and c["ym"].iloc[-1] >= (pd.Timestamp.today() - pd.DateOffset(months=2)).strftime("%Y-%m")):
+        src_status["FINRA 美股融資"] = "ok"
+        return pd.Series(c["debt"].astype(float).values, index=pd.to_datetime(c["ym"]))
     try:
         import re as _re
-        html = get("https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics", tries=2)
-        link = [l for l in _re.findall(r'href="([^"]+\.xlsx)"', html) if "margin" in l.lower()][0]
-        url = link if link.startswith("http") else "https://www.finra.org" + link
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        x = pd.read_excel(io.BytesIO(urllib.request.urlopen(req, timeout=90).read()))
+        def dl():
+            UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
+            html = urllib.request.urlopen(urllib.request.Request("https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics", headers=UA), timeout=30).read().decode("utf-8", "ignore")
+            link = [l for l in _re.findall(r'href="([^"]+\.xlsx)"', html) if "margin" in l.lower()][0]
+            url = link if link.startswith("http") else "https://www.finra.org" + link
+            return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=30).read()
+        x = pd.read_excel(io.BytesIO(_deadline(dl, 90)))
         x = x.iloc[:, :2]; x.columns = ["ym", "debt"]; x = x.dropna()
         x["ym"] = pd.to_datetime(x["ym"].astype(str).str[:7]).dt.strftime("%Y-%m")
         if len(x) > 300:
