@@ -110,7 +110,8 @@ vxn = vol("VXN", "VXNCLS")
 vix3m = vol("VIX3M", "VXVCLS")
 hy = safe("FRED HY OAS", lambda: fred("BAMLH0A0HYM2", "2020-01-01"))
 baa = safe("FRED BAA 利差", lambda: fred("BAA10Y", "2012-01-01"))
-if fred_stale and any("BAA10Y" in x for x in fred_stale): src_status["FRED BAA 利差"] = "失敗: " + [x for x in fred_stale if "BAA10Y" in x][0]
+if any("BAA10Y" in x for x in fred_stale) and baa is not None:
+    src_status["FRED BAA 利差"] = ("失敗: " if (pd.Timestamp.today() - baa.index[-1]).days > 10 else "快取: ") + [x for x in fred_stale if "BAA10Y" in x][0]
 taiex = safe("FinMind 加權指數", lambda: finmind("TaiwanStockPrice", "TAIEX", "2014-01-01"))
 qqq = safe("FinMind QQQ", lambda: finmind("USStockPrice", "QQQ", "2014-01-01"))
 fg = safe("CNN 恐懼貪婪 (GitHub)", lambda: pd.read_csv(io.StringIO(get("https://raw.githubusercontent.com/whit3rabbit/fear-greed-data/main/fear-greed.csv")), parse_dates=["Date"]).set_index("Date")["Fear Greed"])
@@ -158,7 +159,8 @@ def us_margin():
 log("start: mg_tw = tw_margin(); mg_us = u")
 mg_tw = tw_margin(); mg_us = us_margin()
 dgs2 = safe("FRED 2 年期殖利率", lambda: fred("DGS2", "2012-01-01"))
-if any("DGS2" in x for x in fred_stale): src_status["FRED 2 年期殖利率"] = "失敗: " + [x for x in fred_stale if "DGS2" in x][0]
+if any("DGS2" in x for x in fred_stale) and dgs2 is not None:
+    src_status["FRED 2 年期殖利率"] = ("失敗: " if (pd.Timestamp.today() - dgs2.index[-1]).days > 10 else "快取: ") + [x for x in fred_stale if "DGS2" in x][0]
 taiex_tr = safe("FinMind 加權報酬指數", lambda: finmind("TaiwanStockTotalReturnIndex", "TAIEX", "2012-01-01"))
 qqq_long = safe("FinMind QQQ 長期", lambda: finmind("USStockPrice", "QQQ", "2012-01-01"))
 

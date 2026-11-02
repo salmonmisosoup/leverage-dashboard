@@ -1024,13 +1024,13 @@ function staleCheck(){
   const st=document.getElementById('stale'); const age=(Date.now()-new Date(DATA.generated).getTime())/864e5;
   // 只有會影響燈號的來源失敗才警示：VIX、指數價格、（台股）信用利差
   const crit = k => /^(CBOE|FRED) VIX$/.test(k) || /QQQ/.test(k) || /BAA/.test(k) || /2 年期/.test(k) || (MODE!=='us' && /加權/.test(k));
-  const bad=Object.entries(DATA.sources||{}).some(([k,v])=>v!=='ok' && crit(k));
-  if (age>3.5 || bad){ st.hidden=false; st.textContent= bad ? t('stale_src',{s:Object.entries(DATA.sources).filter(([k,v])=>v!=='ok'&&crit(k)).map(([k])=>k).join('、')}) : t('stale',{n:Math.floor(age)}); } else st.hidden=true;
+  const isBad=v=>v!=='ok' && !String(v).startsWith('快取'); const bad=Object.entries(DATA.sources||{}).some(([k,v])=>isBad(v) && crit(k));
+  if (age>3.5 || bad){ st.hidden=false; st.textContent= bad ? t('stale_src',{s:Object.entries(DATA.sources).filter(([k,v])=>isBad(v)&&crit(k)).map(([k])=>k).join('、')}) : t('stale',{n:Math.floor(age)}); } else st.hidden=true;
 }
 function sourcesRender(){
   const s=document.getElementById('sources'); s.textContent='';
-  const en = s => LANG!=='en' ? s : s.replace('CNN 恐懼貪婪','CNN Fear & Greed').replace('前瞻本益比','forward P/E').replace('加權指數','TAIEX').replace('美股融資','US margin debt').replace('2 年期殖利率','2-year yield').replace('利差','spread').replace('長期','history').replace('失敗','failed').replace('用快取到','using cache to');
-  for(const [k,v] of Object.entries(DATA.sources||{})) s.append(el('span',{class:v==='ok'?'':'bad',title:v},en(k)+(v==='ok'?'':' ('+en(v)+')')));
+  const en = s => LANG!=='en' ? s : s.replace('CNN 恐懼貪婪','CNN Fear & Greed').replace('前瞻本益比','forward P/E').replace('加權指數','TAIEX').replace('美股融資','US margin debt').replace('2 年期殖利率','2-year yield').replace('利差','spread').replace('長期','history').replace('失敗','failed').replace('用快取到','using cache to').replace('快取: ','cached: ');
+  for(const [k,v] of Object.entries(DATA.sources||{})){ const ok=v==='ok'||String(v).startsWith('快取'); s.append(el('span',{class:ok?'':'bad',title:v},en(k)+(v==='ok'?'':' ('+en(v)+')'))); }
 }
 
 chrome();
