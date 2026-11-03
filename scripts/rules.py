@@ -11,6 +11,7 @@
   3. RSI 過熱調節：週 RSI > 75（美股）／80（台股）且二倍槓桿 > 63% → 調回 60%，賣出的錢買子彈
   4. 融資過熱：訊號成立、恐慌加碼後已過 60 個交易日、VIX < 35、不在深跌區 → 二倍槓桿全部轉一倍原型
      美股訊號：FINRA 融資年增 > 50%；台股訊號：融資÷指數一年增加 > 20% 且融資兩年增長 > 20%，或美股訊號成立
+台股另有：近 20 日跌 ≥ 5%、台指 VIX ≥ 40、美國信用利差 3 個月擴大 < 0.3 → 視同 VIX ≥ 40，加到 100%
 每月薪資：收盤在季線下方全部買二倍槓桿，否則 60／40；融資轉換條件成立時，二倍槓桿那一份改買一倍原型。
 """
 import numpy as np, pandas as pd
@@ -34,7 +35,7 @@ def us_margin_yoy(debt):
     return y.dropna()
 
 
-def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01-01", vix_today=None):
+def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01-01", vix_today=None, vixtwn=None):
     c = CFG[key]; th = c["rsi"]
     P = close.dropna().astype(float); D = P.index
     ma60 = P.rolling(60).mean(); r60 = P / ma60 - 1
@@ -49,6 +50,13 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
     G1 = (Y2C < 0.5) & (BAAC < 0.7)
     DGATE = BAAC < 0.5
     DD = P / P.rolling(252, min_periods=1).max() - 1
+    # 台股限定：台股自己急跌（近 20 日跌 ≥ 5%）、台指 VIX ≥ 40、美國信用利差 3 個月擴大 < 0.3 → 視同 VIX ≥ 40，加到 100%
+    USV = V.copy(); TWC = None; TWV = None; R20 = P / P.shift(20) - 1
+    if key == "tw" and vixtwn is not None and len(vixtwn):
+        TWV = vixtwn.reindex(D, method="ffill", limit=5).shift(1)
+        TWV.iloc[-1] = float(vixtwn.iloc[-1])           # 今天：用最新一筆
+        TWC = (TWV >= 40) & (R20 <= -0.05) & (BAAC < 0.3)
+        V = pd.Series(np.where(TWC.values, np.fmax(V.values, 40.0), V.values), index=D)
     VM = V.rolling(252, min_periods=1).max()
     USM = us_margin_yoy(us_debt).reindex(D, method="ffill").fillna(0) if us_debt is not None else pd.Series(0., index=D)
     if key == "tw":
@@ -83,7 +91,7 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
         t = 0.0; why = None
         if not blk:
             if vv >= 35 and G1v[i]: t, why = 0.85, "panic1"
-            if vv >= 40: t, why = 1.0, "panic2"
+            if vv >= 40: t, why = 1.0, ("twvix" if TWC is not None and TWC.values[i] and not (USV.values[i] >= 40) else "panic2")
             if deep_raw and DGv[i] and t < 1: t, why = 1.0, "deep"
         act = None
         if t > w + 0.03:
@@ -108,15 +116,17 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
     t = 0.0; why = None
     if not blk:
         if vv is not None and vv >= 35 and G1v[i]: t, why = 0.85, "panic1"
-        if vv is not None and vv >= 40: t, why = 1.0, "panic2"
+        if vv is not None and vv >= 40: t, why = 1.0, ("twvix" if TWC is not None and TWC.values[i] and not (USV.values[i] >= 40) else "panic2")
         if deep_raw and DGv[i] and t < 1: t, why = 1.0, "deep"
     hi252 = float(P.iloc[-252:].max())
-    last_vix35 = V[V >= 35]
+    last_vix35 = USV[USV >= 35]; usv = None if np.isnan(USV.values[i]) else float(USV.values[i])
     out = {
         "base": BASE, "rsi_th": th, "cool_days": COOL, "reoff_days": REOFF,
         "close": round(float(P.iloc[-1]), 2), "ma60": round(float(ma60.iloc[-1]), 2), "below60": bool(R60[i] <= 0),
         "rsi": round(float(RSv[i]), 1), "rsi_hot": bool(RSv[i] > th),
-        "vix": vv,
+        "vix": usv,
+        "twvix": None if TWV is None else {"v": None if np.isnan(TWV.values[i]) else round(float(TWV.values[i]), 2), "asof": vixtwn.index[-1].strftime("%Y-%m-%d"),
+                  "r20": round(float(R20.iloc[-1]), 4), "on": bool(TWC.values[i])},
         "panic": {"target": t, "why": why, "blocked": blk, "brun": int(brun[i]),
                   "g1": bool(G1v[i]), "y2_chg": round(float(Y2C.iloc[-1]), 2), "baa_chg": round(float(BAAC.iloc[-1]), 2),
                   "deep": {"dd": round(float(DDv[i]), 4), "hi252": round(hi252, 2), "line": round(hi252 * 0.7, 2),

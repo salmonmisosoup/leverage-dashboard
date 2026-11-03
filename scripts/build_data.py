@@ -157,7 +157,30 @@ def us_margin():
         src_status["FINRA 美股融資"] = f"失敗: {type(e).__name__}（用快取到 {c['ym'].iloc[-1]}）"
     return pd.Series(c["debt"].astype(float).values, index=pd.to_datetime(c["ym"]))
 log("start: mg_tw = tw_margin(); mg_us = u")
+def vixtwn():
+    """台指 VIX：快取在 data/vixtwn.csv（2001–2026/10 由台指選擇權結算價重算，之後用期交所官方每日收盤）"""
+    p = os.path.join(ROOT, "data", "vixtwn.csv"); c = pd.read_csv(p)
+    try:
+        import re as _re
+        today = pd.Timestamp.today(); got = {}
+        for k in range(0, 3):
+            ym = (today - pd.DateOffset(months=k)).strftime("%Y%m")
+            try:
+                txt = _deadline(lambda: get(f"https://www.taifex.com.tw/file/taifex/Dailydownload/vix/log2data_eng/{ym}new.txt", tries=2, timeout=30), 70)
+            except Exception:
+                continue
+            for line in txt.splitlines():
+                m = _re.match(r"(\d{8})\s+\d+\s+([\d.]+)", line)
+                if m: got[f"{m.group(1)[:4]}-{m.group(1)[4:6]}-{m.group(1)[6:]}"] = float(m.group(2))
+        if not got: raise RuntimeError("無資料")
+        n = pd.DataFrame({"date": list(got), "vix": list(got.values())})
+        c = pd.concat([c[~c["date"].isin(n["date"])], n]).sort_values("date"); c.to_csv(p, index=False)
+        src_status["期交所台指 VIX"] = "ok"
+    except Exception as e:
+        src_status["期交所台指 VIX"] = f"失敗: {type(e).__name__}（用快取到 {c['date'].iloc[-1]}）"
+    return pd.Series(c["vix"].astype(float).values, index=pd.to_datetime(c["date"]))
 mg_tw = tw_margin(); mg_us = us_margin()
+vx_tw = vixtwn()
 dgs2 = safe("FRED 2 年期殖利率", lambda: fred("DGS2", "2012-01-01"))
 if any("DGS2" in x for x in fred_stale) and dgs2 is not None:
     src_status["FRED 2 年期殖利率"] = ("失敗: " if (pd.Timestamp.today() - dgs2.index[-1]).days > 10 else "快取: ") + [x for x in fred_stale if "DGS2" in x][0]
@@ -169,7 +192,7 @@ RULES = {
     "tw": {"name": "台股", "lev": "00685L", "one": "0050", "bul": "00713", "base": 0.60, "rsi_refill": 80},
     "us": {"name": "美股", "lev": "QLD", "one": "QQQM", "bul": "SGOV", "base": 0.60, "rsi_refill": 75},
 }
-EVN = {"panic1": "VIX ≥ 35：二倍槓桿加到 85%", "panic2": "VIX ≥ 40：二倍槓桿加到 100%", "deep": "深跌補滿：二倍槓桿加到 100%",
+EVN = {"panic1": "VIX ≥ 35：二倍槓桿加到 85%", "panic2": "VIX ≥ 40：二倍槓桿加到 100%", "twvix": "台股急跌（台指 VIX ≥ 40）：二倍槓桿加到 100%", "deep": "深跌補滿：二倍槓桿加到 100%",
        "rsi": "RSI 過熱：二倍槓桿調回 60%", "mg": "融資過熱：二倍槓桿換成一倍原型", "re": "融資退燒：一倍原型換回二倍槓桿"}
 
 def market(close, key, rclose):
@@ -187,7 +210,8 @@ def market(close, key, rclose):
     last = df.iloc[-1]
     ath_date = df.index[df["close"] == df["close"].cummax()][-1]
     rule = RU.run(key, rclose, vix, baa, dgs2, tw_margin=mg_tw, us_debt=mg_us, start="2012-06-01",
-                  vix_today=float(vix.iloc[-1]) if (key == "tw" and vix is not None) else None)
+                  vix_today=float(vix.iloc[-1]) if (key == "tw" and vix is not None) else None,
+                  vixtwn=vx_tw if key == "tw" else None)
     m = rule["model"]; p = rule["panic"]
     if p["target"] > 0: state = "panic"
     elif rule["margin"]["reentry_ready"] and m["w1"] > 0.01: state = "reentry"
@@ -394,7 +418,7 @@ try:
     us_only["fx"] = {"EUR" + k: round(1 / v, 5) for k, v in fx.items() if k != "EUR"}
 except Exception:
     pass
-us_only["sources"] = {k: v for k, v in src_status.items() if k not in ("FinMind 加權指數", "FinMind 加權報酬指數", "FinMind 台股融資", "證交所收盤價", "櫃買中心收盤價")}
+us_only["sources"] = {k: v for k, v in src_status.items() if k not in ("FinMind 加權指數", "FinMind 加權報酬指數", "FinMind 台股融資", "期交所台指 VIX", "證交所收盤價", "櫃買中心收盤價")}
 with open(f"{OUT}/friends/data.json", "w") as f:
     json.dump(us_only, f, ensure_ascii=False, separators=(",", ":"))
 print("CHANGES: " + ("；".join(changes) if changes else "none"))
