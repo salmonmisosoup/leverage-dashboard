@@ -499,7 +499,7 @@ function renderSig(main){
     vbox(tv.v,[[40,'100%']],'台指 VIX','#ff8fb1');
     const live=el('div',{class:'cred',style:'margin:-6px 0 10px 34px'}); LD.append(live);
     fetch('twlive.json',{cache:'no-store'}).then(x=>x.json()).then(q=>{ if(!q||q.t.slice(0,10)!==new Date(Date.now()+8*3600e3).toISOString().slice(0,10)) return;
-      live.innerHTML=`盤中 ${q.t.slice(11)}：台指 VIX <b>${q.vix??'—'}</b>、加權指數 ${fmt(q.taiex)}（近 20 日 ${q.r20!=null?sgn(q.r20):'—'}）`+(q.on?'　<b style="color:var(--bad)">❗ 盤中已達台股急跌條件，可在收盤前加碼</b>':'')+'<br><span class="faint">每 20 分鐘更新，可能延遲 5–20 分鐘；規則以收盤確認、隔天下單為準</span>'; }).catch(()=>{}); }
+      live.innerHTML=`盤中 ${q.taiex_t||q.t.slice(11)}（更新於 ${q.t.slice(11)}）：台指 VIX <b>${q.vix??'—'}</b>、加權指數 ${fmt(q.taiex)}（近 20 日 ${q.r20!=null?sgn(q.r20):'—'}）`+(q.on?'　<b style="color:var(--bad)">❗ 盤中已達台股急跌條件，可在收盤前加碼</b>':'')+'<br><span class="faint">每 20 分鐘更新，可能延遲 5–20 分鐘；規則以收盤確認、隔天下單為準</span>'; }).catch(()=>{}); }
   grp(L('過熱調節','Trim when hot'), true);
   rung(r.rsi_hot, C.info, L(`週 RSI > ${r.rsi_th}`,`Weekly RSI > ${r.rsi_th}`), r.rsi_hot?L(`目前 ${r.rsi}，已超過門檻`,`Now ${r.rsi}, above the line`):L(`目前 ${r.rsi}，還差 ${(r.rsi_th-r.rsi).toFixed(1)}`,`Now ${r.rsi}, ${(r.rsi_th-r.rsi).toFixed(1)} to go`), L(`二倍槓桿調回 ${pct(m.base)}`,`2x back to ${pct(m.base)}`));
   grp(L('融資過熱','Margin overheating'), true);
