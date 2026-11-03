@@ -1,0 +1,43 @@
+name: 台股盤中監控（台指 VIX）
+on:
+  schedule:
+    - cron: "*/20 1-5 * * 1-5"   # 台北時間週一到週五 09:00–13:40，每 20 分鐘
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HAS_MAIL: ${{ secrets.MAIL_USERNAME != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: run
+        run: |
+          python3 scripts/tw_live.py | tee live.log
+          if grep -q NEWON live.log; then echo "on=1" >> "$GITHUB_OUTPUT"; fi
+      - run: |
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/twlive.json; git diff --cached --quiet || git commit -m "live: $(date -u +%H:%M)"
+          git pull --rebase -q origin main && git push -q
+      - if: steps.run.outputs.on == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create --title "盤中：台股急跌規則成立 $(date -u +%Y-%m-%d)" --body "盤中台指 VIX ≥ 40、近 20 日跌 ≥ 10%、信用利差沒有擴大。依規則可在收盤前（或明天）把二倍槓桿加到 100%：先賣 0050，不夠再賣 00713，買 00685L。$(cat docs/twlive.json)"
+      - if: steps.run.outputs.on == '1' && env.HAS_MAIL == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_TO }}
+          from: 加碼儀表板 <${{ secrets.MAIL_USERNAME }}>
+          subject: "盤中：台股急跌規則成立"
+          body: 盤中台指 VIX ≥ 40、近 20 日跌 ≥ 10%、信用利差沒有擴大。依規則可在收盤前（或明天）把二倍槓桿加到 100%：先賣 0050，不夠再賣 00713，買 00685L。
