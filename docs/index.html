@@ -387,7 +387,8 @@ function verdictText(m, nm){
   };
   return T[st]||T.normal;
 }
-function salaryText(m, nm){ const s=m.rule.salary; const x = s.to==='1x'?nm.one:nm.lev;
+function twDip2x(){ try{ return !!JSON.parse(store.get('pf-cfg')||'{}').dip2x; }catch(e){ return false; } }
+function salaryText(m, nm){ const s=m.rule.salary; let x = s.to==='1x'?nm.one:nm.lev; if (MODE!=='us' && m===DATA.tw && twDip2x() && s.all && m.rule.margin.on) x=nm.lev+'（你的選項）';
   return s.all ? L(`本月薪資：全部買 ${x}（收盤在季線下方）`,`This month's savings: all into ${x} (price below the 60-day MA)`)
                : L(`本月薪資：${pct(m.base)} 買 ${x}、${pct(1-m.base)} 買 ${nm.bul}`,`This month's savings: ${pct(m.base)} into ${x}, ${pct(1-m.base)} into ${nm.bul}`); }
 
@@ -577,7 +578,7 @@ function plan(m, v, sal, o){
   } else if (r.rsi_hot && w2>base+0.03){ const x=(w2-base)*T;
     A(C.info, L(`過熱調節：二倍槓桿調回 ${pct(base)}`,`Trim: 2x back to ${pct(base)}`), [L('賣出 ','Sell ')+o.sell('lev',x), L('買進 ','Buy ')+o.buy('bul',x), L(`完成後二倍槓桿 ${pct(base)}`,`After this: 2x at ${pct(base)}`)]); acted=true;
   } else if (r.conv_ok && v.L2>1){
-    A(C.warn, L('融資過熱：二倍槓桿換成一倍原型','Margin overheating: switch 2x into 1x'), [L('賣出 ','Sell ')+o.sell('lev',v.L2), L('買進 ','Buy ')+o.buy('one',v.L2), L('子彈不動。','Leave the reserve as it is.')]); acted=true;
+    A(C.warn, L('融資過熱：二倍槓桿換成一倍原型','Margin overheating: switch 2x into 1x'), [...(o.dip2x?['你開了「季線下方薪資買二倍槓桿」：如果這些二倍槓桿是融資過熱期間在季線下方用薪資買的，可以不用換；只有之前就持有的二倍槓桿需要換。']:[]), L('賣出 ','Sell ')+o.sell('lev',v.L2), L('買進 ','Buy ')+o.buy('one',v.L2), L('子彈不動。','Leave the reserve as it is.')]); acted=true;
   } else {
     const it=[L(`目前二倍槓桿 ${pct(w2)}、一倍原型 ${pct(w1)}、子彈 ${pct(1-E)}，今天規則沒有要你買賣。`,`You hold 2x ${pct(w2)}, 1x ${pct(w1)}, reserve ${pct(1-E)}. The rules have no trade for you today.`)];
     if (r.rsi_hot) it.push(L(`週 RSI 過熱，但二倍槓桿沒有超過 ${pct(base+0.03)}，不用調節。`,`Weekly RSI is hot, but 2x is not above ${pct(base+0.03)}, so no trim.`));
@@ -598,10 +599,12 @@ function plan(m, v, sal, o){
       A(C.brass, L('子彈偏少','Reserve is low'), [L(`股票部位 ${pct(E)}，子彈只剩 ${pct(1-E)}。規則平常不賣，等週 RSI > ${r.rsi_th} 時再一次調回 ${pct(base)}；在那之前，${r.below60?'收盤回到季線上方後，':''}新投入的錢先買子彈。`,`Stocks are ${pct(E)} and reserve only ${pct(1-E)}. The rules do not sell until weekly RSI > ${r.rsi_th}, then trim back to ${pct(base)}; until then, ${r.below60?'once price is back above the 60-day MA, ':''}put new money into reserve first.`)]);
   }
   // 本月投入
-  if (sal>0){ const it=[]; const sInst=r.salary.to==='1x'?'one':'lev';
+  const dipOpt = o.dip2x && r.below60 && r.margin.on;
+  if (sal>0){ const it=[]; const sInst=dipOpt?'lev':(r.salary.to==='1x'?'one':'lev');
     if (E>base+0.15 && !r.below60 && !pT){ it.push(L('全部買子彈：','All into reserve: ')+o.buy('bul',sal)); it.push(L('子彈偏少，先用薪資補回。','Reserve is low, so rebuild it with new money first.')); }
     else if (r.below60 || pT>0 || E<base-0.15){ it.push(L('全部買 ','All into ')+o.buy(sInst,sal)); it.push(r.below60?L('收盤在季線下方，薪資全買。','Price is below the 60-day MA, so it all goes in.'):L('股票部位偏低，先用薪資補回。','Stocks are underweight, so new money goes there first.')); }
     else { it.push(`${o.buy(sInst,sal*base)}${L('、',', ')}${o.buy('bul',sal*(1-base))}`); }
+    if (dipOpt) it.push(`你的選項：融資過熱期間，季線下方的薪資仍買二倍槓桿 ${nm.lev}，這部分不換成一倍原型，等 RSI 調節、恐慌加碼或融資退燒換回時再一起處理。`);
     if (sInst==='one') it.push(L(`融資過熱中，二倍槓桿那一份改買一倍原型 ${nm.one}。`,`Margin is overheated, so the 2x share goes into 1x (${nm.one}).`));
     A(C.brass, L('本月投入怎麼分','This month\'s money'), it); }
   return acts;
@@ -779,8 +782,10 @@ function renderPF2(main){
   const set=el('div',{class:'pf-set'});
   const fTw=el('input',{type:'number',min:'0',max:'100',value:cfg.tw}); const fSal=el('input',{type:'number',min:'0',inputmode:'numeric',placeholder:'例如 60000',value:cfg.sal});
   const fUl=el('select',{}); [['00830','全部 00830（費半 1 倍）'],['mix','00670L、00830 各半'],['00670L','全部 00670L（納指 2 倍）']].forEach(([k,v])=>fUl.append(el('option',{value:k},v))); fUl.value=cfg.ul;
-  fTw.oninput=fSal.oninput=fUl.onchange=()=>{ cfg.tw=+fTw.value||0; cfg.sal=fSal.value; cfg.ul=fUl.value; save(); upd(); };
+  const fDip=el('input',{type:'checkbox',style:'width:auto;margin:0 6px 0 0;accent-color:var(--brass)'}); fDip.checked=!!cfg.dip2x;
+  fTw.oninput=fSal.oninput=fUl.onchange=fDip.onchange=()=>{ cfg.tw=+fTw.value||0; cfg.sal=fSal.value; cfg.ul=fUl.value; cfg.dip2x=fDip.checked; save(); upd(); };
   set.append(el('label',{},'台股目標比重（%）',fTw), el('label',{},'本月可投入金額（元）',fSal), el('label',{},'美股二倍槓桿要買',fUl)); c2.append(set);
+  c2.append(el('label',{style:'display:flex;align-items:flex-start;gap:0;font-size:.84rem;color:var(--muted);margin:6px 0 2px;cursor:pointer'}, fDip, el('span',{},'台股選項：融資過熱期間，收盤在季線下方時，薪資仍買二倍槓桿 00685L（回測和預設規則幾乎打平）')));
   const out=el('div',{}); c2.append(out);
   grid.append(c1,c2); main.append(grid);
   const shares=(amt,k)=>px(k)?Math.floor(amt/px(k)):0;
@@ -812,7 +817,7 @@ function renderPF2(main){
       out.append(el('p',{class:'note',style:'margin:-2px 0 6px'},`燈號：${t('st_'+m.state)}・建議組合 ${mixTxt(...sugMix(m))}`));
       drawActs(out, plan(m, v, sal, o).map(a=>({...a,h:a.h})));
     };
-    sleeve('台股', DATA.tw, {L2:S.tl,L1:S.t1,B:S.tb}, sTW, oTW);
+    oTW.dip2x=!!cfg.dip2x; sleeve('台股', DATA.tw, {L2:S.tl,L1:S.t1,B:S.tb}, sTW, oTW);
     if(S.core){ const v40=DATA.tw && DATA.tw.rule.vix>=40; out.append(el('p',{class:'note'}, v40?`核心持股 ${N(S.core)} 元：VIX ≥ 40，可以換成 00685L（${sellFrom('core',S.core).replace(/<[^>]+>/g,'')}）`:`核心持股 ${N(S.core)} 元不算在規則裡，等 VIX ≥ 40 再換成二倍槓桿`)); }
     sleeve('美股', DATA.us, {L2:S.ul,L1:S.up,B:S.ub}, sUS, oUS);
     if(S.to||S.uo) out.append(el('p',{class:'note'},`「其他」${N(S.to+S.uo)} 元不算進規則。`));
