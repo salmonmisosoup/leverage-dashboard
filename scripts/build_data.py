@@ -224,6 +224,11 @@ def market(close, key, rclose):
     hist = {"date": [d.strftime("%Y-%m-%d") for d in h.index]}
     for c in ["close", "ma20", "ma60", "ma120", "ma240", "dd", "vix"]:
         hist[c] = [None if pd.isna(x) else round(float(x), 4 if c == "dd" else 2) for x in h[c]]
+    if key == "tw" and vx_tw is not None:
+        tv = vx_tw.reindex(h.index)          # 台指 VIX：台股交易日當天收盤
+        hist["twvix"] = [None if pd.isna(x) else round(float(x), 2) for x in tv]
+        rr20 = close / close.shift(20) - 1
+        hist["r20"] = [None if pd.isna(x) else round(float(x), 4) for x in rr20.reindex(h.index)]
     rw = rsi.loc[rsi.index >= h.index[0]]
     hist_rsi = {"date": [d.strftime("%Y-%m-%d") for d in rw.index], "rsi": [round(float(x), 1) for x in rw]}
     marks = [{"date": d, "kind": k, "label": EVN[k]} for d, k in rule["events"] if d >= hist["date"][0]]

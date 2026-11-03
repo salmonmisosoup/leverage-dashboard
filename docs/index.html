@@ -537,7 +537,12 @@ function renderSig(main){
   const two = el('div',{class:'two'});
   const c2 = el('section',{class:'card chart-card'}); c2.append(el('h2',{}, t('ch_vix'), el('small',{}, t('ch_vix_s'))), el('div',{class:'chart sm',id:'c-vix'}));
   const c3 = el('section',{class:'card chart-card'}); c3.append(el('h2',{}, t('ch_rsi'), el('small',{}, t('ch_rsi_s',{th:r.rsi_th}))), el('div',{class:'chart sm',id:'c-rsi'}));
-  two.append(c2,c3); ch.append(c1,two); main.append(ch);
+  if (isTW && m.hist.twvix){
+    c2.querySelector('h2').firstChild.textContent='美股 VIX';
+    const c4 = el('section',{class:'card chart-card'}); c4.append(el('h2',{}, '台指 VIX', el('small',{}, '≥ 40、近 20 日跌 ≥ 5%、信用利差沒有擴大時，台股急跌加到 100%')), el('div',{class:'chart sm',id:'c-twvix'}));
+    two.append(c2,c4); const c3w=el('div',{}); c3w.append(c3); ch.append(c1,two,c3w);
+  } else { two.append(c2,c3); ch.append(c1,two); }
+  main.append(ch);
   // ===== history =====
   { const H=m.hist; const ev=m.marks.slice().reverse().slice(0,14);
     if (ev.length){ const hs=el('section',{class:'card'}); hs.append(el('h2',{},t('hist_h')), el('p',{class:'muted',style:'margin:2px 0 8px;font-size:.82rem'},t('hist_s',{idx})));
@@ -1042,6 +1047,15 @@ function drawCharts(m, idxD, idx){
     markArea:{silent:true,data:[[{yAxis:35,itemStyle:{color:'rgba(230,98,90,.10)'}},{yAxis:40}],[{yAxis:40,itemStyle:{color:'rgba(230,98,90,.22)'}},{yAxis:90}]]},
     markLine:{silent:true,symbol:'none',label:{color:C.faint,fontSize:10,formatter:'{c}'},lineStyle:{type:[4,4],width:1},data:[{yAxis:35,lineStyle:{color:C.bad}},{yAxis:40,lineStyle:{color:C.bad}}]}}];
   o2.yAxis.max=v=>Math.max(45,Math.ceil(v.max/5)*5); o2.yAxis.min=8; mk('c-vix',o2);
+  if (H.twvix && document.getElementById('c-twvix')){
+    const o5=baseOpt(); o5.xAxis.data=H.date; o5.dataZoom=[{type:'inside',start:40,end:100}];
+    const tm=m.marks.filter(x=>x.kind==='twvix').map(x=>{ const i=near(x.date); return i<0?null:{coord:[H.date[i],H.twvix[i]],symbol:'triangle',itemStyle:{color:KIND_C('twvix')},tooltip:{formatter:`${D8(x.date)}<br>${evName('twvix')}`}}; }).filter(Boolean);
+    o5.tooltip.formatter=ps=>{ const i=ps[0].dataIndex; return `${H.date[i].replace(/-/g,'/')}<br>台指 VIX ${H.twvix[i]??'—'}<br>近 20 日 ${H.r20&&H.r20[i]!=null?sgn(H.r20[i]):'—'}`; };
+    o5.series=[{name:'台指 VIX',type:'line',data:H.twvix,connectNulls:true,showSymbol:false,lineStyle:{color:'#ff8fb1',width:1.3},itemStyle:{color:'#ff8fb1'},
+      markPoint:{symbolSize:11,data:tm,tooltip:{trigger:'item'}},
+      markArea:{silent:true,data:[[{yAxis:40,itemStyle:{color:'rgba(255,143,177,.14)'}},{yAxis:90}]]},
+      markLine:{silent:true,symbol:'none',label:{color:C.faint,fontSize:10,formatter:'{c}'},lineStyle:{type:[4,4],width:1},data:[{yAxis:40,lineStyle:{color:'#ff8fb1'}}]}}];
+    o5.yAxis.max=v=>Math.max(45,Math.ceil(v.max/5)*5); o5.yAxis.min=8; mk('c-twvix',o5); }
   const R=m.hist_rsi; const o3=baseOpt(); o3.xAxis.data=R.date; o3.yAxis.min=10; o3.yAxis.max=95; o3.yAxis.scale=false;
   o3.series=[{name:t('ch_rsi'),type:'line',data:R.rsi,showSymbol:false,lineStyle:{color:C.brass,width:1.4},itemStyle:{color:C.brass},
     markLine:{silent:true,symbol:'none',label:{color:C.faint,fontSize:10},lineStyle:{type:[4,4],width:1},data:[{yAxis:m.rsi_refill,lineStyle:{color:C.info}}]}}];
