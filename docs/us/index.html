@@ -93,7 +93,7 @@ label.f input{background:var(--bg);border:1px solid var(--line2);border-radius:8
 .vtiers .vt{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:.86rem}
 .vtiers .vt b{font-size:1rem;font-variant-numeric:tabular-nums;white-space:nowrap}
 .vtiers .vt span{white-space:nowrap}
-@media (max-width:560px){.vbox{padding-left:0}}
+@media (max-width:560px){.vbox{padding-left:0}.vtiers{grid-template-columns:1fr}}
 .vtiers .vt.on{border-color:var(--c)}
 .vtiers .vt.on b,.vtiers .vt.on span{color:var(--c)}
 .cred{margin-top:8px;font-size:.8rem;color:var(--muted)}
@@ -481,22 +481,22 @@ function renderSig(main){
   const LD = el('div',{class:'ladder'});
   const rung=(on,c,tt,d,w,bang)=>{ const x=el('div',{class:'rung'+(on?' on':''),style:`--c:${c}`}); const tl=el('div',{class:'t'},tt); if(on&&bang) tl.prepend(el('span',{class:'bang'},'!')); x.append(el('span',{class:'mk'}), el('div',{}, tl, el('div',{class:'d',html:d})), el('div',{class:'w'},w)); LD.append(x); };
   const grp=(s,major)=>LD.append(el('div',{class:'grp'+(major?' major':'')},s));
+  const vbox=(val,ticks,lab,col,extra)=>{ const box=el('div',{class:'vbox',style:`--c:${col}`}); const mx=55, mn=10; const posn=v=>Math.min(100,Math.max(0,(v-mn)/(mx-mn)*100)); const vv=val??mn;
+    const mtr=el('div',{class:'vmeter'}); mtr.append(el('div',{class:'fill',style:`width:${posn(vv)}%`}), el('div',{class:'now',style:`left:${posn(vv)}%`}, String(val??'—')));
+    ticks.forEach(([x])=>mtr.append(el('div',{class:'tk'+(vv>=x?' on':''),style:`left:${posn(x)}%`})));
+    const tg=el('div',{class:'vtiers'}); ticks.forEach(([x,w])=>tg.append(el('div',{class:'vt'+(vv>=x?' on':'')}, el('span',{},lab+' ≥ '+x), el('b',{},L(`${w} 二倍槓桿`,`${w} 2x`)))));
+    box.append(mtr, tg); if(extra) box.append(extra); LD.append(box); };
   const p=r.panic, dp=p.deep;
   grp(L('恐慌加碼（先用一倍原型，再用子彈）','Panic buying (1x first, then reserve)'), true);
   rung(r.vix>=35 && p.g1 && !p.blocked, C.bad, 'VIX ≥ 35', L(`目前 VIX ${r.vix??'—'}・上次 ≥ 35：${D8(p.last_vix35)||'—'}<br>暫停條件：2 年期殖利率 3 個月 ${pp(p.y2_chg)}（> +0.5 暫停）、信用利差 3 個月 ${pp(p.baa_chg)}（> +0.7 暫停）${p.g1?'':'　<b style="color:var(--warn)">⏸ 暫停中</b>'}`,
     `VIX now ${r.vix??'—'} · last ≥ 35: ${D8(p.last_vix35)||'—'}<br>Paused if the 2-year yield rose more than 0.5 in 3 months (now ${pp(p.y2_chg)}) or credit spreads widened more than 0.7 (now ${pp(p.baa_chg)})${p.g1?'':' <b style="color:var(--warn)">⏸ paused</b>'}`), L('85% 二倍槓桿','85% in 2x'), true);
   rung(r.vix>=40 && !p.blocked, C.bad, 'VIX ≥ 40', L(`目前 VIX ${r.vix??'—'}，沒有暫停條件`,`VIX now ${r.vix??'—'}; never paused`), L('100% 二倍槓桿','100% in 2x'), true);
+  vbox(r.vix,[[35,'85%'],[40,'100%']],isTW?'美股 VIX':'VIX',C.bad, el('div',{class:'cred'+(p.blocked?' on':'')}, p.blocked?L(`⏸ 信用利差 3 個月擴大 ${pp(p.baa_chg)}，超過 +0.8：所有恐慌加碼暫停（最多 30 個交易日）`,`⏸ Credit spreads widened ${pp(p.baa_chg)} in 3 months, above +0.8: all panic buying paused (up to 30 trading days)`):L(`信用利差 3 個月擴大超過 0.8 時，所有恐慌加碼暫停，最多 30 個交易日。目前 ${pp(p.baa_chg)}`,`If credit spreads widen more than 0.8 in 3 months, all panic buying pauses for up to 30 trading days. Now ${pp(p.baa_chg)}`)));
   rung(dp.on && !p.blocked, C.bad, L('深跌補滿','Deep-drop top-up'), L(`三個條件同時成立：一年內 VIX 曾 ≥ 35${isTW?'或台股急跌':''}（最高 ${dp.vix_max252}）${dp.vix_max252>=35?'✓':'✗'}、距一年高點跌超過 30%（目前 ${sgn(dp.dd)}，觸發價位約 ${fmt(dp.line,idxD)}${isTW?'（含息指數）':''}）${dp.dd<=-0.3?'✓':'✗'}、信用利差 3 個月擴大不到 0.5（${pp(p.baa_chg)}）${dp.credit_ok?'✓':'✗'}`,
     `All three: VIX reached 35 within a year (max ${dp.vix_max252}) ${dp.vix_max252>=35?'✓':'✗'}; more than 30% below the 1-year high (now ${sgn(dp.dd)}, about ${fmt(dp.line,idxD)}) ${dp.dd<=-0.3?'✓':'✗'}; credit spreads widened less than 0.5 in 3 months (${pp(p.baa_chg)}) ${dp.credit_ok?'✓':'✗'}`), L('100% 二倍槓桿','100% in 2x'), true);
   if (isTW && r.twvix){ const tv=r.twvix, ok1=tv.v>=40, ok2=tv.r20<=-0.05, ok3=p.baa_chg<0.3;
-    rung(tv.on && !p.blocked, C.bad, '台股急跌（台指 VIX）', `三個條件同時成立：台指 VIX ≥ 40（${tv.v??'—'}，${D8(tv.asof)}）${ok1?'✓':'✗'}、近 20 日跌 ≥ 5%（${sgn(tv.r20)}）${ok2?'✓':'✗'}、信用利差 3 個月擴大 < 0.3（${pp(p.baa_chg)}）${ok3?'✓':'✗'}。抓台股自己的急跌，信用危機時不加碼`, '100% 二倍槓桿', true); }
-  { const box=el('div',{class:'vbox',style:`--c:${C.bad}`}); const mx=55, mn=10; const posn=v=>Math.min(100,Math.max(0,(v-mn)/(mx-mn)*100)); const vv=r.vix??mn;
-    const mtr=el('div',{class:'vmeter'}); mtr.append(el('div',{class:'fill',style:`width:${posn(vv)}%`}), el('div',{class:'now',style:`left:${posn(vv)}%`}, String(r.vix??'—')));
-    [35,40].forEach(x=>mtr.append(el('div',{class:'tk'+(vv>=x?' on':''),style:`left:${posn(x)}%`})));
-    const tg=el('div',{class:'vtiers'}); [[35,'85%'],[40,'100%']].forEach(([x,w])=>tg.append(el('div',{class:'vt'+(vv>=x?' on':'')}, el('span',{},'VIX ≥ '+x), el('b',{},L(`${w} 二倍槓桿`,`${w} 2x`)))));
-    box.append(mtr, tg);
-    box.append(el('div',{class:'cred'+(p.blocked?' on':'')}, p.blocked?L(`⏸ 信用利差 3 個月擴大 ${pp(p.baa_chg)}，超過 +0.8：所有恐慌加碼暫停（最多 30 個交易日）`,`⏸ Credit spreads widened ${pp(p.baa_chg)} in 3 months, above +0.8: all panic buying paused (up to 30 trading days)`):L(`信用利差 3 個月擴大超過 0.8 時，所有恐慌加碼暫停，最多 30 個交易日。目前 ${pp(p.baa_chg)}`,`If credit spreads widen more than 0.8 in 3 months, all panic buying pauses for up to 30 trading days. Now ${pp(p.baa_chg)}`)));
-    LD.append(box); }
+    rung(tv.on && !p.blocked, C.bad, '台股急跌（台指 VIX）', `三個條件同時成立：台指 VIX ≥ 40（${tv.v??'—'}，${D8(tv.asof)}）${ok1?'✓':'✗'}、近 20 日跌 ≥ 5%（${sgn(tv.r20)}）${ok2?'✓':'✗'}、信用利差 3 個月擴大 < 0.3（${pp(p.baa_chg)}）${ok3?'✓':'✗'}。抓台股自己的急跌，信用危機時不加碼`, '100% 二倍槓桿', true);
+    vbox(tv.v,[[40,'100%']],'台指 VIX','#ff8fb1'); }
   grp(L('過熱調節','Trim when hot'), true);
   rung(r.rsi_hot, C.info, L(`週 RSI > ${r.rsi_th}`,`Weekly RSI > ${r.rsi_th}`), r.rsi_hot?L(`目前 ${r.rsi}，已超過門檻`,`Now ${r.rsi}, above the line`):L(`目前 ${r.rsi}，還差 ${(r.rsi_th-r.rsi).toFixed(1)}`,`Now ${r.rsi}, ${(r.rsi_th-r.rsi).toFixed(1)} to go`), L(`二倍槓桿調回 ${pct(m.base)}`,`2x back to ${pct(m.base)}`));
   grp(L('融資過熱','Margin overheating'), true);
