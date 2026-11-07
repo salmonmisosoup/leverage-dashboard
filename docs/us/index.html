@@ -521,7 +521,8 @@ function renderSig(main){
     const tv=r.twvix;
     if (!q || !q.tw_vix || !q.tw_d || q.tw_d < tv.asof){ liveTW.innerHTML='<span class="faint">盤中資料：台股交易時間（09:00–13:30）每分鐘更新，重整頁面就會抓最新一筆</span>'; return; }
     setTW(q.tw_vix);
-    const st = q.b45 ? '<br><b class="hot">❗ 盤中 ≥ 45 且條件成立：依規則現在就把二倍槓桿加到 100%</b>' : q.w40 ? '<br><b class="warm">注意：盤中 ≥ 40 且條件成立。≥ 45 會立即觸發；收盤 ≥ 40 則明天加碼</b>' : (q.tw_vix>=40 && !q.cond ? '<br><span class="faint">VIX ≥ 40，但跌幅或利差條件不成立</span>':'');
+    const today8=new Date(Date.now()+8*3600e3).toISOString().slice(0,10), isToday=q.tw_d===today8;
+    const st = !isToday ? ((q.tw_hi>=45 && q.cond) ? `<br><span class="faint">上一個交易日盤中最高 ${q.tw_hi}，台股急跌條件已在當天成立（下一次交易時間開始更新）</span>` : '<br><span class="faint">目前不是台股交易時間，顯示上一個交易日最後的報價</span>') : q.b45 ? '<br><b class="hot">❗ 盤中 ≥ 45 且條件成立：依規則現在就把二倍槓桿加到 100%</b>' : q.w40 ? '<br><b class="warm">注意：盤中 ≥ 40 且條件成立。≥ 45 會立即觸發；收盤 ≥ 40 則明天加碼</b>' : (q.tw_vix>=40 && !q.cond ? '<br><span class="faint">VIX ≥ 40，但跌幅或利差條件不成立</span>':'');
     liveTW.innerHTML = `盤中 ${q.tw_t?q.tw_t.slice(0,2)+':'+q.tw_t.slice(2):''}（${q.tw_d.slice(5).replace('-','/')}）台指 VIX <b>${q.tw_vix}</b>${q.tw_hi?`，今日最高 ${q.tw_hi}`:''}・加權指數 ${fmt(q.taiex)}（近 20 日 ${q.r20!=null?sgn(q.r20):'—'}）${st}<br><span class="faint">更新於 ${q.t.slice(11,19)}。交易時間每分鐘更新，重整頁面就會抓最新一筆</span>`; };
   loadLive();
   grp(L('過熱調節','Trim when hot'), true);
