@@ -55,7 +55,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/data.json docs/us/data.json docs/prices.json data/margin_tw.csv data/margin_us.csv data/vixtwn.csv data/fred_*.csv
+          git add docs/data.json docs/us/data.json docs/prices.json docs/bt.json docs/us/bt.json data/margin_tw.csv data/margin_us.csv data/vixtwn.csv data/fred_*.csv
           git diff --cached --quiet || git commit -m "data: $(date -u +%Y-%m-%d)"
           git push
 

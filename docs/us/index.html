@@ -928,18 +928,20 @@ function renderBT(main){
   if (!BT){ main.append(el('div',{class:'loading'},t('loading'))); fetch('bt.json').then(r=>r.json()).then(j=>{ BT=j; if(cur==='bt') render(); }).catch(()=>{ main.textContent=''; main.append(el('div',{class:'loading'},t('loadfail'))); }); return; }
   if (!window.d3){ main.append(el('div',{class:'loading'},t('loadfail'))); return; }
   const D = BT[btMkt]; const isTW = btMkt==='tw';
+  { const lc=D.cr[D.cr.length-1]; const st=new Date(new Date(lc[1]).getTime()-45*864e5).toISOString().slice(0,10); RANGES.recent=[st,'2099-12-31'];
+    const nm=RNG_L[lc[0]]||[lc[0]+' 股災',lc[0]+' sell-off']; RNG_L.recent=[nm[0]+'～至今',nm[1]+' to now']; }
   const head = el('section',{class:'card'});
   head.append(el('h2',{},L('二倍槓桿調節加碼回測','Backtest of the rules')),
     el('p',{class:'muted',style:'margin:4px 0 12px;font-size:.88rem;max-width:80ch'},L('每個標記是規則的一次買賣：紅色往上三角形是 VIX ≥ 35 加到 85%，白色往上三角形是 VIX ≥ 40 加到 100%，粉紅色往上三角形是台股急跌（台指 VIX ≥ 40）加到 100%，空心三角形是深跌補滿，藍色往下三角形是 RSI 過熱調節，橘色菱形是融資過熱把二倍槓桿換成一倍原型，綠色圓點是融資退燒後換回二倍槓桿。灰色區塊是歷次大跌，從高點到低點。',
       'Each marker is one trade: red up-triangle = VIX ≥ 35, 2x to 85%; white up-triangle = VIX ≥ 40, 2x to 100%; hollow triangle = deep-drop top-up; blue down-triangle = RSI trim; orange diamond = margin overheating, 2x into 1x; green dot = back to 2x after margin cools. Grey bands are major declines, peak to trough.')));
   const ctl = el('div',{class:'bt-ctl'});
   if (MODE!=='us'){ const sg=el('div',{class:'seg'}); [['tw','台股'],['us','美股（那斯達克 100）']].forEach(([k,n])=>{ const b=el('button',{'aria-pressed':String(btMkt===k)},n); b.onclick=()=>{btMkt=k;store.set('bt-mkt',k);render();}; sg.append(b); }); ctl.append(sg); }
-  const rg=el('div',{class:'rngs'}); ['all','2000','2008','2011','2015','2018','2020','2022','2025','2024'].forEach(k=>{ const b=el('button',{'aria-pressed':String(btRng===k)},RNG_L[k][EN()?1:0]); b.onclick=()=>{btRng=k;render();}; rg.append(b); }); ctl.append(rg);
+  const rg=el('div',{class:'rngs'}); ['all','2000','2008','2011','2015','2018','2020','2022','2025','recent'].forEach(k=>{ const b=el('button',{'aria-pressed':String(btRng===k)},RNG_L[k][EN()?1:0]); b.onclick=()=>{btRng=k;render();}; rg.append(b); }); ctl.append(rg);
   head.append(ctl); main.append(head);
   // 績效比較
   const RL = {t0050:['全部 0050（一倍原型）','All 0050 (1x)'], qqq:['全部 QQQ（一倍原型）','All QQQ (1x)'], r6040:['二倍槓桿 60/40 每年再平衡','2x 60/40, rebalanced yearly'], m3:['現有規則','Current rules']};
   const sum = el('section',{class:'card'}); sum.append(el('h2',{},L('績效比較','Performance')),
-    el('p',{class:'muted',style:'margin:2px 0 8px;font-size:.82rem;max-width:90ch'},L(`全期與 2009 後年化、總倍數是一次投入；15 年中位數與最差是每月定期投入，任選一個 15 年後資產是投入本金的幾倍。全部${isTW?' 0050':' QQQ'} 是每月薪資全買一倍原型、從不賣出${isTW?'（0050 在 2003 年才上市，之前用含息加權報酬指數）':''}。績效含股息與 ETF 費用。`,
+    el('p',{class:'muted',style:'margin:2px 0 8px;font-size:.82rem;max-width:90ch'},L(`全期與 2009 後年化、總倍數是一次投入；15 年中位數與最差是每月定期投入，任選一個 15 年後資產是投入本金的幾倍。績效統計至 2026/10/30，走勢圖每天更新到最近一個交易日（${(D.s[D.s.length-1]||[''])[0].replace(/-/g,'/')}）。全部${isTW?' 0050':' QQQ'} 是每月薪資全買一倍原型、從不賣出${isTW?'（0050 在 2003 年才上市，之前用含息加權報酬指數）':''}。績效含股息與 ETF 費用。`,
       `Annual returns and the total multiple are for a single starting investment; the 15-year median and worst are for monthly saving, as the multiple of money put in after any 15-year window. "All QQQ" buys 1x with every month's savings and never sells. Returns include dividends and fund fees.`)));
   const w=el('div',{class:'tbl'}); const tb=el('table',{class:'bt'}); const hr=el('tr');
   [L('策略','Strategy'),L(`全期年化（${isTW?'1999':'1990'} 起）`,`Annual return (from ${isTW?'1999':'1990'})`),L('2009 後年化','Annual return since 2009'),L('15 年中位數','15-year median'),L('15 年最差','15-year worst'),L('最大跌幅','Max drawdown'),L('一次投入總倍數','Total multiple')].forEach(x=>hr.append(el('th',{},x))); tb.append(hr);
@@ -966,7 +968,7 @@ function renderBT(main){
     'Method: each day the rules check panic buying, the deep-drop top-up, moving back to 2x, the RSI trim and margin overheating, in that order. Before QLD launched it is simulated from the index (0.99 daily correlation with the real fund). VIX ≥ 40 appeared only 13 times in the sample, so trust the direction more than the exact figures.')));
   requestAnimationFrame(()=>{ btPrice(D); btLine(D,'lev'); btLine(D,'val'); });
 }
-function sigLabel(e){ if(!EN()) return e[5]; const s=e[6];
+function sigLabel(e){ if(!EN()) return e[5]; const s=e[6]; if(s===0) return '';
   return {panic1:`VIX ${s.toFixed(1)}`, panic2:`VIX ${s.toFixed(1)}`, deep:`${(s*100).toFixed(1)}% from 1-year high`, rsi:`Weekly RSI ${Math.round(s)}`,
     mg:e[5].replace('美股融資年增','US margin debt').replace('台股融資年增','TW margin').replace('、兩年',', 2-year'), re:`Margin signal off ${Math.round(s)} trading days`}[e[1]]||e[5]; }
 function btDom(D){ const R=RANGES[btRng]; const a=D.s[0][0], b=D.s[D.s.length-1][0]; return R?[R[0]<a?a:R[0], R[1]>b?b:R[1]]:[a,b]; }

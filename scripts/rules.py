@@ -81,7 +81,7 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
     r = P.pct_change().fillna(0).values
     ix = np.where(D >= pd.Timestamp(start))[0]
     v2, v1, vb = BASE, 0.0, 1 - BASE
-    la = -10 ** 9; ev = []
+    la = -10 ** 9; ev = []; VAL = 1.0; PATH = []
     Vv, G1v, DGv, DDv, VMv, RSv, R60 = V.values, G1.values, DGATE.values, DD.values, VM.values, rsi.values, r60.values
     for i in ix:
         v2 *= 1 + 2 * r[i]; v1 *= 1 + r[i]; tot = v2 + v1 + vb; w = v2 / tot
@@ -104,7 +104,8 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
         elif m_[i] and i - la > COOL and vv < 35 and not deep_raw and v2 > 0:
             v1 += v2; v2 = 0.0; act = "mg"
         if act: ev.append((D[i].strftime("%Y-%m-%d"), act))
-        s = v2 + v1 + vb; v2, v1, vb = v2 / s, v1 / s, vb / s   # 正規化，避免數值漂移
+        s = v2 + v1 + vb; VAL *= s; v2, v1, vb = v2 / s, v1 / s, vb / s   # 正規化，避免數值漂移
+        PATH.append((D[i].strftime("%Y-%m-%d"), VAL, 2 * v2 + v1))
 
     i = len(D) - 1; vv = None if np.isnan(Vv[i]) else float(Vv[i])
     blk = bool(c["brun"] and 0 < brun[i] <= 30)
@@ -141,6 +142,7 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
         "conv_ok": conv_ok, "panic_zone": bool(panic_zone), "deep_zone": deep_raw,
         "model": {"w2": round(v2, 4), "w1": round(v1, 4), "wb": round(vb, 4)},
         "events": ev[-40:],
+        "_path": PATH[-400:],
     }
     # 今天模型做了什麼（就是規則今天要你做的事）
     out["today"] = ev[-1][1] if ev and ev[-1][0] == D[-1].strftime("%Y-%m-%d") else None

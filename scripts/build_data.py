@@ -195,6 +195,7 @@ RULES = {
 EVN = {"panic1": "VIX ≥ 35：二倍槓桿加到 85%", "panic2": "VIX ≥ 40：二倍槓桿加到 100%", "twvix": "台股急跌（台指 VIX ≥ 40）：二倍槓桿加到 100%", "deep": "深跌補滿：二倍槓桿加到 100%",
        "rsi": "RSI 過熱：二倍槓桿調回 60%", "mg": "融資過熱：二倍槓桿換成一倍原型", "re": "融資退燒：一倍原型換回二倍槓桿"}
 
+BT_PATH = {}
 def market(close, key, rclose):
     R = RULES[key]
     df = pd.DataFrame({"close": close})
@@ -219,6 +220,7 @@ def market(close, key, rclose):
     elif rule["margin"]["on"]: state = "convert" if rule["conv_ok"] else "mgpause"
     elif m["w1"] > 0.01: state = "wait1x"
     else: state = "normal"
+    BT_PATH[key] = (rule.pop("_path"), close, [e for e in rule["events"]])
     rule["state"] = state
     h = df.loc[df.index >= df.index[-1] - pd.Timedelta(days=900)]
     hist = {"date": [d.strftime("%Y-%m-%d") for d in h.index]}
@@ -392,6 +394,39 @@ out["us_prices"] = us_px
 
 log("start: # ---------------- 訊號變化")
 # ---------------- 訊號變化（給每日排程推播用）----------------
+# ---------------- 回測圖延伸到最近一個交易日 ----------------
+def extend_bt():
+    EVL = {"panic1": "VIX ≥ 35", "panic2": "VIX ≥ 40", "twvix": "台指 VIX ≥ 40", "deep": "深跌補滿", "rsi": "週 RSI 過熱",
+           "mg": "融資過熱", "re": "融資退燒滿 15 個月"}
+    bt_path = os.path.join(ROOT, "docs", "bt.json")
+    try: B = json.load(open(bt_path))
+    except Exception as e: print("bt.json 讀取失敗", e); return
+    for key in ["tw", "us"]:
+        if key not in BT_PATH or key not in B: continue
+        path, close, evs = BT_PATH[key]; S = B[key]["s"]; last = S[-1][0]
+        pmap = {d: (v, l) for d, v, l in path}
+        if last not in pmap: print("bt 延伸：找不到銜接日", key, last); continue
+        v0 = pmap[last][0]; base = S[-1][2]
+        lvl = close.copy()
+        if key == "us":   # 美股回測畫那斯達克 100 點位：用 QQQ 換算
+            q0 = float(close.asof(pd.Timestamp(last))); lvl = close * (S[-1][1] / q0)
+        prev_l = S[-1][3]; n = 0
+        for d, v, l in path:
+            if d <= last: continue
+            px = float(lvl.asof(pd.Timestamp(d)))
+            S.append([d, round(px, 2), round(base * v / v0, 4), round(l, 2)]); n += 1
+        lv = {d: l for d, v, l in path}; dates = [d for d, _, _ in path]
+        for d, k in evs:
+            if d <= last or d not in lv: continue
+            i = dates.index(d); lb = lv[dates[i - 1]] if i else lv[d]
+            B[key]["ev"].append([d, k, round(float(lvl.asof(pd.Timestamp(d))), 2), round(lb, 2), round(lv[d], 2), EVL.get(k, k), 0])
+        B[key]["asof"] = S[-1][0]
+        print("bt 延伸", key, n, "天，到", S[-1][0])
+    json.dump(B, open(bt_path, "w"), ensure_ascii=False, separators=(",", ":"))
+    json.dump({"us": B["us"]}, open(os.path.join(ROOT, "docs", "us", "bt.json"), "w"), ensure_ascii=False, separators=(",", ":"))
+try: extend_bt()
+except Exception as e: print("bt 延伸失敗", type(e).__name__, e)
+
 NAMES = {"normal": "平常狀態", "panic": "恐慌加碼", "refill": "RSI 過熱調節", "convert": "融資過熱（二倍槓桿換成一倍原型）",
          "mgpause": "融資過熱（恐慌加碼後冷卻中，先不換）", "wait1x": "融資退燒中（一倍原型先不換回）", "reentry": "一倍原型換回二倍槓桿"}
 changes = []
