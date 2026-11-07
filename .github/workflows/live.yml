@@ -1,0 +1,25 @@
+name: 盤中即時監控（台指 VIX、VIX）
+on:
+  schedule:
+    - cron: "55 0 * * 1-5"    # 台股：台北 08:55 啟動，跑到 13:40
+    - cron: "25 13 * * 1-5"   # 美股前半段
+    - cron: "15 19 * * 1-5"   # 美股後半段（單一 job 最長 6 小時）
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: live
+  cancel-in-progress: false
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        run: python3 scripts/live_loop.py

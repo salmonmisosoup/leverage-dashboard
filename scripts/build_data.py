@@ -171,7 +171,9 @@ def vixtwn():
                 continue
             for line in txt.splitlines():
                 m = _re.match(r"(\d{8})\s+\d+\s+([\d.]+)", line)
-                if m: got[f"{m.group(1)[:4]}-{m.group(1)[4:6]}-{m.group(1)[6:]}"] = float(m.group(2))
+                if m:
+                    d_ = f"{m.group(1)[:4]}-{m.group(1)[4:6]}-{m.group(1)[6:]}"; got[d_] = float(m.group(2))
+                    HI_NEW[d_] = max(HI_NEW.get(d_, 0), float(m.group(2)))
         if not got: raise RuntimeError("無資料")
         n = pd.DataFrame({"date": list(got), "vix": list(got.values())})
         c = pd.concat([c[~c["date"].isin(n["date"])], n]).sort_values("date"); c.to_csv(p, index=False)
@@ -179,8 +181,22 @@ def vixtwn():
     except Exception as e:
         src_status["期交所台指 VIX"] = f"失敗: {type(e).__name__}（用快取到 {c['date'].iloc[-1]}）"
     return pd.Series(c["vix"].astype(float).values, index=pd.to_datetime(c["date"]))
+HI_NEW = {}
 mg_tw = tw_margin(); mg_us = us_margin()
 vx_tw = vixtwn()
+def vixtwn_hi():
+    """台指 VIX 每日盤中最高：2026/10 以前由台指選擇權高低價估算，之後用盤中監控（live 分支）與期交所資料，取較高者"""
+    p = os.path.join(ROOT, "data", "vixtwn_hi.csv"); c = pd.read_csv(p)
+    hi = dict(zip(c["date"], c["hi"].astype(float)))
+    try:
+        q = json.loads(get(f"https://raw.githubusercontent.com/{os.environ.get('GITHUB_REPOSITORY', 'salmonmisosoup/leverage-dashboard')}/live/live.json?t={int(time.time())}", tries=2, timeout=20))
+        if q.get("tw_d") and q.get("tw_hi"): HI_NEW[q["tw_d"]] = max(HI_NEW.get(q["tw_d"], 0), float(q["tw_hi"]))
+    except Exception:
+        pass
+    for d_, v in HI_NEW.items(): hi[d_] = round(max(hi.get(d_, 0), v), 2)
+    c = pd.DataFrame({"date": list(hi), "hi": list(hi.values())}).sort_values("date"); c.to_csv(p, index=False)
+    return pd.Series(c["hi"].values, index=pd.to_datetime(c["date"]))
+vx_tw_hi = vixtwn_hi()
 dgs2 = safe("FRED 2 年期殖利率", lambda: fred("DGS2", "2012-01-01"))
 if any("DGS2" in x for x in fred_stale) and dgs2 is not None:
     src_status["FRED 2 年期殖利率"] = ("失敗: " if (pd.Timestamp.today() - dgs2.index[-1]).days > 10 else "快取: ") + [x for x in fred_stale if "DGS2" in x][0]
@@ -192,7 +208,7 @@ RULES = {
     "tw": {"name": "台股", "lev": "00685L", "one": "0050", "bul": "00713", "base": 0.60, "rsi_refill": 80},
     "us": {"name": "美股", "lev": "QLD", "one": "QQQM", "bul": "SGOV", "base": 0.60, "rsi_refill": 75},
 }
-EVN = {"panic1": "VIX ≥ 35：二倍槓桿加到 85%", "panic2": "VIX ≥ 40：二倍槓桿加到 100%", "twvix": "台股急跌（台指 VIX ≥ 40）：二倍槓桿加到 100%", "deep": "深跌補滿：二倍槓桿加到 100%",
+EVN = {"panic1": "VIX ≥ 35：二倍槓桿加到 85%", "panic2": "VIX ≥ 40：二倍槓桿加到 100%", "twvix": "台股急跌（台指 VIX 收盤 ≥ 40 或盤中 ≥ 45）：二倍槓桿加到 100%", "deep": "深跌補滿：二倍槓桿加到 100%",
        "rsi": "RSI 過熱：二倍槓桿調回 60%", "mg": "融資過熱：二倍槓桿換成一倍原型", "re": "融資退燒：一倍原型換回二倍槓桿"}
 
 BT_PATH = {}
@@ -212,7 +228,7 @@ def market(close, key, rclose):
     ath_date = df.index[df["close"] == df["close"].cummax()][-1]
     rule = RU.run(key, rclose, vix, baa, dgs2, tw_margin=mg_tw, us_debt=mg_us, start="2012-06-01",
                   vix_today=float(vix.iloc[-1]) if (key == "tw" and vix is not None) else None,
-                  vixtwn=vx_tw if key == "tw" else None)
+                  vixtwn=vx_tw if key == "tw" else None, vixtwn_hi=vx_tw_hi if key == "tw" else None)
     m = rule["model"]; p = rule["panic"]
     if p["target"] > 0: state = "panic"
     elif rule["margin"]["reentry_ready"] and m["w1"] > 0.01: state = "reentry"

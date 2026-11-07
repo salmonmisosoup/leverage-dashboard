@@ -113,6 +113,8 @@ label.f input{background:var(--bg);border:1px solid var(--line2);border-radius:8
 .rung .d{font-size:.8rem;color:var(--muted)}
 .rung .w{white-space:nowrap;font-size:1.05rem;font-weight:500;text-align:right;font-variant-numeric:tabular-nums}
 .rung.on .w{color:var(--c)}
+.rung.held .mk{border-color:var(--c);background:repeating-linear-gradient(135deg,var(--c) 0 2px,transparent 2px 5px)}.rung.held .w{color:var(--muted)}
+.vlive{margin:-4px 0 10px 34px;font-size:.84rem;line-height:1.55}.vlive b.hot{color:var(--bad)}.vlive b.warm{color:var(--warn)}
 .grp{font-size:.74rem;letter-spacing:.06em;color:var(--faint);padding-top:8px}
 .done{display:inline-flex;align-items:center;gap:5px;margin-left:10px;font-size:.76rem;font-weight:400;color:var(--muted);cursor:pointer;vertical-align:1px}
 .done input{accent-color:var(--brass);width:14px;height:14px;margin:0}
@@ -358,8 +360,18 @@ function mgDesc(m){ const g=m.rule.margin;
   if (m.rule.margin.tw_yoy==null) return L(`美國 FINRA 融資餘額年增 ${sgn(g.us_yoy,0)}（> 50% 為過熱）`,`US FINRA margin debt ${sgn(g.us_yoy,0)} year on year (above 50% is overheated)`);
   return `台股融資÷指數 一年 ${sgn(g.tw_ratio,0)}（> 20%）、融資兩年 ${sgn(g.tw_2y,0)}（> 20%），美股融資年增 ${sgn(g.us_yoy,0)}（> 50%）`;
 }
+let liveHook=null, liveTimer=null, liveLast=null;
+const LIVE_API='https://api.github.com/repos/salmonmisosoup/leverage-dashboard/contents/live.json?ref=live';
+const LIVE_RAW='https://raw.githubusercontent.com/salmonmisosoup/leverage-dashboard/live/live.json';
+function loadLive(){
+  const apply=q=>{ if(q) liveLast=q; try{ liveHook&&liveHook(liveLast); }catch(e){} };
+  fetch(LIVE_API,{headers:{Accept:'application/vnd.github.raw+json'},cache:'no-store'}).then(x=>x.ok?x.json():Promise.reject())
+    .catch(()=>fetch(LIVE_RAW+'?t='+Date.now(),{cache:'no-store'}).then(x=>x.ok?x.json():null)).then(apply).catch(()=>apply(null));
+  if(!liveTimer) liveTimer=setInterval(()=>{ if(document.visibilityState==='visible') loadLive(); }, 90000);
+}
 function pauseWhy(m){ const r=m.rule;
-  if (r.panic_zone) return L('VIX 還在 35 以上','VIX is still at or above 35');
+  if (r.panic_zone && r.twvix && r.twvix.on && !(r.vix>=35)) return L('台股急跌條件成立中，恐慌加碼優先','the Taiwan sell-off rule is active, and panic buying comes first');
+  if (r.panic_zone) return L('VIX 還在 35 以上，恐慌加碼優先','VIX is still at or above 35, and panic buying comes first');
   if (r.deep_zone) return L('還在深跌區（距一年高點跌超過 30%）','the market is still more than 30% below its 1-year high');
   if (r.cool.active) return L(`恐慌加碼後還在 60 個交易日的冷卻期（已過 ${r.cool.days_since_add} 天）`,`it is within 60 trading days of a panic buy (${r.cool.days_since_add} so far)`);
   return '';
@@ -413,7 +425,7 @@ function chrome(){
 }
 function taipei(iso){ try{ return new Date(iso).toLocaleString(EN()?'en-US':'zh-TW',{timeZone:'Asia/Taipei',hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return iso} }
 function fgLabel(v){ return t(v<25?'fg0':v<45?'fg1':v<=55?'fg2':v<75?'fg3':'fg4'); }
-const EVN = {panic1:['VIX ≥ 35：二倍槓桿加到 85%','VIX ≥ 35: 2x to 85%'], panic2:['VIX ≥ 40：二倍槓桿加到 100%','VIX ≥ 40: 2x to 100%'], deep:['深跌補滿：二倍槓桿加到 100%','Deep-drop top-up: 2x to 100%'], twvix:['台股急跌（台指 VIX ≥ 40）：二倍槓桿加到 100%','Taiwan sell-off (Taiwan VIX ≥ 40): 2x to 100%'],
+const EVN = {panic1:['VIX ≥ 35：二倍槓桿加到 85%','VIX ≥ 35: 2x to 85%'], panic2:['VIX ≥ 40：二倍槓桿加到 100%','VIX ≥ 40: 2x to 100%'], deep:['深跌補滿：二倍槓桿加到 100%','Deep-drop top-up: 2x to 100%'], twvix:['台股急跌（台指 VIX 收盤 ≥ 40 或盤中 ≥ 45）：二倍槓桿加到 100%','Taiwan sell-off (Taiwan VIX close ≥ 40 or intraday ≥ 45): 2x to 100%'],
   rsi:['RSI 過熱：二倍槓桿調回 60%','RSI trim: 2x back to 60%'], mg:['融資過熱：二倍槓桿換成一倍原型','Margin overheating: 2x into 1x'], re:['融資退燒：一倍原型換回二倍槓桿','Margin cooled: 1x back into 2x']};
 const evName = k => (EVN[k]||[k,k])[EN()?1:0];
 
@@ -481,29 +493,44 @@ function renderSig(main){
   const LD = el('div',{class:'ladder'});
   const rung=(on,c,tt,d,w,bang)=>{ const x=el('div',{class:'rung'+(on?' on':''),style:`--c:${c}`}); const tl=el('div',{class:'t'},tt); if(on&&bang) tl.prepend(el('span',{class:'bang'},'!')); x.append(el('span',{class:'mk'}), el('div',{}, tl, el('div',{class:'d',html:d})), el('div',{class:'w'},w)); LD.append(x); };
   const grp=(s,major)=>LD.append(el('div',{class:'grp'+(major?' major':'')},s));
-  const vbox=(val,ticks,lab,col,extra)=>{ const box=el('div',{class:'vbox',style:`--c:${col}`}); const mx=55, mn=10; const posn=v=>Math.min(100,Math.max(0,(v-mn)/(mx-mn)*100)); const vv=val??mn;
-    const mtr=el('div',{class:'vmeter'}); mtr.append(el('div',{class:'fill',style:`width:${posn(vv)}%`}), el('div',{class:'now',style:`left:${posn(vv)}%`}, String(val??'—')));
-    ticks.forEach(([x])=>mtr.append(el('div',{class:'tk'+(vv>=x?' on':''),style:`left:${posn(x)}%`})));
-    const tg=el('div',{class:'vtiers'}); ticks.forEach(([x,w])=>tg.append(el('div',{class:'vt'+(vv>=x?' on':'')}, el('span',{},lab+' ≥ '+x), el('b',{},L(`${w} 二倍槓桿`,`${w} 2x`)))));
-    box.append(mtr, tg); if(extra) box.append(extra); LD.append(box); };
+  const vbox=(val,ticks,lab,col,extra)=>{ const box=el('div',{class:'vbox',style:`--c:${col}`}); const mx=55, mn=10; const posn=v=>Math.min(100,Math.max(0,(v-mn)/(mx-mn)*100));
+    const mtr=el('div',{class:'vmeter'}); const fill=el('div',{class:'fill'}), now=el('div',{class:'now'}); mtr.append(fill, now);
+    const tks=ticks.map(([x])=>{ const k=el('div',{class:'tk',style:`left:${posn(x)}%`}); mtr.append(k); return k; });
+    const tg=el('div',{class:'vtiers'}); const vts=ticks.map(([x,w,lb])=>{ const d=el('div',{class:'vt'}, el('span',{},lb||(lab+' ≥ '+x)), el('b',{},L(`${w} 二倍槓桿`,`${w} 2x`))); tg.append(d); return d; });
+    const set=v=>{ const vv=v??mn; fill.style.width=posn(vv)+'%'; now.style.left=posn(vv)+'%'; now.textContent=String(v??'—'); ticks.forEach(([x],i)=>{ tks[i].classList.toggle('on',vv>=x); vts[i].classList.toggle('on',vv>=x); }); };
+    set(val); box.append(mtr, tg); if(extra) box.append(extra); LD.append(box); return set; };
   const p=r.panic, dp=p.deep;
   grp(L('恐慌加碼（先用一倍原型，再用子彈）','Panic buying (1x first, then reserve)'), true);
   rung(r.vix>=35 && p.g1 && !p.blocked, C.bad, 'VIX ≥ 35', L(`目前 VIX ${r.vix??'—'}・上次 ≥ 35：${D8(p.last_vix35)||'—'}<br>暫停條件：2 年期殖利率 3 個月 ${pp(p.y2_chg)}（> +0.5 暫停）、信用利差 3 個月 ${pp(p.baa_chg)}（> +0.7 暫停）${p.g1?'':'　<b style="color:var(--warn)">⏸ 暫停中</b>'}`,
     `VIX now ${r.vix??'—'} · last ≥ 35: ${D8(p.last_vix35)||'—'}<br>Paused if the 2-year yield rose more than 0.5 in 3 months (now ${pp(p.y2_chg)}) or credit spreads widened more than 0.7 (now ${pp(p.baa_chg)})${p.g1?'':' <b style="color:var(--warn)">⏸ paused</b>'}`), L('85% 二倍槓桿','85% in 2x'), true);
   rung(r.vix>=40 && !p.blocked, C.bad, 'VIX ≥ 40', L(`目前 VIX ${r.vix??'—'}，沒有暫停條件`,`VIX now ${r.vix??'—'}; never paused`), L('100% 二倍槓桿','100% in 2x'), true);
-  vbox(r.vix,[[35,'85%'],[40,'100%']],isTW?'美股 VIX':'VIX',C.bad, el('div',{class:'cred'+(p.blocked?' on':'')}, p.blocked?L(`⏸ 信用利差 3 個月擴大 ${pp(p.baa_chg)}，超過 +0.8：所有恐慌加碼暫停（最多 30 個交易日）`,`⏸ Credit spreads widened ${pp(p.baa_chg)} in 3 months, above +0.8: all panic buying paused (up to 30 trading days)`):L(`信用利差 3 個月擴大超過 0.8 時，所有恐慌加碼暫停，最多 30 個交易日。目前 ${pp(p.baa_chg)}`,`If credit spreads widen more than 0.8 in 3 months, all panic buying pauses for up to 30 trading days. Now ${pp(p.baa_chg)}`)));
+  const setUS = vbox(r.vix,[[35,'85%'],[40,'100%']],isTW?'美股 VIX':'VIX',C.bad, el('div',{class:'cred'+(p.blocked?' on':'')}, p.blocked?L(`⏸ 信用利差 3 個月擴大 ${pp(p.baa_chg)}，超過 +0.8：所有恐慌加碼暫停（最多 30 個交易日）`,`⏸ Credit spreads widened ${pp(p.baa_chg)} in 3 months, above +0.8: all panic buying paused (up to 30 trading days)`):L(`信用利差 3 個月擴大超過 0.8 時，所有恐慌加碼暫停，最多 30 個交易日。目前 ${pp(p.baa_chg)}`,`If credit spreads widen more than 0.8 in 3 months, all panic buying pauses for up to 30 trading days. Now ${pp(p.baa_chg)}`)));
+  const liveUS=el('div',{class:'vlive faint'}); LD.append(liveUS);
   rung(dp.on && !p.blocked, C.bad, L('深跌補滿','Deep-drop top-up'), L(`三個條件同時成立：一年內 VIX 曾 ≥ 35${isTW?'或台股急跌':''}（最高 ${dp.vix_max252}）${dp.vix_max252>=35?'✓':'✗'}、距一年高點跌超過 30%（目前 ${sgn(dp.dd)}，觸發價位約 ${fmt(dp.line,idxD)}${isTW?'（含息指數）':''}）${dp.dd<=-0.3?'✓':'✗'}、信用利差 3 個月擴大不到 0.5（${pp(p.baa_chg)}）${dp.credit_ok?'✓':'✗'}`,
     `All three: VIX reached 35 within a year (max ${dp.vix_max252}) ${dp.vix_max252>=35?'✓':'✗'}; more than 30% below the 1-year high (now ${sgn(dp.dd)}, about ${fmt(dp.line,idxD)}) ${dp.dd<=-0.3?'✓':'✗'}; credit spreads widened less than 0.5 in 3 months (${pp(p.baa_chg)}) ${dp.credit_ok?'✓':'✗'}`), L('100% 二倍槓桿','100% in 2x'), true);
-  if (isTW && r.twvix){ const tv=r.twvix, ok1=tv.v>=40, ok2=tv.r20<=-0.10, ok3=p.baa_chg<0.3;
-    rung(tv.on && !p.blocked, C.bad, '台股急跌（台指 VIX）', `三個條件同時成立：台指 VIX ≥ 40（${tv.v??'—'}，${D8(tv.asof)}）${ok1?'✓':'✗'}、近 20 日跌 ≥ 10%（${sgn(tv.r20)}）${ok2?'✓':'✗'}、信用利差 3 個月擴大 < 0.3（${pp(p.baa_chg)}）${ok3?'✓':'✗'}。抓台股自己的急跌，信用危機時不加碼`, '100% 二倍槓桿', true);
-    vbox(tv.v,[[40,'100%']],'台指 VIX','#ff8fb1');
-    const live=el('div',{class:'cred',style:'margin:-6px 0 10px 34px'}); LD.append(live);
-    fetch('twlive.json',{cache:'no-store'}).then(x=>x.json()).then(q=>{ if(!q||q.t.slice(0,10)!==new Date(Date.now()+8*3600e3).toISOString().slice(0,10)) return;
-      live.innerHTML=`盤中 ${q.taiex_t||q.t.slice(11)}（更新於 ${q.t.slice(11)}）：台指 VIX <b>${q.vix??'—'}</b>、加權指數 ${fmt(q.taiex)}（近 20 日 ${q.r20!=null?sgn(q.r20):'—'}）`+(q.on?'　<b style="color:var(--bad)">❗ 盤中已達台股急跌條件，可在收盤前加碼</b>':'')+'<br><span class="faint">每 20 分鐘更新，可能延遲 5–20 分鐘；規則以收盤確認、隔天下單為準</span>'; }).catch(()=>{}); }
+  let setTW=null, liveTW=null;
+  if (isTW && r.twvix){ const tv=r.twvix, ok1=tv.v>=40||tv.hi>=45, ok2=tv.r20<=-0.10, ok3=p.baa_chg<0.3;
+    rung(tv.on && !p.blocked, C.bad, '台股急跌（台指 VIX）', `三個條件同時成立：台指 VIX 收盤 ≥ 40（${tv.v??'—'}，${D8(tv.asof)}，隔天加碼）或盤中 ≥ 45（當天最高 ${tv.hi??'—'}，當下加碼）${ok1?'✓':'✗'}、近 20 日跌 ≥ 10%（${sgn(tv.r20)}）${ok2?'✓':'✗'}、信用利差 3 個月擴大 < 0.3（${pp(p.baa_chg)}）${ok3?'✓':'✗'}。抓台股自己的急跌，信用危機時不加碼。盤中 ≥ 40 會先寄注意通知${tv.last_on?`<br>最近一次成立：${D8(tv.last_on)}`:''}`, '100% 二倍槓桿', true);
+    setTW = vbox(tv.v,[[40,'100%','收盤 ≥ 40'],[45,'100%','盤中 ≥ 45']],'台指 VIX','#ff8fb1');
+    liveTW=el('div',{class:'vlive'}); LD.append(liveTW); }
+  liveHook = q => {
+    const usAsof = m.vix_asof||'';
+    if (q && q.us_vix && q.us_t && q.us_t.slice(0,10) >= usAsof.slice(0,10)){
+      setUS(q.us_vix); liveUS.innerHTML = L(`即時 VIX <b>${q.us_vix}</b>（美東 ${q.us_t.slice(5).replace('-','/')}，CBOE 延遲約 15 分鐘${q.us_hi?`，今日最高 ${q.us_hi}`:''}）。規則以收盤為準${isTW?'，台股隔天加碼':''}`,`Live VIX <b>${q.us_vix}</b> (${q.us_t.slice(5).replace('-','/')} ET, CBOE ~15 min delayed${q.us_hi?`, high ${q.us_hi}`:''}). The rules use the close.`); }
+    if (!liveTW) return;
+    const tv=r.twvix;
+    if (!q || !q.tw_vix || !q.tw_d || q.tw_d < tv.asof){ liveTW.innerHTML='<span class="faint">盤中資料：台股交易時間（09:00–13:30）每分鐘更新，重整頁面就會抓最新一筆</span>'; return; }
+    setTW(q.tw_vix);
+    const st = q.b45 ? '<br><b class="hot">❗ 盤中 ≥ 45 且條件成立：依規則現在就把二倍槓桿加到 100%</b>' : q.w40 ? '<br><b class="warm">注意：盤中 ≥ 40 且條件成立。≥ 45 會立即觸發；收盤 ≥ 40 則明天加碼</b>' : (q.tw_vix>=40 && !q.cond ? '<br><span class="faint">VIX ≥ 40，但跌幅或利差條件不成立</span>':'');
+    liveTW.innerHTML = `盤中 ${q.tw_t?q.tw_t.slice(0,2)+':'+q.tw_t.slice(2):''}（${q.tw_d.slice(5).replace('-','/')}）台指 VIX <b>${q.tw_vix}</b>${q.tw_hi?`，今日最高 ${q.tw_hi}`:''}・加權指數 ${fmt(q.taiex)}（近 20 日 ${q.r20!=null?sgn(q.r20):'—'}）${st}<br><span class="faint">更新於 ${q.t.slice(11,19)}。交易時間每分鐘更新，重整頁面就會抓最新一筆</span>`; };
+  loadLive();
   grp(L('過熱調節','Trim when hot'), true);
   rung(r.rsi_hot, C.info, L(`週 RSI > ${r.rsi_th}`,`Weekly RSI > ${r.rsi_th}`), r.rsi_hot?L(`目前 ${r.rsi}，已超過門檻`,`Now ${r.rsi}, above the line`):L(`目前 ${r.rsi}，還差 ${(r.rsi_th-r.rsi).toFixed(1)}`,`Now ${r.rsi}, ${(r.rsi_th-r.rsi).toFixed(1)} to go`), L(`二倍槓桿調回 ${pct(m.base)}`,`2x back to ${pct(m.base)}`));
   grp(L('融資過熱','Margin overheating'), true);
-  rung(r.margin.on, C.warn, isTW?'融資過熱':L('FINRA 融資年增 > 50%','FINRA margin debt > 50% YoY'), mgDesc(m) + (r.margin.on && !r.conv_ok ? L(`<br><b style="color:var(--warn)">先不換：${pauseWhy(m)}</b>`,`<br><b style="color:var(--warn)">On hold: ${pauseWhy(m)}</b>`):''), L('二倍槓桿 → 一倍原型','2x → 1x'));
+  const hold = r.margin.on && !r.conv_ok;
+  const left = r.cool.days_since_add!=null ? Math.max(0, r.cool_days - r.cool.days_since_add) : r.cool_days;
+  rung(r.margin.on && !hold, C.warn, isTW?'融資過熱':L('FINRA 融資年增 > 50%','FINRA margin debt > 50% YoY'), mgDesc(m) + (hold ? L(`<br><b style="color:var(--warn)">⏸ 暫緩：${pauseWhy(m)}</b><br><span class="faint">兩個訊號同時出現是正常的：融資過熱看的是一年的槓桿堆積（慢），恐慌看的是這幾天的急跌（快）。急跌時規則先加碼、不換一倍；加碼後 60 個交易日的冷卻期過了（約 ${left} 個交易日後），如果融資還是過熱，再把二倍槓桿換成一倍原型。</span>`,`<br><b style="color:var(--warn)">⏸ On hold: ${pauseWhy(m)}</b><br><span class="faint">Both signals at once is normal: margin overheating tracks a year of leverage build-up (slow), panic tracks a sharp drop (fast). During the drop the rules buy and do not switch to 1x; after the 60-day cooldown (about ${left} trading days), if margin is still overheated, the 2x moves to 1x.</span>`):''), hold?L('暫緩（恐慌優先）','On hold (panic first)'):L('二倍槓桿 → 一倍原型','2x → 1x'));
+  if (hold) LD.lastChild.classList.add('held');
   const md=r.model; rung(r.margin.reentry_ready && md.w1>0.01, C.ok, L('融資退燒換回','Back to 2x after cooling'), L(`融資訊號關閉 ${r.margin.off_days}／${r.reoff_days} 個交易日、收盤${r.below60?'在季線下方 ✗':'在季線上方 ✓'}${md.w1>0.01?'':'（規則目前沒有一倍原型）'}`,`Margin signal off ${r.margin.off_days} / ${r.reoff_days} trading days; price ${r.below60?'below the 60-day MA ✗':'above the 60-day MA ✓'}${md.w1>0.01?'':' (the rules hold no 1x now)'}`), L('一倍原型 → 二倍槓桿','1x → 2x'));
   grp(L('每月薪資','Monthly savings'), true);
   rung(r.below60, C.warn, L('收盤在季線下方','Close below the 60-day MA'), L(`季線 ${fmt(r.ma60,idxD)}${isTW?'（含息指數）':''}，收盤${r.below60?'低':'高'} ${pct(Math.abs(r.close/r.ma60-1),1)}`,`60-day MA ${fmt(r.ma60,idxD)}; price is ${pct(Math.abs(r.close/r.ma60-1),1)} ${r.below60?'below':'above'}`), r.salary.to==='1x'?L('薪資全買一倍原型','All savings to 1x'):L('薪資全買二倍槓桿','All savings to 2x'));
@@ -542,7 +569,7 @@ function renderSig(main){
   const c3 = el('section',{class:'card chart-card'}); c3.append(el('h2',{}, t('ch_rsi'), el('small',{}, t('ch_rsi_s',{th:r.rsi_th}))), el('div',{class:'chart sm',id:'c-rsi'}));
   if (isTW && m.hist.twvix){
     c2.querySelector('h2').firstChild.textContent='美股 VIX';
-    const c4 = el('section',{class:'card chart-card'}); c4.append(el('h2',{}, '台指 VIX', el('small',{}, '≥ 40、近 20 日跌 ≥ 10%、信用利差沒有擴大時，台股急跌加到 100%')), el('div',{class:'chart sm',id:'c-twvix'}));
+    const c4 = el('section',{class:'card chart-card'}); c4.append(el('h2',{}, '台指 VIX', el('small',{}, '收盤 ≥ 40 或盤中 ≥ 45，且近 20 日跌 ≥ 10%、信用利差沒有擴大時，台股急跌加到 100%')), el('div',{class:'chart sm',id:'c-twvix'}));
     two.append(c2,c4); const c3w=el('div',{}); c3w.append(c3); ch.append(c1,two,c3w);
   } else { two.append(c2,c3); ch.append(c1,two); }
   main.append(ch);
@@ -857,7 +884,7 @@ function openGuide(){
     [L('恐慌加碼','Panic buy'), L(`VIX ≥ 35：二倍槓桿加到 85%（美國 2 年期殖利率 3 個月內升超過 0.5 個百分點，或 BAA 信用利差 3 個月內擴大超過 0.7，這一階暫停）<br>VIX ≥ 40：加到 100%<br>先賣一倍原型，不夠再用子彈<br>利差 3 個月擴大超過 0.8 時，所有恐慌加碼（含深跌補滿）暫停，最多 30 個交易日`,
       `VIX ≥ 35: raise 2x to 85% (paused if the US 2-year yield rose more than 0.5 point in 3 months, or the BAA credit spread widened more than 0.7)<br>VIX ≥ 40: raise to 100%<br>Sell 1x first, then use reserve<br>If the credit spread widens more than 0.8 in 3 months, all panic buying (including the top-up) pauses for up to 30 trading days`)],
     [L('深跌補滿','Deep-drop top-up'), L('一年內 VIX 曾 ≥ 35、距一年高點跌超過 30%，而且利差 3 個月擴大不到 0.5：二倍槓桿加到 100%','VIX reached 35 within the past year, price is more than 30% below its 1-year high, and credit spreads widened less than 0.5 in 3 months: raise 2x to 100%')],
-    ...(isTW?[['台股急跌（台指 VIX）','台指 VIX ≥ 40、近 20 日跌 ≥ 10%，而且美國信用利差 3 個月擴大 < 0.3（不是信用危機）：二倍槓桿加到 100%，視同 VIX ≥ 40。只用在台股，抓 2004 年 5 月、2026 年 7 月這種台股自己的急跌']]:[]),
+    ...(isTW?[['台股急跌（台指 VIX）','近 20 日跌 ≥ 10%、美國信用利差 3 個月擴大 < 0.3（不是信用危機），而且台指 VIX 收盤 ≥ 40（隔天加碼）或盤中 ≥ 45（當下立即加碼）：二倍槓桿加到 100%，視同 VIX ≥ 40。只用在台股，抓 2004 年 5 月、2026 年 7 月、11 月這種台股自己的急跌。盤中 ≥ 40 會寄注意通知']]:[]),
     [L('融資退燒換回','Back to 2x'), L('融資訊號關閉滿 315 個交易日（約 15 個月）且收盤在季線上方：一倍原型全部換回二倍槓桿','Margin signal off for 315 trading days (about 15 months) and price above the 60-day MA: move all 1x back into 2x')],
     [L('過熱調節','Trim'), L(`週 RSI > ${th}：二倍槓桿調回 60%，賣出的錢買子彈`,`Weekly RSI > ${th}: trim 2x back to 60% and put the rest in reserve`)],
     [L('融資過熱','Margin overheating'), L(isTW?'台股融資餘額÷加權指數一年增加 > 20%（融資增加得比股價快）且融資兩年增長 > 20%，或美國 FINRA 融資年增 > 50%：二倍槓桿全部換成一倍原型，子彈不動。VIX ≥ 35、深跌區、或恐慌加碼後 60 個交易日內先不換':'美國 FINRA 融資年增 > 50%：二倍槓桿全部換成一倍原型，子彈不動。VIX ≥ 35、深跌區、或恐慌加碼後 60 個交易日內先不換',
@@ -932,7 +959,7 @@ function renderBT(main){
     const nm=RNG_L[lc[0]]||[lc[0]+' 股災',lc[0]+' sell-off']; RNG_L.recent=[nm[0]+'～至今',nm[1]+' to now']; }
   const head = el('section',{class:'card'});
   head.append(el('h2',{},L('二倍槓桿調節加碼回測','Backtest of the rules')),
-    el('p',{class:'muted',style:'margin:4px 0 12px;font-size:.88rem;max-width:80ch'},L('每個標記是規則的一次買賣：紅色往上三角形是 VIX ≥ 35 加到 85%，白色往上三角形是 VIX ≥ 40 加到 100%，粉紅色往上三角形是台股急跌（台指 VIX ≥ 40）加到 100%，空心三角形是深跌補滿，藍色往下三角形是 RSI 過熱調節，橘色菱形是融資過熱把二倍槓桿換成一倍原型，綠色圓點是融資退燒後換回二倍槓桿。灰色區塊是歷次大跌，從高點到低點。',
+    el('p',{class:'muted',style:'margin:4px 0 12px;font-size:.88rem;max-width:80ch'},L('每個標記是規則的一次買賣：紅色往上三角形是 VIX ≥ 35 加到 85%，白色往上三角形是 VIX ≥ 40 加到 100%，粉紅色往上三角形是台股急跌（台指 VIX 收盤 ≥ 40 或盤中 ≥ 45）加到 100%，空心三角形是深跌補滿，藍色往下三角形是 RSI 過熱調節，橘色菱形是融資過熱把二倍槓桿換成一倍原型，綠色圓點是融資退燒後換回二倍槓桿。灰色區塊是歷次大跌，從高點到低點。',
       'Each marker is one trade: red up-triangle = VIX ≥ 35, 2x to 85%; white up-triangle = VIX ≥ 40, 2x to 100%; hollow triangle = deep-drop top-up; blue down-triangle = RSI trim; orange diamond = margin overheating, 2x into 1x; green dot = back to 2x after margin cools. Grey bands are major declines, peak to trough.')));
   const ctl = el('div',{class:'bt-ctl'});
   if (MODE!=='us'){ const sg=el('div',{class:'seg'}); [['tw','台股'],['us','美股（那斯達克 100）']].forEach(([k,n])=>{ const b=el('button',{'aria-pressed':String(btMkt===k)},n); b.onclick=()=>{btMkt=k;store.set('bt-mkt',k);render();}; sg.append(b); }); ctl.append(sg); }
@@ -951,7 +978,7 @@ function renderBT(main){
   const c1=el('section',{class:'card chart-card'}); c1.append(el('h2',{},L('大盤走勢與每次動作','Index and every action'), el('small',{},L(`${isTW?'加權指數':'那斯達克 100 指數'}實際點位（不含息），對數刻度；績效計算仍包含股息。滑鼠移到線上（手機點一下）看當天日期、點位和槓桿，移到標記上看當時的訊號。`,'Actual Nasdaq-100 level (price only), log scale; performance includes dividends. Hover or tap the line for the day\'s date, level and leverage; hover a marker for the signal.'))));
   const lg=el('div',{class:'bt-legend'});
   const sw=(cls,c,txt)=>{ const s=el('span',{}); s.append(el('i',{class:'bt-sw '+cls,style:`--c:${c}`}), txt); lg.append(s); };
-  sw('tri',C.bad,L('VIX ≥ 35：加到 85%','VIX ≥ 35: to 85%')); sw('tri',C.fg,L('VIX ≥ 40：加到 100%','VIX ≥ 40: to 100%')); if(isTW) sw('tri','#ff8fb1','台股急跌（台指 VIX ≥ 40）：加到 100%'); sw('tri hollow',C.fg,L('深跌補滿','Deep-drop top-up'));
+  sw('tri',C.bad,L('VIX ≥ 35：加到 85%','VIX ≥ 35: to 85%')); sw('tri',C.fg,L('VIX ≥ 40：加到 100%','VIX ≥ 40: to 100%')); if(isTW) sw('tri','#ff8fb1','台股急跌（台指 VIX 收盤 ≥ 40 或盤中 ≥ 45）：加到 100%'); sw('tri hollow',C.fg,L('深跌補滿','Deep-drop top-up'));
   sw('tri down',C.info,L('RSI 過熱調節','RSI trim')); sw('dia',C.warn,L('融資過熱：換成一倍原型','Margin overheating: to 1x')); sw('dot',C.ok,L('融資退燒：換回二倍槓桿','Margin cooled: back to 2x')); sw('band',C.faint,L('大跌（高點到低點）','Major decline'));
   c1.append(lg, el('div',{class:'bt-chart',id:'bt-price'})); main.append(c1);
   const two=el('div',{class:'two'});
