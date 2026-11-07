@@ -105,8 +105,9 @@ def main():
     end = utc + dt.timedelta(minutes=int(os.environ.get("MAX_MIN", "350")))
     stop = utc.replace(hour=5, minute=40) if tw_session else utc.replace(hour=21, minute=10)
     end = min(end, stop)
-    last = None
-    while dt.datetime.now(dt.timezone.utc) < end:
+    last = None; first = True
+    while first or dt.datetime.now(dt.timezone.utc) < end:
+        first = False
         now8 = dt.datetime.now(TZ8); today = now8.strftime("%Y-%m-%d")
         out["t"] = now8.strftime("%Y-%m-%d %H:%M:%S")
         if tw_session:
