@@ -516,7 +516,7 @@ function renderSig(main){
   liveHook = q => {
     const usAsof = m.vix_asof||'';
     if (q && q.us_vix && q.us_t && q.us_t.slice(0,10) >= usAsof.slice(0,10)){
-      setUS(q.us_vix); liveUS.innerHTML = L(`即時 VIX <b>${q.us_vix}</b>（美東 ${q.us_t.slice(5).replace('-','/')}，CBOE 延遲約 15 分鐘${q.us_hi?`，今日最高 ${q.us_hi}`:''}）。規則以收盤為準${isTW?'，台股隔天加碼':''}`,`Live VIX <b>${q.us_vix}</b> (${q.us_t.slice(5).replace('-','/')} ET, CBOE ~15 min delayed${q.us_hi?`, high ${q.us_hi}`:''}). The rules use the close.`); }
+      setUS(q.us_vix); liveUS.innerHTML = L(`即時 VIX <b>${q.us_vix}</b>（美東 ${q.us_t.slice(5).replace('-','/').replace('T',' ')}，CBOE 延遲約 15 分鐘${q.us_hi?`，今日最高 ${q.us_hi}`:''}）。規則以收盤為準${isTW?'，台股隔天加碼':''}`,`Live VIX <b>${q.us_vix}</b> (${q.us_t.slice(5).replace('-','/').replace('T',' ')} ET, CBOE ~15 min delayed${q.us_hi?`, high ${q.us_hi}`:''}). The rules use the close.`); }
     if (!liveTW) return;
     const tv=r.twvix;
     if (!q || !q.tw_vix || !q.tw_d || q.tw_d < tv.asof){ liveTW.innerHTML='<span class="faint">盤中資料：台股交易時間（09:00–13:30）每分鐘更新，重整頁面就會抓最新一筆</span>'; return; }

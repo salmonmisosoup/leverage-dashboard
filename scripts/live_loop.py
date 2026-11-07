@@ -113,10 +113,11 @@ def main():
         if tw_session:
             try:
                 v, hi, tt, dd = tw_vix()
+                qd = f"{dd[:4]}-{dd[4:6]}-{dd[6:8]}" if len(dd) >= 8 else today   # 報價日期（週末、假日是上一個交易日）
                 if v:
-                    if out.get("tw_d") != today:
+                    if out.get("tw_d") != qd:
                         out["tw_hi"] = None
-                    out.update(tw_vix=v, tw_t=tt, tw_d=today)
+                    out.update(tw_vix=v, tw_t=tt, tw_d=qd)
                     out["tw_hi"] = max(x for x in (v, hi, out.get("tw_hi")) if x)
             except Exception as e:
                 out["tw_err"] = type(e).__name__
@@ -124,23 +125,24 @@ def main():
                 px, lo, tt, dd = taiex()
                 if px:
                     out.update(taiex=px, taiex_t=tt)
-                    k = 20 if H["date"][-1] != today else 21
+                    k = 20 if H["date"][-1] < (out.get("tw_d") or today) else 21
                     out["r20"] = round(px / H["close"][-k] - 1, 4)
             except Exception as e:
                 out["taiex_err"] = type(e).__name__
             out["baa_chg"] = p["baa_chg"]; out["blocked"] = bool(p["blocked"])
+            live_today = out.get("tw_d") == today and now8.weekday() < 5          # 只在今天真的有交易時通知
             cond = out.get("r20", 0) <= -0.10 and p["baa_chg"] < 0.3 and not p["blocked"]
             v = out.get("tw_vix") or 0
             out["cond"] = bool(cond)
             out["w40"] = bool(cond and v >= WARN)
             out["b45"] = bool(cond and v >= BUY)
             info = f"台指 VIX {v}（{out.get('tw_t','')}）、加權指數 {out.get('taiex')}、近 20 日 {out.get('r20',0)*100:.1f}%、信用利差 3 個月 {p['baa_chg']:+.2f}"
-            if out["b45"] and sent.get("b45") != today:
+            if live_today and out["b45"] and sent.get("b45") != today:
                 sent["b45"] = today; sent["w40"] = today
                 t_ = "❗ 盤中台指 VIX ≥ 45：台股急跌規則成立，現在加到 100%"
                 b_ = f"{info}\n\n依規則現在就把台股二倍槓桿加到 100%：先賣 0050，不夠再賣 00713，買 00685L。\nhttps://salmonmisosoup.github.io/leverage-dashboard/"
                 mail(t_, b_); issue(t_ + f" {today}", b_)
-            elif out["w40"] and sent.get("w40") != today:
+            elif live_today and out["w40"] and sent.get("w40") != today:
                 sent["w40"] = today
                 t_ = "注意：盤中台指 VIX ≥ 40，台股急跌條件接近"
                 b_ = f"{info}\n\n盤中 ≥ 45 會立即觸發加碼；收盤 ≥ 40 則明天收盤前加碼。請留意盤中變化。\nhttps://salmonmisosoup.github.io/leverage-dashboard/"
