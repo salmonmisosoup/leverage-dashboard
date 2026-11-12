@@ -174,6 +174,19 @@ def vixtwn():
                 if m:
                     d_ = f"{m.group(1)[:4]}-{m.group(1)[4:6]}-{m.group(1)[6:]}"; got[d_] = float(m.group(2))
                     HI_NEW[d_] = max(HI_NEW.get(d_, 0), float(m.group(2)))
+        # 期交所即時報價：補今天的收盤與盤中最高（排程在 13:50 收盤後跑，一天只抓一次）
+        try:
+            rq = urllib.request.Request("https://mis.taifex.com.tw/futures/api/getQuoteListVIX", data=b"{}",
+                                        headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (compatible; leverage-dashboard/1.0)"})
+            q = json.loads(urllib.request.urlopen(rq, timeout=20).read())["RtData"]["QuoteList"][0]
+            cd = str(q.get("CDate", "")); last = float(q.get("CLastPrice") or 0); high = float(q.get("CHighPrice") or 0)
+            now8 = pd.Timestamp.utcnow().tz_localize(None) + pd.Timedelta(hours=8)
+            if len(cd) == 8 and last > 0:
+                d_ = f"{cd[:4]}-{cd[4:6]}-{cd[6:]}"
+                if d_ not in got and (d_ < now8.strftime("%Y-%m-%d") or now8.hour * 60 + now8.minute >= 13 * 60 + 45): got[d_] = last
+                HI_NEW[d_] = max(HI_NEW.get(d_, 0), high, last)
+        except Exception:
+            pass
         if not got: raise RuntimeError("無資料")
         n = pd.DataFrame({"date": list(got), "vix": list(got.values())})
         c = pd.concat([c[~c["date"].isin(n["date"])], n]).sort_values("date"); c.to_csv(p, index=False)
@@ -185,14 +198,9 @@ HI_NEW = {}
 mg_tw = tw_margin(); mg_us = us_margin()
 vx_tw = vixtwn()
 def vixtwn_hi():
-    """台指 VIX 每日盤中最高：2026/10 以前由台指選擇權高低價估算，之後用盤中監控（live 分支）與期交所資料，取較高者"""
+    """台指 VIX 每日盤中最高：2026/10 以前由台指選擇權高低價估算，之後用期交所報價的當日最高（收盤後抓一次）"""
     p = os.path.join(ROOT, "data", "vixtwn_hi.csv"); c = pd.read_csv(p)
     hi = dict(zip(c["date"], c["hi"].astype(float)))
-    try:
-        q = json.loads(get(f"https://raw.githubusercontent.com/{os.environ.get('GITHUB_REPOSITORY', 'salmonmisosoup/leverage-dashboard')}/live/live.json?t={int(time.time())}", tries=2, timeout=20))
-        if q.get("tw_d") and q.get("tw_hi"): HI_NEW[q["tw_d"]] = max(HI_NEW.get(q["tw_d"], 0), float(q["tw_hi"]))
-    except Exception:
-        pass
     for d_, v in HI_NEW.items(): hi[d_] = round(max(hi.get(d_, 0), v), 2)
     c = pd.DataFrame({"date": list(hi), "hi": list(hi.values())}).sort_values("date"); c.to_csv(p, index=False)
     return pd.Series(c["hi"].values, index=pd.to_datetime(c["date"]))
