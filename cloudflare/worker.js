@@ -8,7 +8,8 @@ const num = x => { const v = parseFloat(String(x ?? "").replace(/,/g, "")); retu
 
 async function twVix() {
   const r = await fetch("https://mis.taifex.com.tw/futures/api/getQuoteListVIX", {
-    method: "POST", headers: { ...UA, "Content-Type": "application/json" }, body: "{}" });
+    method: "POST", body: "{}", headers: { ...UA, "Content-Type": "application/json", "Accept": "application/json, text/plain, */*",
+      "Origin": "https://mis.taifex.com.tw", "Referer": "https://mis.taifex.com.tw/futures/VolatilityQuotes/" } });
   const q = (await r.json()).RtData.QuoteList[0]; const d = String(q.CDate || "");
   return { tw_vix: num(q.CLastPrice), tw_hi: num(q.CHighPrice), tw_t: String(q.CTime || "").slice(0, 4),
            tw_d: d.length >= 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : null };

@@ -362,7 +362,7 @@ function mgDesc(m){ const g=m.rule.margin;
 }
 let liveHook=null, liveTimer=null, liveLast=null;
 // 盤中即時：打開或重整頁面時抓一次。預設讀盤中監控（每 20 分鐘）寫的 twlive.json；設定了自己的 Cloudflare Worker 就改抓即時報價。
-const LIVE_WORKER='';
+const LIVE_WORKER='https://dashboard-live.sololeveling19920806.workers.dev/';
 function liveDerive(q){
   try{ const T=DATA.tw, H=T.hist, p=T.rule.panic;
     if(q.taiex && q.tw_d){ const k=H.date[H.date.length-1] < q.tw_d ? 20 : 21; q.r20=q.taiex/H.close[H.close.length-k]-1; }
@@ -371,9 +371,20 @@ function liveDerive(q){
   }catch(e){}
   return q;
 }
+// 打開或重整時抓一次：即時報價（Cloudflare Worker：加權指數、美股 VIX、台指 VIX）＋盤中監控（每 20 分鐘的 twlive.json）。
+// Worker 抓不到台指 VIX 時，用 twlive.json 的台指 VIX。
 function loadLive(){
-  const apply=q=>{ if(q) liveLast=liveDerive(q); try{ liveHook&&liveHook(liveLast); }catch(e){} };
-  fetch(LIVE_WORKER||('twlive.json?t='+Date.now()),{cache:'no-store'}).then(x=>x.ok?x.json():null).then(apply).catch(()=>apply(null));
+  const j=u=>fetch(u,{cache:'no-store'}).then(x=>x.ok?x.json():null).catch(()=>null);
+  Promise.all([LIVE_WORKER?j(LIVE_WORKER):null, j('twlive.json?t='+Date.now())]).then(([w,t])=>{
+    let q=null;
+    if(t||w){ q={...(t||{})};
+      if(w){ if(w.tw_vix){ q.tw_vix=w.tw_vix; q.tw_t=w.tw_t; q.tw_d=w.tw_d; q.tw_hi=Math.max(w.tw_hi||0,(t&&t.tw_d===w.tw_d&&t.tw_hi)||0)||null; }
+             if(w.taiex && (!q.tw_d || w.taiex_d===q.tw_d)){ q.taiex=w.taiex; q.taiex_t=w.taiex_t; }
+             if(w.us_vix){ q.us_vix=w.us_vix; q.us_hi=w.us_hi; q.us_t=w.us_t; }
+             q.t=w.t; q.src=w.tw_vix?'即時':'台指 VIX 為盤中監控（每 20 分鐘），指數為即時'; } }
+    if(q) liveLast=liveDerive(q);
+    try{ liveHook&&liveHook(liveLast); }catch(e){}
+  });
   if(!liveTimer) liveTimer=setInterval(()=>{ if(document.visibilityState==='visible') loadLive(); }, 120000);
 }
 function pauseWhy(m){ const r=m.rule;
@@ -530,7 +541,7 @@ function renderSig(main){
     setTW(q.tw_vix);
     const today8=new Date(Date.now()+8*3600e3).toISOString().slice(0,10), isToday=q.tw_d===today8;
     const st = !isToday ? ((q.tw_hi>=45 && q.cond) ? `<br><span class="faint">上一個交易日盤中最高 ${q.tw_hi}，台股急跌條件已在當天成立（下一次交易時間開始更新）</span>` : '<br><span class="faint">目前不是台股交易時間，顯示上一個交易日最後的報價</span>') : q.b45 ? '<br><b class="hot">❗ 盤中 ≥ 45 且條件成立：依規則現在就把二倍槓桿加到 100%</b>' : q.w40 ? '<br><b class="warm">注意：盤中 ≥ 40 且條件成立。≥ 45 會立即觸發；收盤 ≥ 40 則明天加碼</b>' : (q.tw_vix>=40 && !q.cond ? '<br><span class="faint">VIX ≥ 40，但跌幅或利差條件不成立</span>':'');
-    liveTW.innerHTML = `盤中 ${q.tw_t?q.tw_t.slice(0,2)+':'+q.tw_t.slice(2):''}（${q.tw_d.slice(5).replace('-','/')}）台指 VIX <b>${q.tw_vix}</b>${q.tw_hi?`，今日最高 ${q.tw_hi}`:''}・加權指數 ${fmt(q.taiex)}（近 20 日 ${q.r20!=null?sgn(q.r20):'—'}）${st}<br><span class="faint">更新於 ${q.t.slice(11,19)}。${LIVE_WORKER?'重整頁面就會再抓一次':'台股交易時間每 20 分鐘更新，重整頁面就會抓最新一筆'}</span>`; };
+    liveTW.innerHTML = `盤中 ${q.tw_t?q.tw_t.slice(0,2)+':'+q.tw_t.slice(2):''}（${q.tw_d.slice(5).replace('-','/')}）台指 VIX <b>${q.tw_vix}</b>${q.tw_hi?`，今日最高 ${q.tw_hi}`:''}・加權指數 ${fmt(q.taiex)}${q.taiex_t?`（${q.taiex_t}）`:''}（近 20 日 ${q.r20!=null?sgn(q.r20):'—'}）${st}<br><span class="faint">抓取時間 ${(q.t||'').slice(11,19)}${q.src?`，${q.src}`:''}。重整頁面就會再抓一次</span>`; };
   loadLive();
   grp(L('過熱調節','Trim when hot'), true);
   rung(r.rsi_hot, C.info, L(`週 RSI > ${r.rsi_th}`,`Weekly RSI > ${r.rsi_th}`), r.rsi_hot?L(`目前 ${r.rsi}，已超過門檻`,`Now ${r.rsi}, above the line`):L(`目前 ${r.rsi}，還差 ${(r.rsi_th-r.rsi).toFixed(1)}`,`Now ${r.rsi}, ${(r.rsi_th-r.rsi).toFixed(1)} to go`), L(`二倍槓桿調回 ${pct(m.base)}`,`2x back to ${pct(m.base)}`));
