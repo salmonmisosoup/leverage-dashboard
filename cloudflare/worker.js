@@ -1,6 +1,6 @@
 // 儀表板「打開／重整時」抓即時報價用的小型轉接程式（部署在你自己的 Cloudflare Workers 免費帳號）
 // 只在有人打開網頁時才抓，不做背景輪詢；只抓下面三個固定網址，不是公開代理。
-// 同一份結果快取 30 秒，避免短時間內重複向資料來源要資料。
+// 同一份結果在記憶體保留 30 秒，避免短時間內重複向資料來源要資料。
 const ORIGINS = ["https://salmonmisosoup.github.io"];
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; leverage-dashboard/1.0)" };
 
@@ -30,16 +30,15 @@ export default {
     const origin = req.headers.get("Origin") || "";
     const cors = { "Access-Control-Allow-Origin": ORIGINS.includes(origin) ? origin : ORIGINS[0], "Vary": "Origin" };
     if (req.method === "OPTIONS") return new Response(null, { headers: { ...cors, "Access-Control-Allow-Methods": "GET" } });
-    const cache = caches.default; const key = new Request("https://cache.local/live");
-    let res = await cache.match(key);
-    if (!res) {
-      const out = { t: new Date(Date.now() + 8 * 3600e3).toISOString().replace("T", " ").slice(0, 19) };
+    // 30 秒記憶體快取（同一台 Cloudflare 機器內），避免短時間內重複向資料來源要資料
+    if (!globalThis.LIVE || Date.now() - globalThis.LIVE.at > 30000) {
+      const out = { t: new Date(Date.now() + 8 * 3600e3).toISOString().replace("T", " ").slice(0, 19), v: 3 };
       for (const [name, f] of [["tw", twVix], ["taiex", taiex], ["us", usVix]]) {
         try { Object.assign(out, await f()); } catch (e) { out[name + "_err"] = String(e).slice(0, 80); }
       }
-      res = new Response(JSON.stringify(out), { headers: { "Content-Type": "application/json", "Cache-Control": "max-age=30" } });
-      ctx.waitUntil(cache.put(key, res.clone()));
+      globalThis.LIVE = { at: Date.now(), body: JSON.stringify(out) };
     }
+    const res = new Response(globalThis.LIVE.body, { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
     const h = new Headers(res.headers); for (const [k, v] of Object.entries(cors)) h.set(k, v);
     return new Response(res.body, { headers: h });
   }
