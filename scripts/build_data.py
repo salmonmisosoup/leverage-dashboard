@@ -198,9 +198,14 @@ HI_NEW = {}
 mg_tw = tw_margin(); mg_us = us_margin()
 vx_tw = vixtwn()
 def vixtwn_hi():
-    """台指 VIX 每日盤中最高：2026/10 以前由台指選擇權高低價估算，之後用期交所報價的當日最高（收盤後抓一次）"""
+    """台指 VIX 每日盤中最高：2026/10 以前由台指選擇權高低價估算，之後用期交所報價與盤中監控（每 20 分鐘）記錄的當日最高"""
     p = os.path.join(ROOT, "data", "vixtwn_hi.csv"); c = pd.read_csv(p)
     hi = dict(zip(c["date"], c["hi"].astype(float)))
+    try:                                              # 盤中監控記錄的當日最高
+        q = json.load(open(os.path.join(ROOT, "docs", "twlive.json")))
+        if q.get("tw_d") and q.get("tw_hi"): HI_NEW[q["tw_d"]] = max(HI_NEW.get(q["tw_d"], 0), float(q["tw_hi"]))
+    except Exception:
+        pass
     for d_, v in HI_NEW.items(): hi[d_] = round(max(hi.get(d_, 0), v), 2)
     c = pd.DataFrame({"date": list(hi), "hi": list(hi.values())}).sort_values("date"); c.to_csv(p, index=False)
     return pd.Series(c["hi"].values, index=pd.to_datetime(c["date"]))

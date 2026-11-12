@@ -361,7 +361,7 @@ function mgDesc(m){ const g=m.rule.margin;
   return `台股融資÷指數 一年 ${sgn(g.tw_ratio,0)}（> 20%）、融資兩年 ${sgn(g.tw_2y,0)}（> 20%），美股融資年增 ${sgn(g.us_yoy,0)}（> 50%）`;
 }
 let liveHook=null, liveTimer=null, liveLast=null;
-// 盤中即時：打開或重整頁面時，向你自己的 Cloudflare Worker 抓一次（不經過 GitHub，也不做背景輪詢）。還沒設定就留空。
+// 盤中即時：打開或重整頁面時抓一次。預設讀盤中監控（每 20 分鐘）寫的 twlive.json；設定了自己的 Cloudflare Worker 就改抓即時報價。
 const LIVE_WORKER='';
 function liveDerive(q){
   try{ const T=DATA.tw, H=T.hist, p=T.rule.panic;
@@ -373,8 +373,7 @@ function liveDerive(q){
 }
 function loadLive(){
   const apply=q=>{ if(q) liveLast=liveDerive(q); try{ liveHook&&liveHook(liveLast); }catch(e){} };
-  if(!LIVE_WORKER){ apply(null); return; }
-  fetch(LIVE_WORKER,{cache:'no-store'}).then(x=>x.ok?x.json():null).then(apply).catch(()=>apply(null));
+  fetch(LIVE_WORKER||('twlive.json?t='+Date.now()),{cache:'no-store'}).then(x=>x.ok?x.json():null).then(apply).catch(()=>apply(null));
   if(!liveTimer) liveTimer=setInterval(()=>{ if(document.visibilityState==='visible') loadLive(); }, 120000);
 }
 function pauseWhy(m){ const r=m.rule;
@@ -518,7 +517,7 @@ function renderSig(main){
     `All three: VIX reached 35 within a year (max ${dp.vix_max252}) ${dp.vix_max252>=35?'✓':'✗'}; more than 30% below the 1-year high (now ${sgn(dp.dd)}, about ${fmt(dp.line,idxD)}) ${dp.dd<=-0.3?'✓':'✗'}; credit spreads widened less than 0.5 in 3 months (${pp(p.baa_chg)}) ${dp.credit_ok?'✓':'✗'}`), L('100% 二倍槓桿','100% in 2x'), true);
   let setTW=null, liveTW=null;
   if (isTW && r.twvix){ const tv=r.twvix, ok1=tv.v>=40||tv.hi>=45, ok2=tv.r20<=-0.10, ok3=p.baa_chg<0.3;
-    rung(tv.on && !p.blocked, C.bad, '台股急跌（台指 VIX）', `三個條件同時成立：台指 VIX 收盤 ≥ 40（${tv.v??'—'}，${D8(tv.asof)}，隔天加碼）或盤中 ≥ 45（當天最高 ${tv.hi??'—'}，當下加碼）${ok1?'✓':'✗'}、近 20 日跌 ≥ 10%（${sgn(tv.r20)}）${ok2?'✓':'✗'}、信用利差 3 個月擴大 < 0.3（${pp(p.baa_chg)}）${ok3?'✓':'✗'}。抓台股自己的急跌，信用危機時不加碼。盤中 ≥ 40 時請自己留意盤中變化${tv.last_on?`<br>最近一次成立：${D8(tv.last_on)}`:''}`, '100% 二倍槓桿', true);
+    rung(tv.on && !p.blocked, C.bad, '台股急跌（台指 VIX）', `三個條件同時成立：台指 VIX 收盤 ≥ 40（${tv.v??'—'}，${D8(tv.asof)}，隔天加碼）或盤中 ≥ 45（當天最高 ${tv.hi??'—'}，當下加碼）${ok1?'✓':'✗'}、近 20 日跌 ≥ 10%（${sgn(tv.r20)}）${ok2?'✓':'✗'}、信用利差 3 個月擴大 < 0.3（${pp(p.baa_chg)}）${ok3?'✓':'✗'}。抓台股自己的急跌，信用危機時不加碼。盤中 ≥ 40 會先寄注意通知${tv.last_on?`<br>最近一次成立：${D8(tv.last_on)}`:''}`, '100% 二倍槓桿', true);
     setTW = vbox(tv.v,[[40,'100%','收盤 ≥ 40'],[45,'100%','盤中 ≥ 45']],'台指 VIX','#ff8fb1');
     liveTW=el('div',{class:'vlive'}); LD.append(liveTW); }
   liveHook = q => {
@@ -527,11 +526,11 @@ function renderSig(main){
       setUS(q.us_vix); liveUS.innerHTML = L(`即時 VIX <b>${q.us_vix}</b>（美東 ${q.us_t.slice(5).replace('-','/').replace('T',' ')}，CBOE 延遲約 15 分鐘${q.us_hi?`，今日最高 ${q.us_hi}`:''}）。規則以收盤為準${isTW?'，台股隔天加碼':''}`,`Live VIX <b>${q.us_vix}</b> (${q.us_t.slice(5).replace('-','/').replace('T',' ')} ET, CBOE ~15 min delayed${q.us_hi?`, high ${q.us_hi}`:''}). The rules use the close.`); }
     if (!liveTW) return;
     const tv=r.twvix;
-    if (!q || !q.tw_vix || !q.tw_d || q.tw_d < tv.asof){ liveTW.innerHTML=LIVE_WORKER?'<span class="faint">盤中資料：打開或重整頁面時抓最新報價</span>':'<span class="faint">數字是最近一次收盤；盤中請看期交所或玩股網</span>'; return; }
+    if (!q || !q.tw_vix || !q.tw_d || q.tw_d < tv.asof){ liveTW.innerHTML='<span class="faint">盤中資料：台股交易時間（09:00–13:40）每 20 分鐘更新，重整頁面就會抓最新一筆</span>'; return; }
     setTW(q.tw_vix);
     const today8=new Date(Date.now()+8*3600e3).toISOString().slice(0,10), isToday=q.tw_d===today8;
     const st = !isToday ? ((q.tw_hi>=45 && q.cond) ? `<br><span class="faint">上一個交易日盤中最高 ${q.tw_hi}，台股急跌條件已在當天成立（下一次交易時間開始更新）</span>` : '<br><span class="faint">目前不是台股交易時間，顯示上一個交易日最後的報價</span>') : q.b45 ? '<br><b class="hot">❗ 盤中 ≥ 45 且條件成立：依規則現在就把二倍槓桿加到 100%</b>' : q.w40 ? '<br><b class="warm">注意：盤中 ≥ 40 且條件成立。≥ 45 會立即觸發；收盤 ≥ 40 則明天加碼</b>' : (q.tw_vix>=40 && !q.cond ? '<br><span class="faint">VIX ≥ 40，但跌幅或利差條件不成立</span>':'');
-    liveTW.innerHTML = `盤中 ${q.tw_t?q.tw_t.slice(0,2)+':'+q.tw_t.slice(2):''}（${q.tw_d.slice(5).replace('-','/')}）台指 VIX <b>${q.tw_vix}</b>${q.tw_hi?`，今日最高 ${q.tw_hi}`:''}・加權指數 ${fmt(q.taiex)}（近 20 日 ${q.r20!=null?sgn(q.r20):'—'}）${st}<br><span class="faint">抓取時間 ${q.t.slice(11,19)}。重整頁面就會再抓一次</span>`; };
+    liveTW.innerHTML = `盤中 ${q.tw_t?q.tw_t.slice(0,2)+':'+q.tw_t.slice(2):''}（${q.tw_d.slice(5).replace('-','/')}）台指 VIX <b>${q.tw_vix}</b>${q.tw_hi?`，今日最高 ${q.tw_hi}`:''}・加權指數 ${fmt(q.taiex)}（近 20 日 ${q.r20!=null?sgn(q.r20):'—'}）${st}<br><span class="faint">更新於 ${q.t.slice(11,19)}。${LIVE_WORKER?'重整頁面就會再抓一次':'台股交易時間每 20 分鐘更新，重整頁面就會抓最新一筆'}</span>`; };
   loadLive();
   grp(L('過熱調節','Trim when hot'), true);
   rung(r.rsi_hot, C.info, L(`週 RSI > ${r.rsi_th}`,`Weekly RSI > ${r.rsi_th}`), r.rsi_hot?L(`目前 ${r.rsi}，已超過門檻`,`Now ${r.rsi}, above the line`):L(`目前 ${r.rsi}，還差 ${(r.rsi_th-r.rsi).toFixed(1)}`,`Now ${r.rsi}, ${(r.rsi_th-r.rsi).toFixed(1)} to go`), L(`二倍槓桿調回 ${pct(m.base)}`,`2x back to ${pct(m.base)}`));
@@ -893,7 +892,7 @@ function openGuide(){
     [L('恐慌加碼','Panic buy'), L(`VIX ≥ 35：二倍槓桿加到 85%（美國 2 年期殖利率 3 個月內升超過 0.5 個百分點，或 BAA 信用利差 3 個月內擴大超過 0.7，這一階暫停）<br>VIX ≥ 40：加到 100%<br>先賣一倍原型，不夠再用子彈<br>利差 3 個月擴大超過 0.8 時，所有恐慌加碼（含深跌補滿）暫停，最多 30 個交易日`,
       `VIX ≥ 35: raise 2x to 85% (paused if the US 2-year yield rose more than 0.5 point in 3 months, or the BAA credit spread widened more than 0.7)<br>VIX ≥ 40: raise to 100%<br>Sell 1x first, then use reserve<br>If the credit spread widens more than 0.8 in 3 months, all panic buying (including the top-up) pauses for up to 30 trading days`)],
     [L('深跌補滿','Deep-drop top-up'), L('一年內 VIX 曾 ≥ 35、距一年高點跌超過 30%，而且利差 3 個月擴大不到 0.5：二倍槓桿加到 100%','VIX reached 35 within the past year, price is more than 30% below its 1-year high, and credit spreads widened less than 0.5 in 3 months: raise 2x to 100%')],
-    ...(isTW?[['台股急跌（台指 VIX）','近 20 日跌 ≥ 10%、美國信用利差 3 個月擴大 < 0.3（不是信用危機），而且台指 VIX 收盤 ≥ 40（隔天加碼）或盤中 ≥ 45（當下立即加碼）：二倍槓桿加到 100%，視同 VIX ≥ 40。只用在台股，抓 2004 年 5 月、2026 年 7 月、11 月這種台股自己的急跌。盤中 ≥ 40 時請自己留意盤中變化']]:[]),
+    ...(isTW?[['台股急跌（台指 VIX）','近 20 日跌 ≥ 10%、美國信用利差 3 個月擴大 < 0.3（不是信用危機），而且台指 VIX 收盤 ≥ 40（隔天加碼）或盤中 ≥ 45（當下立即加碼）：二倍槓桿加到 100%，視同 VIX ≥ 40。只用在台股，抓 2004 年 5 月、2026 年 7 月、11 月這種台股自己的急跌。盤中 ≥ 40 會寄注意通知']]:[]),
     [L('融資退燒換回','Back to 2x'), L('融資訊號關閉滿 315 個交易日（約 15 個月）且收盤在季線上方：一倍原型全部換回二倍槓桿','Margin signal off for 315 trading days (about 15 months) and price above the 60-day MA: move all 1x back into 2x')],
     [L('過熱調節','Trim'), L(`週 RSI > ${th}：二倍槓桿調回 60%，賣出的錢買子彈`,`Weekly RSI > ${th}: trim 2x back to 60% and put the rest in reserve`)],
     [L('融資過熱','Margin overheating'), L(isTW?'台股融資餘額÷加權指數一年增加 > 20%（融資增加得比股價快）且融資兩年增長 > 20%，或美國 FINRA 融資年增 > 50%：二倍槓桿全部換成一倍原型，子彈不動。VIX ≥ 35、深跌區、或恐慌加碼後 60 個交易日內先不換':'美國 FINRA 融資年增 > 50%：二倍槓桿全部換成一倍原型，子彈不動。VIX ≥ 35、深跌區、或恐慌加碼後 60 個交易日內先不換',

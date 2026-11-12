@@ -1,0 +1,42 @@
+name: 台股盤中監控（台指 VIX）
+on:
+  schedule:
+    - cron: "*/20 1-5 * * 1-5"   # 台北時間週一到週五 09:00–13:40，每 20 分鐘跑一次（每次幾秒）
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HAS_MAIL: ${{ secrets.MAIL_USERNAME != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: run
+        run: python3 scripts/tw_live.py
+      - run: |
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/twlive.json; git diff --cached --quiet || git commit -q -m "live: $(date -u +%H:%M)"
+          git pull --rebase -q origin main && git push -q
+      - if: steps.run.outputs.alert == 'b45'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INFO: ${{ steps.run.outputs.info }}
+        run: gh issue create --title "❗ 盤中台指 VIX ≥ 45：台股急跌規則成立 $(date -u +%Y-%m-%d)" --body "$INFO。依規則現在把台股二倍槓桿加到 100%：先賣 0050，不夠再賣 00713，買 00685L。"
+      - if: steps.run.outputs.alert != '' && env.HAS_MAIL == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_TO }}
+          from: 加碼儀表板 <${{ secrets.MAIL_USERNAME }}>
+          subject: ${{ steps.run.outputs.alert == 'b45' && '❗ 盤中台指 VIX ≥ 45：台股急跌規則成立，現在加到 100%' || '注意：盤中台指 VIX ≥ 40，台股急跌條件接近' }}
+          body: "${{ steps.run.outputs.info }}。${{ steps.run.outputs.alert == 'b45' && '依規則現在把台股二倍槓桿加到 100%：先賣 0050，不夠再賣 00713，買 00685L。' || '盤中 ≥ 45 會立即觸發加碼；收盤 ≥ 40 則明天收盤前加碼。' }} https://salmonmisosoup.github.io/leverage-dashboard/"
