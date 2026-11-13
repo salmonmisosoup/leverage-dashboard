@@ -32,6 +32,7 @@ The same rules for Taiwan and the US. Each day they are checked in this order; t
 | Deep-drop top-up | VIX reached 35 within a year, price > 30% below its 1-year high, credit spread widened < 0.5 pt in 3 months → 2x at 100% |
 | Taiwan sell-off (Taiwan only) | TAIEX down ≥ 10% over 20 days, the US credit spread widened < 0.3 pt in 3 months (not a credit crisis), and Taiwan VIX closes ≥ 40 (buy next day) or trades ≥ 45 intraday (buy right away) → 2x at 100%. Intraday ≥ 40 sends a heads-up email |
 | Back to 2x | Margin signal off for 315 trading days (about 15 months) and price above the 60-day MA → all 1x back into 2x |
+| 200-day rule | While the rules hold 1x: 20 closes below the 200-day MA, with the 200-day MA falling and price below the 60-day MA → move the 1x into reserve; back into 1x after 5 closes above the 60-day MA or 10 closes above the 200-day MA. A panic buy along the way uses this money first |
 | Trim | Weekly RSI > 75 (US) / 80 (Taiwan) → 2x back to 60%, the rest into reserve |
 | Margin overheating | US: FINRA margin debt > 50% YoY. Taiwan: TW margin balance ÷ index up > 20% in a year (margin growing faster than prices) and margin > 20% over 2 years, or the US signal → all 2x into 1x (QQQM / 0050). Not while VIX ≥ 35, in a deep drop, or within 60 trading days of a panic buy |
 | Monthly savings | Price below the 60-day MA: all into 2x; otherwise 60 / 40. While margin is overheated the 2x share buys 1x |
@@ -108,6 +109,7 @@ MIT
 | 深跌補滿 | 一年內 VIX 曾 ≥ 35、距一年高點跌超過 30%、利差 3 個月擴大不到 0.5 → 二倍槓桿 100% |
 | 台股急跌（只用在台股）| 近 20 日跌 ≥ 10%、美國信用利差 3 個月擴大不到 0.3（不是信用危機），而且台指 VIX 收盤 ≥ 40（隔天加碼）或盤中 ≥ 45（當下立即加碼）→ 二倍槓桿 100%。盤中 ≥ 40 先寄注意通知 |
 | 融資退燒換回 | 融資訊號關閉滿 315 個交易日（約 15 個月）且收盤在季線上方 → 一倍原型全部換回二倍槓桿 |
+| 年線規則 | 規則持有一倍原型時，收盤連續 20 天在年線（200 日線）下方、年線往下彎、收盤也在季線下 → 一倍原型轉子彈；收盤連續 5 天站上季線、或連續 10 天站回年線 → 轉回一倍原型。途中恐慌加碼時這筆錢先用 |
 | 過熱調節 | 週 RSI > 75（美股）／80（台股）→ 二倍槓桿調回 60%，賣出的錢買子彈 |
 | 融資過熱 | 美股：FINRA 融資年增 > 50%。台股：融資餘額÷加權指數一年增加 > 20%（融資增加得比股價快）且融資兩年增長 > 20%，或美股訊號成立 → 二倍槓桿全部換成一倍原型（QQQM／0050）。VIX ≥ 35、深跌區、恐慌加碼後 60 個交易日內先不換 |
 | 每月薪資 | 收盤在季線下方：全部買二倍槓桿；否則 60／40。融資過熱時，二倍槓桿那一份改買一倍原型 |

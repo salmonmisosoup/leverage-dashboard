@@ -224,6 +224,8 @@ table.bt.gt td:first-child{white-space:nowrap;color:var(--muted)}
 .bt-sw.tri.hollow::before{content:"△";position:absolute;left:0;top:-5px;color:var(--fg);font-size:12px}
 .bt-sw.dia{transform:rotate(45deg);width:9px;height:9px}
 .bt-sw.dot{border-radius:50%}
+.bt-sw.sq{width:9px;height:9px}
+.bt-sw.sq.hollow{background:none;border:2px solid var(--c);width:7px;height:7px}
 .bt-sw.band{width:14px;opacity:.35}
 .bt-chart{position:relative;margin-top:8px;min-height:200px}
 .bt-chart svg{display:block;overflow:visible}
@@ -289,7 +291,7 @@ zh:{
   subtitle:'二倍槓桿、一倍原型與子彈的調整訊號，依 1990–2026 年回測的現有規則，每個交易日更新',
   refresh:'立即更新數據', refreshing:'更新中…', loading:'讀取最新數據…', loadfail:'數據檔讀取失敗，請重新整理頁面。', nomarket:'這個市場的數據暫時沒有更新成功，請稍後再試。',
   stamp:'更新於 {t}（台北時間）', tab_tw:'台股', tab_us:'美股', tab_pf:'我的庫存', tab_sig:'訊號', tab_bt:'回測',
-  st_normal:'維持現狀', st_panic:'恐慌加碼', st_refill:'過熱調節', st_convert:'融資過熱', st_mgpause:'融資過熱（暫緩）', st_wait1x:'融資退燒中', st_reentry:'換回二倍槓桿',
+  st_normal:'維持現狀', st_panic:'恐慌加碼', st_refill:'過熱調節', st_convert:'融資過熱', st_mgpause:'融資過熱（暫緩）', st_wait1x:'融資退燒中', st_reentry:'換回二倍槓桿', st_parked:'跌破年線：一倍暫轉子彈',
   stale:'數據已經 {n} 天沒有更新，燈號可能不是最新的，請先不要依此操作。', stale_src:'今天的資料有來源抓取失敗（{s}），燈號可能不準確，請先不要依此操作。下一次自動更新通常會恢復。',
   usd:'USD', twd:'元',
   k_vix:'VIX', s_vix_live:'盤中 {t}（美東，約延遲 15 分鐘）', k_dd:'距高點', s_dd:'高點 {p}（{d}）', k_rsi:'週 RSI', s_rsi:'> {th} 調節',
@@ -311,7 +313,7 @@ en:{
   subtitle:'When to move between 2x, 1x and reserve, using rules backtested over 1990–2026. Updated every trading day.',
   refresh:'Refresh data', refreshing:'Updating…', loading:'Loading the latest data…', loadfail:'Could not read the data file. Reload the page.', nomarket:'This market did not update. Try again later.',
   stamp:'Updated {t} (Taipei time)', tab_sig:'Signals', tab_bt:'Backtest', tab_pf:'My holdings',
-  st_normal:'Hold', st_panic:'Panic buy', st_refill:'Trim', st_convert:'Margin overheating', st_mgpause:'Margin overheating (on hold)', st_wait1x:'Margin cooling', st_reentry:'Back to 2x',
+  st_normal:'Hold', st_panic:'Panic buy', st_refill:'Trim', st_convert:'Margin overheating', st_mgpause:'Margin overheating (on hold)', st_wait1x:'Margin cooling', st_reentry:'Back to 2x', st_parked:'Below the 200-day: 1x parked in reserve',
   stale:'The data has not updated for {n} days. The light may be out of date; hold off acting on it.', stale_src:'A data source failed today ({s}), so the light may be wrong. Hold off acting on it; the next update usually fixes this.',
   usd:'USD', twd:'TWD',
   k_vix:'VIX', s_vix_live:'Intraday {t} ET (about 15 min delayed)', k_dd:'From high', s_dd:'High {p} ({d})', k_rsi:'Weekly RSI', s_rsi:'> {th} trims',
@@ -343,8 +345,8 @@ let DATA=null, charts=[];
 let cur = MODE==='us' ? (store.get('dash-tab-us') || 'us') : (store.get('dash-tab') || 'tw');
 if (MODE==='us' && !['us','bt'].includes(cur)) cur='us';
 
-const STATE_C = () => ({normal:C.ok, panic:C.bad, refill:C.info, convert:C.warn, mgpause:C.warn, wait1x:C.brass, reentry:C.ok});
-const KIND_C = k => ({panic1:C.bad, panic2:C.fg, twvix:'#ff8fb1', deep:C.fg, rsi:C.info, mg:C.warn, re:C.ok}[k] || C.muted);
+const STATE_C = () => ({normal:C.ok, panic:C.bad, refill:C.info, convert:C.warn, mgpause:C.warn, wait1x:C.brass, reentry:C.ok, parked:C.muted});
+const KIND_C = k => ({panic1:C.bad, panic2:C.fg, twvix:'#ff8fb1', deep:C.fg, rsi:C.info, mg:C.warn, re:C.ok, park:C.muted, unpark:C.brass}[k] || C.muted);
 
 /* 每個市場買賣的標的 */
 function names(key){
@@ -412,6 +414,9 @@ function verdictText(m, nm){
     wait1x:[L(`融資已退燒，一倍原型繼續持有`,`Margin has cooled; keep holding 1x`),
            L(`規則在 ${D8(lastMg(m))} 把二倍槓桿換成一倍原型。融資訊號關閉滿 ${r.reoff_days} 個交易日（約 15 個月）而且收盤在季線上方，才換回二倍槓桿；還差 ${left} 個交易日。新投入的錢照常買二倍槓桿。`,
              `The rules switched 2x into 1x on ${D8(lastMg(m))}. They move back to 2x once the margin signal has been off for ${r.reoff_days} trading days (about 15 months) and price is above the 60-day MA; ${left} trading days to go. New money buys 2x as usual.`)],
+    parked:[L(`一倍原型先轉成子彈（${nm.bul}）`,`Move the 1x into reserve (${nm.bul})`),
+           L(`規則持有一倍原型時，收盤已經連續 ${r.park.below200} 天在年線下方、年線往下彎，而且收盤在季線下：一倍原型暫時轉成子彈，避開空頭的下跌。收盤連續 5 天站上季線、或連續 10 天站回年線，再買回一倍原型；途中恐慌加碼時，這筆錢先拿來加碼。`,
+             `The rules hold 1x, and price has closed below the 200-day MA for ${r.park.below200} days with the 200-day MA falling and price below the 60-day MA: park the 1x in reserve to sit out a bear market. Buy the 1x back after 5 closes above the 60-day MA or 10 closes above the 200-day MA; if a panic buy comes first, this money is used for it.`)],
     normal:[L('沒有觸發條件，照現在的比例持有','No signal. Hold what you have.'),
            L(`每月薪資照 60／40 買進；收盤在季線下方時全部買二倍槓桿。`,`Buy at 60 / 40 each month; when price is below the 60-day MA, put it all into 2x.`)],
   };
@@ -444,7 +449,8 @@ function chrome(){
 function taipei(iso){ try{ return new Date(iso).toLocaleString(EN()?'en-US':'zh-TW',{timeZone:'Asia/Taipei',hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return iso} }
 function fgLabel(v){ return t(v<25?'fg0':v<45?'fg1':v<=55?'fg2':v<75?'fg3':'fg4'); }
 const EVN = {panic1:['VIX ≥ 35：二倍槓桿加到 85%','VIX ≥ 35: 2x to 85%'], panic2:['VIX ≥ 40：二倍槓桿加到 100%','VIX ≥ 40: 2x to 100%'], deep:['深跌補滿：二倍槓桿加到 100%','Deep-drop top-up: 2x to 100%'], twvix:['台股急跌（台指 VIX 收盤 ≥ 40 或盤中 ≥ 45）：二倍槓桿加到 100%','Taiwan sell-off (Taiwan VIX close ≥ 40 or intraday ≥ 45): 2x to 100%'],
-  rsi:['RSI 過熱：二倍槓桿調回 60%','RSI trim: 2x back to 60%'], mg:['融資過熱：二倍槓桿換成一倍原型','Margin overheating: 2x into 1x'], re:['融資退燒：一倍原型換回二倍槓桿','Margin cooled: 1x back into 2x']};
+  rsi:['RSI 過熱：二倍槓桿調回 60%','RSI trim: 2x back to 60%'], mg:['融資過熱：二倍槓桿換成一倍原型','Margin overheating: 2x into 1x'], re:['融資退燒：一倍原型換回二倍槓桿','Margin cooled: 1x back into 2x'],
+  park:['年線規則：一倍原型轉子彈','200-day rule: 1x into reserve'], unpark:['年線規則：子彈轉回一倍原型','200-day rule: reserve back into 1x']};
 const evName = k => (EVN[k]||[k,k])[EN()?1:0];
 
 function render(){
@@ -463,6 +469,7 @@ let MINE_HOOK=null;
 /* 照規則現在應該有的結構：恐慌加碼目標、二倍槓桿 60/40，或一倍原型 60/40 */
 function sugMix(m){ const r=m.rule, b=m.base, t_=r.panic.target||0;
   if (t_>0) return [t_,0,1-t_];
+  if (m.state==='parked') return [0,0,1];
   if (m.state==='convert'||m.state==='wait1x') return [0,b,1-b];
   return [b,0,1-b]; }
 function sugNote(m){ const r=m.rule;
@@ -551,6 +558,11 @@ function renderSig(main){
   rung(r.margin.on && !hold, C.warn, isTW?'融資過熱':L('FINRA 融資年增 > 50%','FINRA margin debt > 50% YoY'), mgDesc(m) + (hold ? L(`<br><b style="color:var(--warn)">⏸ 暫緩：${pauseWhy(m)}</b><br><span class="faint">兩個訊號同時出現是正常的：融資過熱看的是一年的槓桿堆積（慢），恐慌看的是這幾天的急跌（快）。急跌時規則先加碼、不換一倍；加碼後 60 個交易日的冷卻期過了（約 ${left} 個交易日後），如果融資還是過熱，再把二倍槓桿換成一倍原型。</span>`,`<br><b style="color:var(--warn)">⏸ On hold: ${pauseWhy(m)}</b><br><span class="faint">Both signals at once is normal: margin overheating tracks a year of leverage build-up (slow), panic tracks a sharp drop (fast). During the drop the rules buy and do not switch to 1x; after the 60-day cooldown (about ${left} trading days), if margin is still overheated, the 2x moves to 1x.</span>`):''), hold?L('暫緩（恐慌優先）','On hold (panic first)'):L('二倍槓桿 → 一倍原型','2x → 1x'));
   if (hold) LD.lastChild.classList.add('held');
   const md=r.model; rung(r.margin.reentry_ready && md.w1>0.01, C.ok, L('融資退燒換回','Back to 2x after cooling'), L(`融資訊號關閉 ${r.margin.off_days}／${r.reoff_days} 個交易日、收盤${r.below60?'在季線下方 ✗':'在季線上方 ✓'}${md.w1>0.01?'':'（規則目前沒有一倍原型）'}`,`Margin signal off ${r.margin.off_days} / ${r.reoff_days} trading days; price ${r.below60?'below the 60-day MA ✗':'above the 60-day MA ✓'}${md.w1>0.01?'':' (the rules hold no 1x now)'}`), L('一倍原型 → 二倍槓桿','1x → 2x'));
+  if (r.park){ const pk=r.park, has1=md.w1>0.01||pk.parked;
+    rung(pk.parked, C.muted, L('年線規則（一倍原型）','200-day rule (1x)'), pk.parked
+      ? L(`一倍原型已暫轉子彈。轉回條件：收盤連續 5 天站上季線（目前 ${pk.above60} 天）或連續 10 天站回年線（目前 ${pk.above200} 天）`,`1x is parked in reserve. Back into 1x after 5 closes above the 60-day MA (now ${pk.above60}) or 10 closes above the 200-day MA (now ${pk.above200}).`)
+      : L(`規則持有一倍原型時：收盤連續 20 天在年線下（目前 ${pk.below200} 天）${pk.below200>=20?'✓':'✗'}、年線往下彎 ${pk.slope_dn?'✓':'✗'}、收盤在季線下 ${r.below60?'✓':'✗'} → 一倍原型轉子彈。目前距年線 ${pk.dist200!=null?sgn(pk.dist200):'—'}${has1?'':'（規則目前沒有一倍原型）'}`,`While the rules hold 1x: 20 closes below the 200-day MA (now ${pk.below200}) ${pk.below200>=20?'✓':'✗'}, 200-day MA falling ${pk.slope_dn?'✓':'✗'}, price below the 60-day MA ${r.below60?'✓':'✗'} → park the 1x in reserve. Now ${pk.dist200!=null?sgn(pk.dist200):'—'} from the 200-day MA${has1?'':' (the rules hold no 1x now)'}`),
+      pk.parked?L('子彈 → 一倍原型','Reserve → 1x'):L('一倍原型 → 子彈','1x → reserve')); }
   grp(L('每月薪資','Monthly savings'), true);
   rung(r.below60, C.warn, L('收盤在季線下方','Close below the 60-day MA'), L(`季線 ${fmt(r.ma60,idxD)}${isTW?'（含息指數）':''}，收盤${r.below60?'低':'高'} ${pct(Math.abs(r.close/r.ma60-1),1)}`,`60-day MA ${fmt(r.ma60,idxD)}; price is ${pct(Math.abs(r.close/r.ma60-1),1)} ${r.below60?'below':'above'}`), r.salary.to==='1x'?L('薪資全買一倍原型','All savings to 1x'):L('薪資全買二倍槓桿','All savings to 2x'));
   lad.append(LD);
@@ -631,6 +643,10 @@ function plan(m, v, sal, o){
     else A(C.bad, L('恐慌加碼','Panic buy'), [L(`二倍槓桿已經 ${pct(w2)}，達到目標 ${pct(pT)}，不用再動。之後比重掉回目標以下、訊號還在時再補。`,`2x is already ${pct(w2)}, at the ${pct(pT)} target. Top up later if it slips below while the signal holds.`)]);
   } else if (r.margin.reentry_ready && v.L1>1){
     A(C.ok, L('換回二倍槓桿','Back to 2x'), [L('賣出一倍原型：','Sell 1x: ')+o.sell('one',v.L1), L('買進 ','Buy ')+o.buy('lev',v.L1)]); acted=true;
+  } else if (m.state==='parked' && v.L1>1){
+    A(C.muted, L('年線規則：一倍原型轉子彈','200-day rule: move 1x into reserve'), [L('賣出一倍原型：','Sell 1x: ')+o.sell('one',v.L1), L('買進 ','Buy ')+o.buy('bul',v.L1), L('收盤連續 5 天站上季線、或連續 10 天站回年線時，再用這筆錢買回一倍原型；途中出現恐慌加碼，就直接用來加碼。','Buy the 1x back after 5 closes above the 60-day MA or 10 closes above the 200-day MA; if a panic buy comes first, use this money for it.')]); acted=true;
+  } else if (r.today==='unpark' && v.B>1 && r.model.w1>0.01){ const x=Math.min(v.B, Math.max(0,(r.model.w1-w1))*T);
+    if (x>1){ A(C.brass, L('年線規則：子彈轉回一倍原型','200-day rule: reserve back into 1x'), [L('賣出子彈：','Sell reserve: ')+o.sell('bul',x), L('買進 ','Buy ')+o.buy('one',x), L(`規則現在持有一倍原型 ${pct(r.model.w1)}。`,`The rules now hold ${pct(r.model.w1)} in 1x.`)]); acted=true; }
   } else if (r.rsi_hot && w2>base+0.03){ const x=(w2-base)*T;
     A(C.info, L(`過熱調節：二倍槓桿調回 ${pct(base)}`,`Trim: 2x back to ${pct(base)}`), [L('賣出 ','Sell ')+o.sell('lev',x), L('買進 ','Buy ')+o.buy('bul',x), L(`完成後二倍槓桿 ${pct(base)}`,`After this: 2x at ${pct(base)}`)]); acted=true;
   } else if (r.conv_ok && v.L2>1){
@@ -905,6 +921,7 @@ function openGuide(){
     [L('深跌補滿','Deep-drop top-up'), L('一年內 VIX 曾 ≥ 35、距一年高點跌超過 30%，而且利差 3 個月擴大不到 0.5：二倍槓桿加到 100%','VIX reached 35 within the past year, price is more than 30% below its 1-year high, and credit spreads widened less than 0.5 in 3 months: raise 2x to 100%')],
     ...(isTW?[['台股急跌（台指 VIX）','近 20 日跌 ≥ 10%、美國信用利差 3 個月擴大 < 0.3（不是信用危機），而且台指 VIX 收盤 ≥ 40（隔天加碼）或盤中 ≥ 45（當下立即加碼）：二倍槓桿加到 100%，視同 VIX ≥ 40。只用在台股，抓 2004 年 5 月、2026 年 7 月、11 月這種台股自己的急跌。盤中 ≥ 40 會寄注意通知']]:[]),
     [L('融資退燒換回','Back to 2x'), L('融資訊號關閉滿 315 個交易日（約 15 個月）且收盤在季線上方：一倍原型全部換回二倍槓桿','Margin signal off for 315 trading days (about 15 months) and price above the 60-day MA: move all 1x back into 2x')],
+    [L('年線規則','200-day rule'), L('規則持有一倍原型時，收盤連續 20 天在年線（200 日線）下方、年線往下彎、收盤也在季線下：一倍原型轉子彈。之後收盤連續 5 天站上季線、或連續 10 天站回年線，轉回一倍原型。途中恐慌加碼，這筆錢先拿來加碼','While the rules hold 1x: after 20 closes below the 200-day MA, with the 200-day MA falling and price below the 60-day MA, move the 1x into reserve. Move it back into 1x after 5 closes above the 60-day MA or 10 closes above the 200-day MA. A panic buy along the way uses this money first')],
     [L('過熱調節','Trim'), L(`週 RSI > ${th}：二倍槓桿調回 60%，賣出的錢買子彈`,`Weekly RSI > ${th}: trim 2x back to 60% and put the rest in reserve`)],
     [L('融資過熱','Margin overheating'), L(isTW?'台股融資餘額÷加權指數一年增加 > 20%（融資增加得比股價快）且融資兩年增長 > 20%，或美國 FINRA 融資年增 > 50%：二倍槓桿全部換成一倍原型，子彈不動。VIX ≥ 35、深跌區、或恐慌加碼後 60 個交易日內先不換':'美國 FINRA 融資年增 > 50%：二倍槓桿全部換成一倍原型，子彈不動。VIX ≥ 35、深跌區、或恐慌加碼後 60 個交易日內先不換',
       'US FINRA margin debt up more than 50% year on year: switch all 2x into 1x and leave the reserve alone. Not while VIX ≥ 35, in a deep drop, or within 60 trading days of a panic buy')],
@@ -998,7 +1015,7 @@ function renderBT(main){
   const lg=el('div',{class:'bt-legend'});
   const sw=(cls,c,txt)=>{ const s=el('span',{}); s.append(el('i',{class:'bt-sw '+cls,style:`--c:${c}`}), txt); lg.append(s); };
   sw('tri',C.bad,L('VIX ≥ 35：加到 85%','VIX ≥ 35: to 85%')); sw('tri',C.fg,L('VIX ≥ 40：加到 100%','VIX ≥ 40: to 100%')); if(isTW) sw('tri','#ff8fb1','台股急跌（台指 VIX 收盤 ≥ 40 或盤中 ≥ 45）：加到 100%'); sw('tri hollow',C.fg,L('深跌補滿','Deep-drop top-up'));
-  sw('tri down',C.info,L('RSI 過熱調節','RSI trim')); sw('dia',C.warn,L('融資過熱：換成一倍原型','Margin overheating: to 1x')); sw('dot',C.ok,L('融資退燒：換回二倍槓桿','Margin cooled: back to 2x')); sw('band',C.faint,L('大跌（高點到低點）','Major decline'));
+  sw('tri down',C.info,L('RSI 過熱調節','RSI trim')); sw('dia',C.warn,L('融資過熱：換成一倍原型','Margin overheating: to 1x')); sw('dot',C.ok,L('融資退燒：換回二倍槓桿','Margin cooled: back to 2x')); sw('sq',C.muted,L('年線規則：一倍原型轉子彈','200-day rule: 1x into reserve')); sw('sq',C.brass,L('年線規則：轉回一倍原型','200-day rule: back into 1x')); sw('band',C.faint,L('大跌（高點到低點）','Major decline'));
   c1.append(lg, el('div',{class:'bt-chart',id:'bt-price'})); main.append(c1);
   const two=el('div',{class:'two'});
   const c2=el('section',{class:'card chart-card'}); c2.append(el('h2',{},L('整體槓桿','Overall leverage'), el('small',{},L('二倍槓桿算 2 倍、一倍原型算 1 倍、子彈算 0','2x counts 2, 1x counts 1, reserve 0'))), el('div',{class:'bt-chart sm',id:'bt-lev'}));
@@ -1010,7 +1027,7 @@ function renderBT(main){
   const dom=btDom(D); const evs=D.ev.filter(e=>e[0]>=dom[0]&&e[0]<=dom[1]);
   evs.forEach(e=>{ const tr=el('tr'); [e[0].replace(/-/g,'/'), evName(e[1]), fmt(e[2],0), sigLabel(e), `${e[3].toFixed(2)} → ${e[4].toFixed(2)}${L(' 倍','x')}`].forEach((x,i)=>tr.append(el('td',{style:i===1||i===3?'text-align:left':''},x))); t4.append(tr); });
   w4.append(t4); c4.append(w4); main.append(c4);
-  main.append(el('p',{class:'note',style:'max-width:95ch'},L('回測說明：每天依序檢查恐慌加碼、深跌補滿、融資退燒換回、RSI 過熱調節、融資過熱，前面成立就不看後面。台股融資過熱看「融資餘額÷指數」一年增加超過 20%，也就是融資增加得比股價快；台股融資資料從 2001 年開始，2000 年那次靠美股融資訊號。QLD、00631L 上市前以指數模擬，和實際日報酬的相關係數 0.97–0.99。樣本中 VIX ≥ 40 只出現 9–13 次，數字不要看得太精確。',
+  main.append(el('p',{class:'note',style:'max-width:95ch'},L('回測說明：每天依序檢查恐慌加碼、深跌補滿、融資退燒換回、年線規則、RSI 過熱調節、融資過熱，前面成立就不看後面。台股融資過熱看「融資餘額÷指數」一年增加超過 20%，也就是融資增加得比股價快；台股融資資料從 2001 年開始，2000 年那次靠美股融資訊號。QLD、00631L 上市前以指數模擬，和實際日報酬的相關係數 0.97–0.99。樣本中 VIX ≥ 40 只出現 9–13 次，數字不要看得太精確。',
     'Method: each day the rules check panic buying, the deep-drop top-up, moving back to 2x, the RSI trim and margin overheating, in that order. Before QLD launched it is simulated from the index (0.99 daily correlation with the real fund). VIX ≥ 40 appeared only 13 times in the sample, so trust the direction more than the exact figures.')));
   requestAnimationFrame(()=>{ btPrice(D); btLine(D,'lev'); btLine(D,'val'); });
 }
@@ -1046,7 +1063,7 @@ function btPrice(D){
         vl.attr('x1',X_).attr('x2',X_).attr('opacity',1); dot.attr('cx',X_).attr('cy',Y_).attr('opacity',1);
         tipAt(box,tip,[r[0].replace(/-/g,'/')+L('（收盤）',' (close)'), L('指數 ','Index ')+fmt(r[1],isTW?0:2), L(`整體槓桿 ${r[3].toFixed(2)} 倍`,`Leverage ${r[3].toFixed(2)}x`)], X_*box.clientWidth/W, Y_*box.clientWidth/W); })
       .on('pointerleave',()=>{ tip.hidden=true; vl.attr('opacity',0); dot.attr('opacity',0); }); }
-  const K={panic1:[d3.symbolTriangle,0,13,C.bad], panic2:[d3.symbolTriangle,0,24,C.fg], twvix:[d3.symbolTriangle,0,24,'#ff8fb1'], deep:[d3.symbolTriangle,0,24,C.panel], rsi:[d3.symbolTriangle,180,-13,C.info], mg:[d3.symbolDiamond,0,-13,C.warn], re:[d3.symbolCircle,0,-13,C.ok]};
+  const K={panic1:[d3.symbolTriangle,0,13,C.bad], panic2:[d3.symbolTriangle,0,24,C.fg], twvix:[d3.symbolTriangle,0,24,'#ff8fb1'], deep:[d3.symbolTriangle,0,24,C.panel], rsi:[d3.symbolTriangle,180,-13,C.info], mg:[d3.symbolDiamond,0,-13,C.warn], re:[d3.symbolCircle,0,-13,C.ok], park:[d3.symbolSquare,0,-13,C.muted], unpark:[d3.symbolSquare,0,13,C.brass]};
   D.ev.filter(e=>e[0]>=dom[0]&&e[0]<=dom[1]).forEach(e=>{ const k=K[e[1]]; const px_=x(P(e[0])), py=y(e[2])+k[2];
     svg.append('path').attr('d',d3.symbol(k[0],sz)()).attr('transform',`translate(${px_},${py}) rotate(${k[1]})`).attr('fill',k[3]).attr('stroke',e[1]==='deep'?C.fg:C.panel).attr('stroke-width',e[1]==='deep'?1.5:1).style('cursor','pointer')
       .on('pointerenter pointerdown',()=>tipAt(box,tip,[e[0],evName(e[1]),sigLabel(e),L(`槓桿 ${e[3].toFixed(2)} → ${e[4].toFixed(2)} 倍`,`Leverage ${e[3].toFixed(2)} → ${e[4].toFixed(2)}x`),L('指數 ','Index ')+fmt(e[2],0)],px_*box.clientWidth/W,py*box.clientWidth/W))

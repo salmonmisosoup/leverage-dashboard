@@ -222,7 +222,8 @@ RULES = {
     "us": {"name": "美股", "lev": "QLD", "one": "QQQM", "bul": "SGOV", "base": 0.60, "rsi_refill": 75},
 }
 EVN = {"panic1": "VIX ≥ 35：二倍槓桿加到 85%", "panic2": "VIX ≥ 40：二倍槓桿加到 100%", "twvix": "台股急跌（台指 VIX 收盤 ≥ 40 或盤中 ≥ 45）：二倍槓桿加到 100%", "deep": "深跌補滿：二倍槓桿加到 100%",
-       "rsi": "RSI 過熱：二倍槓桿調回 60%", "mg": "融資過熱：二倍槓桿換成一倍原型", "re": "融資退燒：一倍原型換回二倍槓桿"}
+       "rsi": "RSI 過熱：二倍槓桿調回 60%", "mg": "融資過熱：二倍槓桿換成一倍原型", "re": "融資退燒：一倍原型換回二倍槓桿",
+       "park": "年線規則：一倍原型轉子彈", "unpark": "年線規則：子彈轉回一倍原型"}
 
 BT_PATH = {}
 def market(close, key, rclose):
@@ -244,9 +245,10 @@ def market(close, key, rclose):
                   vixtwn=vx_tw if key == "tw" else None, vixtwn_hi=vx_tw_hi if key == "tw" else None)
     m = rule["model"]; p = rule["panic"]
     if p["target"] > 0: state = "panic"
-    elif rule["margin"]["reentry_ready"] and m["w1"] > 0.01: state = "reentry"
+    elif rule["margin"]["reentry_ready"] and m["w1"] + m.get("wp", 0) > 0.01: state = "reentry"
     elif rule["rsi_hot"]: state = "refill"
     elif rule["margin"]["on"]: state = "convert" if rule["conv_ok"] else "mgpause"
+    elif m.get("wp", 0) > 0.001: state = "parked"
     elif m["w1"] > 0.01: state = "wait1x"
     else: state = "normal"
     BT_PATH[key] = (rule.pop("_path"), close, [e for e in rule["events"]])
@@ -426,7 +428,7 @@ log("start: # ---------------- 訊號變化")
 # ---------------- 回測圖延伸到最近一個交易日 ----------------
 def extend_bt():
     EVL = {"panic1": "VIX ≥ 35", "panic2": "VIX ≥ 40", "twvix": "台指 VIX ≥ 40", "deep": "深跌補滿", "rsi": "週 RSI 過熱",
-           "mg": "融資過熱", "re": "融資退燒滿 15 個月"}
+           "mg": "融資過熱", "re": "融資退燒滿 15 個月", "park": "跌破年線 20 天、年線下彎", "unpark": "站回季線 5 天或年線 10 天"}
     bt_path = os.path.join(ROOT, "docs", "bt.json")
     try: B = json.load(open(bt_path))
     except Exception as e: print("bt.json 讀取失敗", e); return
@@ -457,7 +459,8 @@ try: extend_bt()
 except Exception as e: print("bt 延伸失敗", type(e).__name__, e)
 
 NAMES = {"normal": "平常狀態", "panic": "恐慌加碼", "refill": "RSI 過熱調節", "convert": "融資過熱（二倍槓桿換成一倍原型）",
-         "mgpause": "融資過熱（恐慌加碼後冷卻中，先不換）", "wait1x": "融資退燒中（一倍原型先不換回）", "reentry": "一倍原型換回二倍槓桿"}
+         "mgpause": "融資過熱（恐慌加碼後冷卻中，先不換）", "wait1x": "融資退燒中（一倍原型先不換回）", "reentry": "一倍原型換回二倍槓桿",
+         "parked": "年線規則：一倍原型暫時轉子彈"}
 changes = []
 prev_path = sys.argv[2] if len(sys.argv) > 2 else None
 if prev_path and os.path.exists(prev_path):

@@ -10,6 +10,8 @@
   2. 融資退燒換回：融資訊號關閉滿 315 個交易日（約 15 個月）且收盤在季線上 → 一倍原型全部換回二倍槓桿
   3. RSI 過熱調節：週 RSI > 75（美股）／80（台股）且二倍槓桿 > 63% → 調回 60%，賣出的錢買子彈
   4. 融資過熱：訊號成立、恐慌加碼後已過 60 個交易日、VIX < 35、不在深跌區 → 二倍槓桿全部轉一倍原型
+  5. 年線規則（2026/11 加入）：規則持有一倍原型時，收盤連續 20 天在年線（200 日均線）下方、年線比 20 天前低、收盤也在季線下
+     → 一倍原型全部轉子彈；之後收盤連續 5 天站上季線、或連續 10 天站回年線 → 轉回一倍原型。恐慌加碼時這筆錢先用
      美股訊號：FINRA 融資年增 > 50%；台股訊號：融資÷指數一年增加 > 20% 且融資兩年增長 > 20%，或美股訊號成立
 台股另有：近 20 日跌 ≥ 10%、美國信用利差 3 個月擴大 < 0.3，且台指 VIX 收盤 ≥ 40（隔天加碼）或盤中 ≥ 45（當天立即加碼）
           → 視同 VIX ≥ 40，加到 100%
@@ -40,6 +42,7 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
     c = CFG[key]; th = c["rsi"]
     P = close.dropna().astype(float); D = P.index
     ma60 = P.rolling(60).mean(); r60 = P / ma60 - 1
+    ma200 = P.rolling(200).mean()
     rsi = wrsi(P).reindex(D, method="ffill")
     V = vix.reindex(D, method="ffill")
     lvl = baa.reindex(D, method="ffill"); y2 = dgs2.reindex(D, method="ffill")
@@ -87,11 +90,16 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
 
     r = P.pct_change().fillna(0).values
     ix = np.where(D >= pd.Timestamp(start))[0]
-    v2, v1, vb = BASE, 0.0, 1 - BASE
+    v2, v1, vb = BASE, 0.0, 1 - BASE; vp = 0.0                     # vp：年線規則從一倍原型轉出來、停泊在子彈的錢
     la = -10 ** 9; ev = []; VAL = 1.0; PATH = []
+    PV, M200 = P.values, ma200.values; bc = ac = a60 = 0
     Vv, G1v, DGv, DDv, VMv, RSv, R60 = V.values, G1.values, DGATE.values, DD.values, VM.values, rsi.values, r60.values
     for i in ix:
-        v2 *= 1 + 2 * r[i]; v1 *= 1 + r[i]; tot = v2 + v1 + vb; w = v2 / tot
+        v2 *= 1 + 2 * r[i]; v1 *= 1 + r[i]; tot = v2 + v1 + vb + vp; w = v2 / tot
+        if not np.isnan(M200[i]) and PV[i] < M200[i]: bc += 1; ac = 0
+        elif not np.isnan(M200[i]): ac += 1; bc = 0
+        a60 = a60 + 1 if R60[i] > 0 else 0
+        slope_dn = i >= 20 and not np.isnan(M200[i - 20]) and M200[i] < M200[i - 20]
         vv = Vv[i] if not np.isnan(Vv[i]) else 0
         blk = c["brun"] and 0 < brun[i] <= 30
         deep_raw = DDv[i] <= -0.30 and VMv[i] >= 35
@@ -103,15 +111,20 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
         act = None
         if t > w + 0.03:
             need = (t - w) * tot; u1 = min(v1, need); v1 -= u1; v2 += u1; need -= u1
+            up = min(vp, need); vp -= up; v2 += up; need -= up
             u = min(vb, need); vb -= u; v2 += u; la = i; act = why
-        elif offrun[i] >= REOFF and v1 > 0 and R60[i] > 0:
-            v2 += v1; v1 = 0.0; act = "re"
+        elif offrun[i] >= REOFF and v1 + vp > 0 and R60[i] > 0:
+            v2 += v1 + vp; v1 = 0.0; vp = 0.0; act = "re"
+        elif vp > 0 and (a60 >= 5 or ac >= 10):
+            v1 += vp; vp = 0.0; bc = 0; act = "unpark"
+        elif v1 > 0 and bc >= 20 and slope_dn and R60[i] <= 0:
+            vp += v1; v1 = 0.0; a60 = 0; act = "park"
         elif RSv[i] > th and w > BASE + 0.03:
             x = (w - BASE) * tot; v2 -= x; vb += x; act = "rsi"
         elif m_[i] and i - la > COOL and vv < 35 and not deep_raw and v2 > 0:
             v1 += v2; v2 = 0.0; act = "mg"
         if act: ev.append((D[i].strftime("%Y-%m-%d"), act))
-        s = v2 + v1 + vb; VAL *= s; v2, v1, vb = v2 / s, v1 / s, vb / s   # 正規化，避免數值漂移
+        s = v2 + v1 + vb + vp; VAL *= s; v2, v1, vb, vp = v2 / s, v1 / s, vb / s, vp / s   # 正規化，避免數值漂移
         PATH.append((D[i].strftime("%Y-%m-%d"), VAL, 2 * v2 + v1))
 
     i = len(D) - 1; vv = None if np.isnan(Vv[i]) else float(Vv[i])
@@ -149,7 +162,9 @@ def run(key, close, vix, baa, dgs2, tw_margin=None, us_debt=None, start="2015-01
                    "off_days": int(offrun[i]), "reentry_ready": bool(offrun[i] >= REOFF and R60[i] > 0)},
         "cool": {"days_since_add": days_since_add, "active": bool(cool)},
         "conv_ok": conv_ok, "panic_zone": bool(panic_zone), "deep_zone": deep_raw,
-        "model": {"w2": round(v2, 4), "w1": round(v1, 4), "wb": round(vb, 4)},
+        "model": {"w2": round(v2, 4), "w1": round(v1, 4), "wb": round(vb + vp, 4), "wp": round(vp, 4)},
+        "park": {"parked": bool(vp > 0.001), "below200": int(bc), "above200": int(ac), "above60": int(a60), "slope_dn": bool(slope_dn),
+                 "ma200": None if np.isnan(M200[-1]) else round(float(M200[-1]), 2), "dist200": None if np.isnan(M200[-1]) else round(float(PV[-1] / M200[-1] - 1), 4)},
         "events": ev[-40:],
         "_path": PATH[-400:],
     }
