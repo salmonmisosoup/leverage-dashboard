@@ -20,9 +20,16 @@ async function taiex() {
   return { taiex: num(m.z) || num(m.y), taiex_t: String(m.t || "").slice(0, 5), taiex_d: d.length >= 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : null };
 }
 async function usVix() {
-  const r = await fetch("https://cdn-api.cboe.com/api/global/delayed_quotes/quotes/_VIX.json", { headers: UA });
-  const q = (await r.json()).data;
-  return { us_vix: num(q.current_price), us_hi: num(q.high), us_t: String(q.last_trade_time || "").slice(0, 16) };
+  try {
+    const r = await fetch("https://cdn-api.cboe.com/api/global/delayed_quotes/quotes/_VIX.json", { headers: UA });
+    const q = (await r.json()).data;
+    return { us_vix: num(q.current_price), us_hi: num(q.high), us_t: String(q.last_trade_time || "").slice(0, 16) };
+  } catch (e) {   // CBOE 擋掉時改用 Yahoo
+    const r = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?range=1d&interval=5m", { headers: UA });
+    const m = (await r.json()).chart.result[0].meta;
+    const t = new Date((m.regularMarketTime - 5 * 3600) * 1000).toISOString().slice(0, 16);
+    return { us_vix: num(m.regularMarketPrice), us_hi: num(m.regularMarketDayHigh), us_t: t };
+  }
 }
 
 export default {

@@ -106,6 +106,18 @@ try:
         vix_live = lt.strftime("%Y-%m-%d %H:%M")
 except Exception:
     pass
+if vix is not None and vix_live is None:   # CBOE 延遲報價被擋時，改用 Yahoo（盤中與當天收盤）
+    try:
+        yj = json.loads(get("https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?range=5d&interval=1d", tries=2))["chart"]["result"][0]
+        ts = [pd.Timestamp(t, unit="s", tz="UTC").tz_convert("America/New_York") for t in yj["timestamp"]]
+        for t_, c_ in zip(ts, yj["indicators"]["quote"][0]["close"]):
+            d_ = pd.Timestamp(t_.date())
+            if c_ and d_ > vix.index[-1]: vix = pd.concat([vix, pd.Series([float(c_)], index=[d_])])
+        lt = pd.Timestamp(yj["meta"]["regularMarketTime"], unit="s", tz="UTC").tz_convert("America/New_York")
+        if pd.Timestamp(lt.date()) == vix.index[-1]: vix_live = lt.strftime("%Y-%m-%d %H:%M")
+        src_status["Yahoo VIX（盤中）"] = "ok"
+    except Exception as e:
+        src_status["Yahoo VIX（盤中）"] = f"失敗: {type(e).__name__}"
 vxn = vol("VXN", "VXNCLS")
 vix3m = vol("VIX3M", "VXVCLS")
 hy = safe("FRED HY OAS", lambda: fred("BAMLH0A0HYM2", "2020-01-01"))
